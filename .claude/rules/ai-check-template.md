@@ -68,6 +68,11 @@ gakuten 固有の判断（mobile 除外、全 app 一律、workflow 整理など
 - `.claude/rules/test-rules.md` — Playwright Locator 優先順位
 - `package.scripts.fragment.json` — `ai:check` / `ai:check:fast` の npm script
 
+### CI 統合例 (`package-templates/ci-examples/`)
+- `github-actions/ai-check.yml` — full check（push / PR 全体、`pnpm ai:check` を呼ぶ）
+- `github-actions/ai-check-fast.yml` — fast check（PR のみ、`pnpm ai:check:fast` を呼ぶ）
+- 将来追加: GitLab CI / CircleCI（汎用ファースト原則のため、CI ツールを強制しない）
+
 ### プロファイル (`package-templates/profiles/`)
 | プロファイル | 想定 |
 |---|---|

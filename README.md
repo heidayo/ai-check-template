@@ -23,6 +23,7 @@ AI 駆動開発において「実装速度に対して検証・品質担保が�
 - Claude Code hook 設定（Edit=fast / Stop=full のハイブリッド）
 - Playwright Locator 優先順位ルール（`getByRole > getByLabel > getByText > getByTestId > locator`）
 - AI プロンプト雛形（テスト観点設計、デシジョンテーブル生成、状態遷移検証）
+- CI 統合例（`ci-examples/github-actions/ai-check.yml` / `ai-check-fast.yml`、GitLab CI 等は将来追加）
 
 ### 3. プロファイル
 | プロファイル | 対象 |

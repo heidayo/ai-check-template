@@ -28,6 +28,11 @@ package-templates/
 │   ├── boundary-value.md
 │   ├── rls-permission.md
 │   └── plan-first.md
+├── ci-examples/
+│   ├── README.md
+│   └── github-actions/
+│       ├── ai-check.yml
+│       └── ai-check-fast.yml
 ├── profiles/
 │   ├── react-nextjs/
 │   ├── react-vanilla/
