@@ -1,0 +1,55 @@
+# ai-check.yml — full check workflow（push / PR 全体）
+#
+# 配布される example。本リポ自身用ではなく、利用者がコピーして自プロジェクトの
+# .github/workflows/ に配置して使うことを想定。
+#
+# 思想:
+#   - 形名参同（formal-name-match.md）: 事前宣言した「名」と実測「形」を CI で照合
+#   - PR Gate（full）= Edit hook（fast）と対をなすハイブリッド構成の片方
+#   - 重い検証（React Doctor / Knip / Playwright / Semgrep 等）は本 workflow に集約
+#
+# カスタマイズ可能箇所:
+#   1. パッケージマネージャ（pnpm / npm / yarn / bun）— `pnpm/action-setup` を差し替え
+#   2. Node version — `node-version` を変更
+#   3. timeout — プロジェクトの E2E 等の重さに応じて調整
+#   4. artifact upload — diagnostic ログを残したい場合は末尾コメント部を有効化
+
+name: AI Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ai-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      # パッケージマネージャは利用プロジェクトに合わせて差し替え可
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ai:check は package.scripts.fragment.json に定義する統合スクリプト
+      # 例: "ai:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke"
+      - name: Run ai:check
+        run: pnpm ai:check
+
+      # 形名照合の結果を artifact として保存する場合（オプション）:
+      # - name: Upload diagnostic logs
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ai-check-logs
+      #     path: .ai-check/

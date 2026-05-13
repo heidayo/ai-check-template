@@ -1,0 +1,46 @@
+# ai-check-fast.yml — fast check workflow（PR のみ、軽い検証）
+#
+# 配布される example。本リポ自身用ではなく、利用者がコピーして自プロジェクトの
+# .github/workflows/ に配置して使うことを想定。
+#
+# 思想:
+#   - Edit hook（fast）と同じセットを CI でも実行し、AI 内部ループと PR Gate を同期
+#   - Static check + Unit test までに限定（Integration / E2E / Diagnostic は `ai-check.yml` 側）
+#   - PR push のたびに走るため timeout は短く保つ（10 分以内目安）
+#
+# Edit hook との同期:
+#   - Claude Code の Edit hook で `pnpm ai:check:fast` を実行する設定と同じスクリプトを呼ぶ
+#   - 詳細は package-templates/.claude/settings.hook-fragment.json（別 SPEC で提供予定）
+#
+# カスタマイズ可能箇所:
+#   1. パッケージマネージャ・Node version（ai-check.yml と同様）
+#   2. timeout — fast の意義を保つため 10 分以内推奨
+
+name: AI Check (Fast)
+
+on:
+  pull_request:
+
+jobs:
+  ai-check-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ai:check:fast は package.scripts.fragment.json で定義する軽量スクリプト
+      # 例: "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit"
+      - name: Run ai:check:fast
+        run: pnpm ai:check:fast
