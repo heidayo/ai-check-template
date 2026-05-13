@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "ai:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke",
+    "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit"
+  }
+}
