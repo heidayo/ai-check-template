@@ -1,0 +1,84 @@
+# =============================================================================
+# ai-check-template .gitignore
+# =============================================================================
+# 方針:
+#  - SAGE Development System で本リポを開発しているが、SAGE が install.sh で
+#    生成したファイルは local-only として gitignore する
+#  - commit 対象は本パッケージ固有のもの: README/LICENSE/CLAUDE.md(マージ済み)
+#    /package-templates/, bin/, src/, tests/, docs/(自前) など
+#  - Contributors は `bash <(curl ...heidayo/sage-ai-template/install.sh)` を
+#    実行して SAGE をローカル導入する（CONTRIBUTING.md で案内予定）
+# =============================================================================
+
+# --- SAGE installed: directories (全部 local-only) ---
+.sage/
+sage/
+templates/hooks/
+templates/sage/
+templates/settings/
+
+# --- SAGE installed: scripts ---
+scripts/sage-*.sh
+
+# --- SAGE installed: .claude/ artifacts (SAGE manages, do not commit) ---
+.claude/rules/plans-rules.md
+.claude/rules/sage-governance-rules.md
+.claude/rules/specs-rules.md
+.claude/rules/src-rules.md
+.claude/rules/tasks-rules.md
+.claude/skills/sage-evaluate/
+.claude/skills/sage-harness/
+.claude/skills/sage-plan/
+.claude/skills/sage-promote/
+.claude/skills/sage-review/
+.claude/skills/sage-spec/
+.claude/settings.json
+.claude/settings.local.json
+
+# --- SAGE installed: docs ---
+docs/claude-collaboration-brief.md
+docs/codex-delegation-packet.md
+
+# --- SAGE installed: top-level (we don't use Codex; we'll keep merged CLAUDE.md) ---
+AGENTS.md
+
+# --- SAGE installed: workflow templates (regeneratable, not part of distribution) ---
+specs/_template.md
+plans/_template.md
+tasks/_template.md
+
+# --- SAGE runtime (already in SAGE's own gitignore semantics) ---
+.sage/metrics/
+.sage/gist-id
+.sage/install-state.yaml
+.sage/version
+.sage/adoption-audit.md
+.sage/backup/
+.sage/runtime/
+.sage/runs.db
+.sage/audit/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Node.js (for future npm package work) ---
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log
+
+# --- Environment ---
+.env
+.env.local
+.env.*.local
