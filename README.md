@@ -53,7 +53,7 @@ npx ai-check-template@latest init --profile react-nextjs+supabase-rls
 
 | Phase | 内容 | 状態 |
 |---|---|---|
-| 0 | 思想 + テンプレ骨格設計 | 進行中 |
+| 0 | 思想 + テンプレ骨格設計 | 完了（SPEC-0001..SPEC-0005） |
 | 1 | dogfooding（gakuten 等で手動運用） | 未着手 |
 | 2 | CLI / npm パッケージ化 | 未着手 |
 | 3 | 複数プロジェクト横展開 | 未着手 |

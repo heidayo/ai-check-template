@@ -44,4 +44,4 @@ package-templates/
 
 ## ステータス
 
-Phase 0 — 骨格設計中。実体ファイルは Phase 1 dogfooding と並行で埋めていく。
+Phase 0 — 完了（SPEC-0001..SPEC-0005 で全 7 サブ成果物の骨格を整備）。Phase 1 dogfooding で実プロジェクト検証を行い、フィードバックを SPEC 改訂に反映する予定。
