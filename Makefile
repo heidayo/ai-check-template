@@ -4,9 +4,9 @@ JSON_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path 
 YAML_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path '*/.next' \) -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 SHELL_FILES := $(shell find package-templates/scripts -type f -name '*.sh' -print | sort)
 
-.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-cli validate-sage
+.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-sage
 
-validate: validate-json validate-yaml validate-shell validate-structure validate-cli validate-sage
+validate: validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-sage
 	@echo "validate: PASS"
 
 validate-json:
@@ -115,11 +115,18 @@ validate-structure:
 	@test -f package.json
 	@grep -q '"version": "0.2.0-alpha.0"' package.json
 	@grep -q '"ai-check-template": "./bin/ai-check-template.mjs"' package.json
+	@grep -q '"repository"' package.json
+	@grep -q '"bugs"' package.json
+	@grep -q '"homepage"' package.json
+	@grep -q '"keywords"' package.json
+	@grep -q '"publishConfig"' package.json
+	@grep -q '"access": "public"' package.json
 	@test -f bin/ai-check-template.mjs
 	@test -f src/cli/index.mjs
 	@test -f src/cli/init.mjs
 	@test -f src/cli/profile.mjs
 	@test -f src/cli/utils.mjs
+	@test -f tests/cli/package.test.mjs
 	@test -f docs/cli.md
 	@grep -q "init" docs/cli.md
 	@grep -q -- "--profile" docs/cli.md
@@ -130,12 +137,20 @@ validate-structure:
 	@grep -q "docs/cli.md" README.md
 	@grep -q "docs/cli.md" README-ja.md
 	@grep -q "./cli.md" docs/roadmap.md
+	@grep -q "npm pack" docs/cli.md
+	@grep -q "npm pack" README.md
+	@grep -q "npm pack" README-ja.md
+	@grep -q "npm pack" docs/roadmap.md
 	@echo "validate-structure: PASS"
 
 validate-cli:
 	@node bin/ai-check-template.mjs --help >/dev/null
 	@node --test tests/cli/*.test.mjs
 	@echo "validate-cli: PASS"
+
+validate-npm-pack:
+	@npm pack --dry-run --json >/dev/null
+	@echo "validate-npm-pack: PASS"
 
 validate-sage:
 	@if [ -x scripts/sage-validate.sh ]; then \

@@ -75,12 +75,12 @@ AI 実装
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、`--profile`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、`--profile`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite`、`npm pack` readiness を説明 |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。repository-local の v0.2.0 alpha CLI は [`docs/cli.md`](./docs/cli.md) を参照。npm / `npx ai-check-template init` 公開は今後の作業です。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。repository-local の v0.2.0 alpha CLI と `npm pack` readiness は [`docs/cli.md`](./docs/cli.md) を参照。npm / `npx ai-check-template init` 公開は今後の作業です。
 
 ```bash
 # 1. リポをクローン
@@ -126,7 +126,7 @@ pnpm ai:check
 | バージョン | テーマ | 状態 |
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
-| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | 進行中（[alpha CLI docs](./docs/cli.md)） |
+| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | 進行中（[alpha CLI docs + `npm pack` readiness](./docs/cli.md)） |
 | **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
