@@ -91,7 +91,7 @@ Warnings remain advisory by default in this alpha. `doctor --strict` is availabl
 - `--ci direct`: warns about managed reusable workflow files
 - `--ci reusable`: warns about managed direct workflow files
 
-Custom workflows with the same paths are not treated as stale managed files unless their contents exactly match the packaged template. These warnings do not delete or modify workflows; cleanup remains manual in this alpha.
+Custom workflows with the same paths are not treated as stale managed files unless their contents exactly match the packaged template. `update` can clean up exact-managed inactive workflows; custom workflows are preserved.
 
 ## Profile-aware scripts
 
@@ -138,16 +138,18 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - profile-aware package scripts
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
+- inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
 
-It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations only; semantic merges of arbitrary custom user scripts are still out of scope.
+It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations and exact-managed workflow cleanup only; semantic merges of arbitrary custom user scripts and arbitrary workflow cleanup are still out of scope.
 
 ## Safety behavior
 
 - During `init`, existing target files are not overwritten by default.
 - During `init`, existing target scripts are not overwritten by default.
 - During `update`, only known template-managed paths are rewritten, and `--yes` is required.
+- During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates.
 - `--dry-run` writes nothing.
 - Invalid profiles are rejected before any target write.
 - Malformed install state blocks `update` before any target write.
@@ -193,6 +195,7 @@ Preview and apply an update:
 node bin/ai-check-template.mjs update --target ../app --dry-run
 node bin/ai-check-template.mjs update --target ../app --yes
 node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --json --yes
+node bin/ai-check-template.mjs update --target ../app --ci none --dry-run --json
 ```
 
 ## Verification
@@ -232,4 +235,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。profile diagnostics warnings と stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。profile diagnostics warnings と stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。

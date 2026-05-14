@@ -72,6 +72,7 @@ export async function runUpdate(argv, io = {}) {
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", writeOptions, operations);
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", writeOptions, operations);
   await updateCi(targetDir, writeOptions, operations);
+  await cleanupInactiveCi(targetDir, writeOptions, operations);
 
   if (writeOptions.claudeHooks) {
     await updateTemplateFile(
@@ -283,6 +284,48 @@ async function updateCi(targetDir, options, operations) {
       options,
       operations,
     );
+  }
+}
+
+async function cleanupInactiveCi(targetDir, options, operations) {
+  const files = options.ci === "direct"
+    ? REUSABLE_CI_FILES
+    : options.ci === "reusable"
+      ? DIRECT_CI_FILES
+      : [...DIRECT_CI_FILES, ...REUSABLE_CI_FILES];
+
+  for (const fileName of files) {
+    await cleanupManagedFile(
+      targetDir,
+      fromTemplates("ci-examples", "github-actions", fileName),
+      path.join(".github", "workflows", fileName),
+      options,
+      operations,
+    );
+  }
+}
+
+async function cleanupManagedFile(targetDir, sourcePath, relativePath, options, operations) {
+  const targetPath = path.join(targetDir, relativePath);
+
+  if (!(await pathExists(targetPath))) {
+    return;
+  }
+
+  const [actual, expected] = await Promise.all([
+    fs.readFile(targetPath, "utf8"),
+    fs.readFile(sourcePath, "utf8"),
+  ]);
+
+  if (actual !== expected) {
+    operations.push(operation("keep", relativePath, "custom workflow"));
+    return;
+  }
+
+  operations.push(operation(options.dryRun ? "would-delete" : "delete", relativePath, "inactive managed workflow"));
+
+  if (!options.dryRun) {
+    await fs.unlink(targetPath);
   }
 }
 
