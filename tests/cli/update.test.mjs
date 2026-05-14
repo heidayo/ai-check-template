@@ -155,6 +155,77 @@ test("dry-run writes nothing and emits operations", (t) => {
   assert.deepEqual(after, before);
 });
 
+test("dry-run reports managed CI cleanup without writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--dry-run", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(
+    output.operations
+      .filter((operation) => operation.action === "would-delete")
+      .map((operation) => operation.path)
+      .sort(),
+    [".github/workflows/ai-check-fast.yml", ".github/workflows/ai-check.yml"],
+  );
+  assert.deepEqual(after, before);
+});
+
+test("update removes inactive managed CI workflows for ci none", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(
+    output.operations
+      .filter((operation) => operation.action === "delete")
+      .map((operation) => operation.path)
+      .sort(),
+    [".github/workflows/ai-check-fast.yml", ".github/workflows/ai-check.yml"],
+  );
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check.yml")), false);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
+  assert.equal(doctor(target, ["--ci", "none", "--strict"]).status, 0);
+});
+
+test("update switches managed direct CI workflows to reusable workflows", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+
+  const result = runCli(["update", "--target", target, "--ci", "reusable", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check.yml")), false);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-reusable.yml")), true);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-call.yml")), true);
+  assert.equal(doctor(target, ["--ci", "reusable", "--strict"]).status, 0);
+});
+
+test("update preserves custom inactive CI workflows", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.mkdirSync(path.join(target, ".github", "workflows"), { recursive: true });
+  const customWorkflowPath = path.join(target, ".github", "workflows", "ai-check.yml");
+  fs.writeFileSync(customWorkflowPath, "name: custom\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "keep" && operation.path === ".github/workflows/ai-check.yml",
+  ), true);
+  assert.equal(fs.readFileSync(customWorkflowPath, "utf8"), "name: custom\n");
+});
+
 test("dry-run reports supabase addon script migrations without writing", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--profile", "node-cli", "--ci", "none"]);

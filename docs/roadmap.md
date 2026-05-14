@@ -40,7 +40,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 **Planned commands**
 
 - `init` — flag-driven alpha setup that picks profiles, copies templates, and safely merges fragments
-- `update` — bring known template-managed files and profile-aware package scripts in an existing setup up to the current package version. Foundation is available; deeper migrations remain planned.
+- `update` — bring known template-managed files and profile-aware package scripts in an existing setup up to the current package version. Foundation and exact-managed workflow cleanup are available; deeper migrations remain planned.
 - `doctor` — diagnose drift between the installed templates and the current upstream version. Foundation, strict warning mode, and stale managed CI diagnostics are available; deeper profile-aware diagnostics remain planned.
 
 **Current alpha scope**
@@ -58,8 +58,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Profile-aware package script migrations for `init`, `doctor`, and `update`
 - [x] Strict doctor warning mode (`doctor --strict`) for CI or release prep
 - [x] Stale managed CI workflow diagnostics in `doctor`
+- [x] Exact-managed workflow cleanup in `update`
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] deeper profile-aware file migrations and managed workflow cleanup
+- [ ] deeper profile-aware file migrations
 
 **Dependencies on v0.1.0**
 
