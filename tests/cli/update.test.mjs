@@ -229,6 +229,35 @@ test("update creates missing support scripts without overwriting custom scripts"
   assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none", "--strict"]).status, 0);
 });
 
+test("update creates missing profile docs without overwriting existing docs", (t) => {
+  const target = createFixture(t);
+  const existingDocPath = path.join(target, "docs", "ai-check-template", "docs", "test-design-template.md");
+  fs.mkdirSync(path.dirname(existingDocPath), { recursive: true });
+  fs.writeFileSync(existingDocPath, "custom test design\n");
+
+  const result = runCli(["update", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => (
+      operation.action === "keep" &&
+      operation.path === "docs/ai-check-template/docs/test-design-template.md" &&
+      operation.detail === "profile doc"
+    ),
+  ), true);
+  assert.equal(output.operations.some(
+    (operation) => (
+      operation.action === "create" &&
+      operation.path === "docs/ai-check-template/profiles/node-cli/README.md" &&
+      operation.detail === "profile doc"
+    ),
+  ), true);
+  assert.equal(fs.readFileSync(existingDocPath, "utf8"), "custom test design\n");
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "node-cli", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "react-nextjs", "README.md")), false);
+});
+
 test("update install deps invokes fake package manager and emits json operation", (t) => {
   const target = createFixture(t);
   const fakeNpm = createFakePackageManager(t, "npm");

@@ -8,6 +8,7 @@ import {
 } from "./dependency-installer.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
+import { getProfileDocFiles } from "./profile-docs.mjs";
 import { parseProfiles } from "./profile.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
@@ -76,6 +77,7 @@ export async function runInit(argv, io = {}) {
 
   await mergePackageScripts(packageJsonPath, profile, writeOptions, operations);
   await copyScripts(targetDir, writeOptions, operations);
+  await copyProfileDocs(targetDir, profile, writeOptions, operations);
   await copyCiFiles(targetDir, writeOptions, operations);
 
   if (writeOptions.claudeHooks) {
@@ -301,6 +303,20 @@ async function copyCiFiles(targetDir, options, operations) {
         options,
       ),
     );
+  }
+}
+
+async function copyProfileDocs(targetDir, profile, options, operations) {
+  for (const file of getProfileDocFiles(profile)) {
+    const operation = await copyFileSafe(
+      file.sourcePath,
+      path.join(targetDir, file.relativePath),
+      options,
+    );
+    operations.push({
+      ...operation,
+      reason: operation.reason === "exists" ? "profile doc exists" : "profile doc",
+    });
   }
 }
 
