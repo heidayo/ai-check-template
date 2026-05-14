@@ -77,6 +77,8 @@ SPEC-0002 で配布用 GitHub Actions examples は作成済みだが、本リポ
 
 ## CLAUDE.md / .claude/rules 連携
 
+本 SPEC では `CLAUDE.md` / `.claude/rules/**` への追記は行わない。実装エージェントは既存の SAGE lifecycle / File Scope / Forbidden Shortcuts を適用し、追加ルールは本 SPEC 内で閉じる。
+
 | ルール | 実装時の遵守事項 |
 |---|---|
 | SAGE lifecycle | SPEC/PLAN/TASK 作成後に実装し、TASK File Scope のみ編集する |
@@ -113,6 +115,7 @@ SPEC-0002 で配布用 GitHub Actions examples は作成済みだが、本リポ
 - [NFR-03] 新規 YAML は各 30-140 行
 - [NFR-04] `package-templates/ci-examples/README.md` は 100-250 行
 - [NFR-05] workflow examples は direct copy しやすいコメント量に抑える
+- [NFR-06] カバレッジ閾値: N/A。本 SPEC は workflow / docs / Makefile の構造変更であり、代替指標として AC-01..AC-13 と `make validate` を coverage gate とする
 
 ### セキュリティ要件
 
@@ -125,6 +128,7 @@ SPEC-0002 で配布用 GitHub Actions examples は作成済みだが、本リポ
 - [OPS-01] PR #5 以降で CI が最低限の構造破損を検出できる
 - [OPS-02] v0.1.0 deliverables の進捗が roadmap に反映される
 - [OPS-03] `make validate` は maintainer が PR template の checklist で使える
+- [OPS-04] PR CI failure は同一ブランチで修正し、`make validate` と GitHub Actions 再実行結果で feedback loop を閉じる
 
 ## Quality Gate マッピング
 
@@ -193,6 +197,12 @@ SPEC-0002 で配布用 GitHub Actions examples は作成済みだが、本リポ
 | YAML parser と GitHub Actions schema の差異で CI だけ失敗 | `sage/failures.md` | maintainer |
 | `make validate` が contributor 環境で使いにくい | `sage/failures.md`、SPEC-0010 follow-up | maintainer |
 | reusable workflow の入力不足が dogfooding で判明 | `docs/phase-1-feedback-template.md` → follow-up SPEC | maintainer |
+
+### failures / anti-patterns 更新フロー
+
+1. 検出: PR CI、`make validate`、dogfooding feedback のいずれかで失敗を確認する。
+2. 記録: maintainer が失敗条件、再現コマンド、復旧手順を `sage/failures.md` に記録する。
+3. 昇格: 同種の workflow / validation / docs alignment 失敗が 3 回累積した場合、`sage/anti-patterns.md` への昇格候補として記録する。
 
 ## 契約
 

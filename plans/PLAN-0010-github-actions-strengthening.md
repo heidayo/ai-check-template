@@ -87,10 +87,10 @@ SPEC-0010 を継承。
 
 ## 段階移行
 
-| 移行 | 昇格条件 |
-|---|---|
-| PLAN Active → Completed | TASK-0034..0037 Done |
-| SPEC-0010 Approved → Implemented | AC-01..AC-13 全 pass |
+| 移行 | 昇格条件 | 検証コマンド |
+|---|---|---|
+| PLAN Active → Completed | TASK-0034..0037 Done | `rg -n 'ステータス \\| Pending|ステータス \\| Active' tasks/TASK-0034-repo-validation-workflow.md tasks/TASK-0035-reusable-workflow-examples.md tasks/TASK-0036-ci-docs-roadmap.md tasks/TASK-0037-verify-github-actions-strengthening.md plans/PLAN-0010-github-actions-strengthening.md` が空 |
+| SPEC-0010 Approved → Implemented | AC-01..AC-13 全 pass | `make validate` + SPEC-0010 AC commands + `git diff --check` |
 
 ## 関連ID
 
