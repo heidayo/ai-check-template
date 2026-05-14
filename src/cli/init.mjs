@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
+import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
 import { getProfileScripts } from "./profile-scripts.mjs";
 import {
@@ -22,6 +23,7 @@ Usage:
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Base profile, optionally with +supabase-rls. Defaults to react-nextjs.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to target detection.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
   --dry-run            Print planned operations without writing files.
@@ -46,6 +48,10 @@ export async function runInit(argv, io = {}) {
   const profile = parseProfiles(options.profile);
   const targetDir = await normalizeTargetDir(options.target);
   const packageJsonPath = path.join(targetDir, "package.json");
+  const packageManager = options.explicit.packageManager
+    ? options.packageManager
+    : await detectPackageManager(targetDir);
+  const writeOptions = { ...options, packageManager };
 
   if (!(await pathExists(packageJsonPath))) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
@@ -53,19 +59,20 @@ export async function runInit(argv, io = {}) {
 
   const operations = [];
 
-  await mergePackageScripts(packageJsonPath, profile, options, operations);
-  await copyScripts(targetDir, options, operations);
-  await copyCiFiles(targetDir, options, operations);
+  await mergePackageScripts(packageJsonPath, profile, writeOptions, operations);
+  await copyScripts(targetDir, writeOptions, operations);
+  await copyCiFiles(targetDir, writeOptions, operations);
 
-  if (options.claudeHooks) {
-    await copyClaudeHooks(targetDir, options, operations);
+  if (writeOptions.claudeHooks) {
+    await copyClaudeHooks(targetDir, writeOptions, operations);
   }
 
-  await writeInitInstallState(targetDir, profile, options, operations);
+  await writeInitInstallState(targetDir, profile, writeOptions, operations);
 
-  writeLine(io.stdout, `ai-check-template init ${options.dryRun ? "dry-run" : "completed"}`);
+  writeLine(io.stdout, `ai-check-template init ${writeOptions.dryRun ? "dry-run" : "completed"}`);
   writeLine(io.stdout, `target: ${targetDir}`);
   writeLine(io.stdout, `profile: ${profile.all.join("+")}`);
+  writeLine(io.stdout, `package-manager: ${writeOptions.packageManager}`);
   for (const operation of operations) {
     writeLine(io.stdout, `${operation.action}: ${relativeTarget(targetDir, operation.targetPath)}${operation.reason ? ` (${operation.reason})` : ""}`);
   }
@@ -75,12 +82,16 @@ function parseInitArgs(argv, cwd) {
   const options = {
     target: cwd,
     profile: "react-nextjs",
+    packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
     dryRun: false,
     yes: false,
     overwrite: false,
     help: false,
+    explicit: {
+      packageManager: false,
+    },
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -131,6 +142,18 @@ function parseInitArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--package-manager=")) {
+      options.packageManager = validatePackageManager(arg.slice("--package-manager=".length));
+      options.explicit.packageManager = true;
+      continue;
+    }
+
+    if (arg === "--package-manager") {
+      options.packageManager = validatePackageManager(readFlagValue(argv, (index += 1), arg));
+      options.explicit.packageManager = true;
+      continue;
+    }
+
     if (arg.startsWith("--ci=")) {
       options.ci = arg.slice("--ci=".length);
       continue;
@@ -174,7 +197,7 @@ async function normalizeTargetDir(target) {
 async function mergePackageScripts(packageJsonPath, profile, options, operations) {
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
-  const expectedScripts = getProfileScripts(profile);
+  const expectedScripts = getProfileScripts(profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 
@@ -304,6 +327,7 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     targetDir,
     {
       profile,
+      packageManager: options.packageManager,
       ci: options.ci,
       claudeHooks: options.claudeHooks,
     },

@@ -8,6 +8,7 @@ import {
   resolveEffectiveOptions,
   validateCiMode,
 } from "./install-state.mjs";
+import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
 import { getProfileScripts } from "./profile-scripts.mjs";
 import {
@@ -27,6 +28,7 @@ Usage:
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Profile to check. Defaults to install state or react-nextjs.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
   --strict             Treat warnings as failures.
@@ -44,6 +46,9 @@ export async function runDoctor(argv, io = {}) {
   }
 
   const targetDir = await normalizeTargetDir(options.target);
+  options.packageManager = options.explicit.packageManager
+    ? options.packageManager
+    : await detectPackageManager(targetDir);
   const installState = await loadInstallState(targetDir);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
   const result = await diagnoseTarget(targetDir, effectiveOptions);
@@ -78,6 +83,7 @@ function parseDoctorArgs(argv, cwd) {
   const options = {
     target: cwd,
     profile: "react-nextjs",
+    packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
     strict: false,
@@ -85,6 +91,7 @@ function parseDoctorArgs(argv, cwd) {
     help: false,
     explicit: {
       profile: false,
+      packageManager: false,
       ci: false,
       claudeHooks: false,
     },
@@ -133,6 +140,18 @@ function parseDoctorArgs(argv, cwd) {
     if (arg === "--profile") {
       options.profile = readFlagValue(argv, (index += 1), arg);
       options.explicit.profile = true;
+      continue;
+    }
+
+    if (arg.startsWith("--package-manager=")) {
+      options.packageManager = validatePackageManager(arg.slice("--package-manager=".length));
+      options.explicit.packageManager = true;
+      continue;
+    }
+
+    if (arg === "--package-manager") {
+      options.packageManager = validatePackageManager(readFlagValue(argv, (index += 1), arg));
+      options.explicit.packageManager = true;
       continue;
     }
 
@@ -198,7 +217,7 @@ async function diagnoseTarget(targetDir, options) {
     return { issues, warnings };
   }
 
-  checkPackageScripts(packageJson, options.profile, issues);
+  checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
   await checkCi(targetDir, options.ci, issues);
@@ -219,8 +238,8 @@ async function diagnoseTarget(targetDir, options) {
   return { issues, warnings };
 }
 
-function checkPackageScripts(packageJson, profile, issues) {
-  const expectedScripts = getProfileScripts(profile);
+function checkPackageScripts(packageJson, profile, issues, packageManager) {
+  const expectedScripts = getProfileScripts(profile, { packageManager });
   const scripts = packageJson.scripts ?? {};
 
   for (const [name, expected] of Object.entries(expectedScripts)) {
@@ -357,6 +376,7 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `target: ${output.target}`);
   writeLine(stream, `install-state: ${output.installation.source}`);
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
+  writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `strict: ${output.strict}`);

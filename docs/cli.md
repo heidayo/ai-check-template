@@ -17,6 +17,7 @@ From another project after cloning this repository:
 ```bash
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --yes
+node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile node-cli --package-manager npm --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --json
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --strict --json
 node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
@@ -28,6 +29,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--profile <name>` | `react-nextjs` | One base profile: `react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`. Add `+supabase-rls` when needed. |
+| `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | `direct` copies `ai-check.yml` and `ai-check-fast.yml`; `reusable` copies `ai-quality-reusable.yml` and `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges the hook fragment into `.claude/settings.json`. |
 | `--dry-run` | off | Prints planned operations without writing files. |
@@ -40,6 +42,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--profile <name>` | install state or `react-nextjs` | Profile to check. One base profile plus optional `+supabase-rls`. |
+| `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when checking package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
 | `--strict` | off | Treats profile diagnostics warnings as a failing result while keeping them in `warnings`. |
@@ -51,6 +54,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--profile <name>` | install state or `react-nextjs` | Profile to refresh in install state. One base profile plus optional `+supabase-rls`. |
+| `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Updates `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed hook keys in `.claude/settings.json`. |
 | `--dry-run` | off | Prints planned operations without writing files. |
@@ -59,15 +63,28 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 
 ## Install state
 
-`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version, package version, selected profile, CI mode, and whether Claude hooks were enabled. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
+`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version, package version, selected profile, package manager, CI mode, and whether Claude hooks were enabled. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
 
 `doctor` and `update` read this file when it exists. Explicit flags still win:
 
-1. CLI flags such as `--profile`, `--ci`, and `--claude-hooks`
+1. CLI flags such as `--profile`, `--package-manager`, `--ci`, and `--claude-hooks`
 2. `.ai-check-template.json`
-3. legacy defaults (`react-nextjs`, `direct`, no Claude hooks)
+3. target detection for package manager (`packageManager` field, then lockfiles)
+4. legacy defaults (`react-nextjs`, `pnpm`, `direct`, no Claude hooks)
 
 Malformed or unsupported install state is reported by `doctor` as an issue. `update` rejects malformed install state before writing any target files.
+
+## Package manager detection
+
+The CLI alpha generates profile-aware package scripts for `pnpm`, `npm`, `yarn`, and `bun`. Detection uses:
+
+1. explicit `--package-manager`
+2. install state
+3. target `package.json` `packageManager` field
+4. lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `bun.lock`, `bun.lockb`)
+5. `pnpm` default
+
+This changes generated package script invocations only. It does not install dependencies, create lockfiles, or change the manual `package-templates/package.scripts.fragment.json`.
 
 ## Profile diagnostics
 
@@ -103,13 +120,14 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 - `node-cli` excludes UI E2E from `ai:check`
 - `supabase-rls` adds `test:db` and `test:integration:rls`
 
-`init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` taking precedence over install state.
+`init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` and `--package-manager` taking precedence over install state.
 
 ## What init changes
 
 `init` reads from `package-templates/` and the CLI profile resolver, then may update the target project:
 
 - Merges profile-aware package scripts for the selected `--profile`
+- Uses the selected or detected package manager for generated package script invocations
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
@@ -122,6 +140,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies, o
 `doctor` is read-only. It checks the target project for the files and fragments installed by `init`:
 
 - profile-aware package scripts
+- package-manager-aware package script invocations
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
@@ -136,6 +155,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 `update` writes current templates and profile scripts to known template-managed paths only:
 
 - profile-aware package scripts
+- package-manager-aware package script invocations
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
@@ -161,6 +181,12 @@ Preview a Next.js setup:
 
 ```bash
 node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --dry-run
+```
+
+Preview an npm-based CLI/library setup:
+
+```bash
+node bin/ai-check-template.mjs init --target ../app --profile node-cli --package-manager npm --dry-run
 ```
 
 Apply direct GitHub Actions workflows:
@@ -196,6 +222,7 @@ node bin/ai-check-template.mjs update --target ../app --dry-run
 node bin/ai-check-template.mjs update --target ../app --yes
 node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --json --yes
 node bin/ai-check-template.mjs update --target ../app --ci none --dry-run --json
+node bin/ai-check-template.mjs update --target ../app --package-manager yarn --dry-run --json
 ```
 
 ## Verification
@@ -235,4 +262,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。profile diagnostics warnings と stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings と stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
