@@ -48,10 +48,34 @@ test("init merges package scripts and copies shell scripts", (t) => {
 
   assert.equal(result.status, 0, result.stderr);
   const packageJson = readPackageJson(target);
-  assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke");
+  assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
+  assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
+  assert.equal(packageJson.scripts.deadcode, "knip");
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
+});
+
+test("node-cli profile scripts exclude UI E2E", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = readPackageJson(target);
+  assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
+  assert.equal(packageJson.scripts["ai:check"].includes("test:e2e:smoke"), false);
+});
+
+test("supabase addon profile scripts add RLS checks", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs+supabase-rls", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = readPackageJson(target);
+  assert.equal(packageJson.scripts["test:db"], "supabase test db");
+  assert.equal(packageJson.scripts["test:integration:rls"], "vitest run --dir tests/rls");
+  assert.match(packageJson.scripts["ai:check"], /pnpm test:db/);
+  assert.match(packageJson.scripts["ai:check"], /pnpm test:integration:rls/);
 });
 
 test("init writes deterministic install state", (t) => {

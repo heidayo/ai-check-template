@@ -128,6 +128,18 @@ test("update uses install state defaults and refreshes state", (t) => {
   assert.equal(state.claudeHooks, true);
 });
 
+test("update migrates generic scripts to node-cli profile scripts", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const result = runCli(["update", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"));
+  assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
+  assert.equal(packageJson.scripts["ai:check"].includes("test:e2e:smoke"), false);
+  assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none"]).status, 0);
+});
+
 test("dry-run writes nothing and emits operations", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
@@ -140,6 +152,31 @@ test("dry-run writes nothing and emits operations", (t) => {
   assert.match(result.stdout, /dry-run/);
   assert.match(result.stdout, /would-update/);
   assert.match(result.stdout, /\.ai-check-template\.json/);
+  assert.deepEqual(after, before);
+});
+
+test("dry-run reports supabase addon script migrations without writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  const before = snapshotDirectory(target);
+  const result = runCli([
+    "update",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs+supabase-rls",
+    "--ci",
+    "none",
+    "--dry-run",
+    "--json",
+  ]);
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "dry-run");
+  assert.equal(output.operations.some((operation) => operation.detail === "script test:db"), true);
+  assert.equal(output.operations.some((operation) => operation.detail === "script test:integration:rls"), true);
   assert.deepEqual(after, before);
 });
 
@@ -228,5 +265,17 @@ test("update rejects malformed install state before writing", (t) => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Invalid install state/);
+  assert.deepEqual(after, before);
+});
+
+test("update rejects invalid profile before writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const before = snapshotDirectory(target);
+  const result = runCli(["update", "--target", target, "--profile", "../bad", "--ci", "none", "--yes"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Invalid profile/);
   assert.deepEqual(after, before);
 });

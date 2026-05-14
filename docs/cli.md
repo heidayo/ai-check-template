@@ -79,13 +79,25 @@ Current advisory checks cover:
 - `node-cli`: UI E2E mismatch for CLI or library projects
 - `supabase-rls`: missing RLS-related DB / integration test scripts
 
-Warnings are intentionally advisory in this alpha. Strict profile gates and profile-specific migrations are future work.
+Warnings are intentionally advisory in this alpha. Strict profile gates and profile-specific file / CI migrations are future work.
+
+## Profile-aware scripts
+
+The manual `package-templates/package.scripts.fragment.json` remains a generic copy-and-adapt fragment. The CLI alpha uses a profile-aware script resolver instead:
+
+- `react-nextjs` adds React Doctor and dead-code checks to `ai:check`
+- `react-vanilla` keeps SPA scripts without Next.js-specific commands
+- `expo-rn` keeps mobile-oriented smoke E2E defaults
+- `node-cli` excludes UI E2E from `ai:check`
+- `supabase-rls` adds `test:db` and `test:integration:rls`
+
+`init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` taking precedence over install state.
 
 ## What init changes
 
-`init` reads from `package-templates/` and may update the target project:
+`init` reads from `package-templates/` and the CLI profile resolver, then may update the target project:
 
-- Merges `ai:check` and `ai:check:fast` from `package-templates/package.scripts.fragment.json`
+- Merges profile-aware package scripts for the selected `--profile`
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
@@ -97,7 +109,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies, o
 
 `doctor` is read-only. It checks the target project for the files and fragments installed by `init`:
 
-- `ai:check` and `ai:check:fast` package scripts
+- profile-aware package scripts
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
@@ -108,15 +120,15 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 
 ## What update changes
 
-`update` writes current templates to known template-managed paths only:
+`update` writes current templates and profile scripts to known template-managed paths only:
 
-- `ai:check` and `ai:check:fast` package scripts
+- profile-aware package scripts
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
 
-It requires `--yes` before writing. Use `--dry-run` to preview operations. It does not perform profile-aware migrations or semantic merges of custom user scripts.
+It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations only; semantic merges of arbitrary custom user scripts are still out of scope.
 
 ## Safety behavior
 
@@ -206,4 +218,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。

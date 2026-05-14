@@ -106,13 +106,16 @@ test("doctor uses install state defaults and reports JSON context", (t) => {
   assert.equal(output.effectiveOptions.ci, "reusable");
   assert.equal(output.effectiveOptions.claudeHooks, true);
   assert.equal(Array.isArray(output.warnings), true);
-  assert.equal(output.warnings.some((warning) => warning.code === "profile-addon-advice"), true);
 });
 
 test("profile warnings do not fail doctor", (t) => {
   const target = createFixture(t);
   const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
   assert.equal(init.status, 0, init.stderr);
+  const packageJsonPath = path.join(target, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts["test:e2e:smoke"] = "playwright test";
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
   const result = runCli(["doctor", "--target", target, "--json"]);
 
@@ -130,10 +133,33 @@ test("explicit profile controls diagnostics warnings", (t) => {
 
   const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "none", "--json"]);
 
-  assert.equal(result.status, 0, result.stderr);
+  assert.notEqual(result.status, 0);
   const output = JSON.parse(result.stdout);
   assert.equal(output.effectiveOptions.profile, "node-cli");
-  assert.equal(output.warnings.some((warning) => warning.message.includes("Node CLI profile")), true);
+  assert.equal(output.issues.some((issue) => issue.message.includes("ai:check")), true);
+});
+
+test("doctor passes node-cli profile scripts", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  const result = runCli(["doctor", "--target", target, "--ci", "none"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /doctor pass/);
+});
+
+test("doctor detects generic script drift for node-cli profile", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  const packageJsonPath = path.join(target, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts["ai:check"] = "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke";
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+  const result = runCli(["doctor", "--target", target, "--ci", "none"]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /drift/);
 });
 
 test("doctor returns non-zero for missing files", (t) => {
