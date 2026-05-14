@@ -31,6 +31,20 @@ function initFixture(target, args = []) {
   assert.equal(result.status, 0, result.stderr);
 }
 
+function mergePackageScripts(dir, scripts) {
+  const packageJsonPath = path.join(dir, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts = { ...(packageJson.scripts ?? {}), ...scripts };
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
+function missingScriptWarningNames(output) {
+  return output.warnings
+    .filter((warning) => warning.code === "script-advice")
+    .map((warning) => warning.message.replace("ai:check references missing package script: ", ""))
+    .sort();
+}
+
 function snapshotDirectory(dir) {
   const snapshot = {};
   for (const filePath of listFiles(dir)) {
@@ -238,6 +252,78 @@ test("profile warnings do not fail doctor", (t) => {
   assert.doesNotMatch(result.stdout, /pnpm typecheck/);
 });
 
+test("doctor warns on missing referenced package scripts", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.deepEqual(
+    missingScriptWarningNames(output),
+    ["lint", "test", "test:unit", "typecheck"],
+  );
+  assert.deepEqual(after, before);
+});
+
+test("strict mode fails on missing referenced package scripts", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+
+  const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "fail");
+  assert.equal(output.strict, true);
+  assert.equal(output.issues.length, 0);
+  assert.equal(output.warnings.some((warning) => warning.code === "script-advice"), true);
+});
+
+test("doctor does not warn when referenced package scripts exist", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+  mergePackageScripts(target, {
+    typecheck: "tsc --noEmit",
+    lint: "eslint .",
+    test: "vitest run",
+    "test:unit": "vitest run --dir tests/unit",
+  });
+
+  const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.warnings.some((warning) => warning.code === "script-advice"), false);
+});
+
+test("missing script parser supports package manager invocation forms", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+  mergePackageScripts(target, {
+    "ai:check": "npm run typecheck && yarn lint && bun run test:unit && pnpm deadcode",
+    "ai:check:fast": "bun run typecheck && pnpm lint",
+  });
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(
+    missingScriptWarningNames(output),
+    ["lint", "test:unit", "typecheck"],
+  );
+});
+
 test("strict mode fails on profile warnings without converting them to issues", (t) => {
   const target = createFixture(t);
   const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
@@ -263,6 +349,12 @@ test("strict mode fails on profile warnings without converting them to issues", 
 test("strict mode passes when there are no issues or warnings", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  mergePackageScripts(target, {
+    typecheck: "tsc --noEmit",
+    lint: "eslint .",
+    test: "vitest run",
+    "test:unit": "vitest run --dir tests/unit",
+  });
   const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
 
   assert.equal(result.status, 0, result.stderr);
