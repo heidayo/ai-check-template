@@ -72,7 +72,7 @@ The repository ships templates and prompts for every step in this loop.
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
-| **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol |
+| **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start
 
