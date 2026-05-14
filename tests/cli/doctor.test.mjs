@@ -105,6 +105,35 @@ test("doctor uses install state defaults and reports JSON context", (t) => {
   assert.equal(output.effectiveOptions.profile, "react-nextjs+supabase-rls");
   assert.equal(output.effectiveOptions.ci, "reusable");
   assert.equal(output.effectiveOptions.claudeHooks, true);
+  assert.equal(Array.isArray(output.warnings), true);
+  assert.equal(output.warnings.some((warning) => warning.code === "profile-addon-advice"), true);
+});
+
+test("profile warnings do not fail doctor", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.issues.length, 0);
+  assert.equal(output.warnings.some((warning) => warning.code === "profile-advice"), true);
+  assert.doesNotMatch(result.stdout, /pnpm typecheck/);
+});
+
+test("explicit profile controls diagnostics warnings", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+
+  const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "none", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.profile, "node-cli");
+  assert.equal(output.warnings.some((warning) => warning.message.includes("Node CLI profile")), true);
 });
 
 test("doctor returns non-zero for missing files", (t) => {
@@ -141,8 +170,20 @@ test("doctor json output is parseable", (t) => {
   assert.notEqual(result.status, 0);
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "fail");
+  assert.equal(Array.isArray(output.warnings), true);
   assert.equal(output.issues[0].code, "drift");
   assert.equal(output.issues[0].path, "scripts/ai-check-fast.sh");
+});
+
+test("doctor skips profile warnings for malformed package json", (t) => {
+  const target = createFixture(t);
+  fs.writeFileSync(path.join(target, "package.json"), "{bad json\n");
+  const result = runCli(["doctor", "--target", target, "--ci", "none", "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.issues[0].code, "invalid-json");
+  assert.deepEqual(output.warnings, []);
 });
 
 test("doctor rejects target without package.json", (t) => {

@@ -8,6 +8,7 @@ import {
   resolveEffectiveOptions,
   validateCiMode,
 } from "./install-state.mjs";
+import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
 import {
   CliError,
   fromTemplates,
@@ -51,6 +52,7 @@ export async function runDoctor(argv, io = {}) {
     target: targetDir,
     installation: installationSummary(installState),
     effectiveOptions: effectiveOptionsSummary(effectiveOptions),
+    warnings: result.warnings,
     issues,
   };
 
@@ -163,17 +165,27 @@ async function normalizeTargetDir(target) {
 
 async function diagnoseTarget(targetDir, options) {
   const issues = [];
+  let warnings = [];
   const packageJsonPath = path.join(targetDir, "package.json");
 
   if (!(await pathExists(packageJsonPath))) {
     return {
+      warnings,
       issues: [
         issue("missing-file", "package.json", "Target project must contain package.json"),
       ],
     };
   }
 
-  await checkPackageScripts(targetDir, packageJsonPath, issues);
+  let packageJson;
+  try {
+    packageJson = await readJson(packageJsonPath);
+  } catch (error) {
+    issues.push(issue("invalid-json", "package.json", error.message));
+    return { issues, warnings };
+  }
+
+  await checkPackageScripts(packageJson, issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
   await checkCi(targetDir, options.ci, issues);
@@ -188,18 +200,12 @@ async function diagnoseTarget(targetDir, options) {
     await checkClaudeSettings(targetDir, issues);
   }
 
-  return { issues };
+  warnings = diagnoseProfileScripts(options.profile, packageJson);
+
+  return { issues, warnings };
 }
 
-async function checkPackageScripts(targetDir, packageJsonPath, issues) {
-  let packageJson;
-  try {
-    packageJson = await readJson(packageJsonPath);
-  } catch (error) {
-    issues.push(issue("invalid-json", "package.json", error.message));
-    return;
-  }
-
+async function checkPackageScripts(packageJson, issues) {
   const fragment = await readJson(fromTemplates("package.scripts.fragment.json"));
   const scripts = packageJson.scripts ?? {};
 
@@ -291,13 +297,13 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
 
-  if (output.issues.length === 0) {
-    writeLine(stream, "issues: 0");
-    return;
-  }
-
   writeLine(stream, `issues: ${output.issues.length}`);
   for (const currentIssue of output.issues) {
     writeLine(stream, `- ${currentIssue.code}: ${currentIssue.path} (${currentIssue.message})`);
+  }
+
+  writeLine(stream, `warnings: ${output.warnings.length}`);
+  for (const currentWarning of output.warnings) {
+    writeLine(stream, `- ${currentWarning.code}: ${currentWarning.path} (${currentWarning.message})`);
   }
 }

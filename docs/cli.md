@@ -41,7 +41,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--profile <name>` | install state or `react-nextjs` | Profile to check. One base profile plus optional `+supabase-rls`. |
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
-| `--json` | off | Prints `{ status, target, installation, effectiveOptions, issues }` for automation. |
+| `--json` | off | Prints `{ status, target, installation, effectiveOptions, warnings, issues }` for automation. |
 
 ## Update options
 
@@ -67,6 +67,20 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 
 Malformed or unsupported install state is reported by `doctor` as an issue. `update` rejects malformed install state before writing any target files.
 
+## Profile diagnostics
+
+`doctor` also emits non-blocking `warnings` from the effective profile. These warnings use the same `{ code, path, message }` shape as issues, but they do not change the exit status.
+
+Current advisory checks cover:
+
+- `react-nextjs`: React Doctor and Playwright smoke E2E recommendations
+- `react-vanilla`: Next.js-specific script mismatch
+- `expo-rn`: Playwright / React Doctor mismatch for mobile projects
+- `node-cli`: UI E2E mismatch for CLI or library projects
+- `supabase-rls`: missing RLS-related DB / integration test scripts
+
+Warnings are intentionally advisory in this alpha. Strict profile gates and profile-specific migrations are future work.
+
 ## What init changes
 
 `init` reads from `package-templates/` and may update the target project:
@@ -88,6 +102,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies, o
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
 - install state validity when `.ai-check-template.json` exists
+- profile-specific advisory warnings based on package scripts
 
 It exits with code `0` when no issues are found and code `1` when files are missing, drifted, or the install state is malformed. It does not repair files; use the reported paths to decide whether to run `update --dry-run` and then `update --yes`.
 
