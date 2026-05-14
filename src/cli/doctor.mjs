@@ -202,6 +202,7 @@ async function diagnoseTarget(targetDir, options) {
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
   await checkCi(targetDir, options.ci, issues);
+  const ciWarnings = await diagnoseInactiveCi(targetDir, options.ci);
 
   if (options.claudeHooks) {
     await checkTemplateFile(
@@ -213,7 +214,7 @@ async function diagnoseTarget(targetDir, options) {
     await checkClaudeSettings(targetDir, issues);
   }
 
-  warnings = diagnoseProfileScripts(options.profile, packageJson);
+  warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...ciWarnings];
 
   return { issues, warnings };
 }
@@ -251,6 +252,36 @@ async function checkCi(targetDir, ciMode, issues) {
   }
 }
 
+async function diagnoseInactiveCi(targetDir, ciMode) {
+  const files = ciMode === "direct"
+    ? REUSABLE_CI_FILES
+    : ciMode === "reusable"
+      ? DIRECT_CI_FILES
+      : [...DIRECT_CI_FILES, ...REUSABLE_CI_FILES];
+  const warnings = [];
+
+  for (const fileName of files) {
+    const relativePath = path.join(".github", "workflows", fileName);
+    const matchesManagedTemplate = await matchesTemplateFile(
+      targetDir,
+      fromTemplates("ci-examples", "github-actions", fileName),
+      relativePath,
+    );
+
+    if (matchesManagedTemplate) {
+      warnings.push(
+        warning(
+          "ci-advice",
+          relativePath,
+          `Managed CI workflow is inactive for ci mode: ${ciMode}`,
+        ),
+      );
+    }
+  }
+
+  return warnings;
+}
+
 async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) {
   const targetPath = path.join(targetDir, relativePath);
 
@@ -267,6 +298,21 @@ async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) 
   if (actual !== expected) {
     issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
   }
+}
+
+async function matchesTemplateFile(targetDir, expectedPath, relativePath) {
+  const targetPath = path.join(targetDir, relativePath);
+
+  if (!(await pathExists(targetPath))) {
+    return false;
+  }
+
+  const [actual, expected] = await Promise.all([
+    fs.readFile(targetPath, "utf8"),
+    fs.readFile(expectedPath, "utf8"),
+  ]);
+
+  return actual === expected;
 }
 
 async function checkClaudeSettings(targetDir, issues) {
@@ -295,6 +341,10 @@ async function checkClaudeSettings(targetDir, issues) {
 }
 
 function issue(code, filePath, message) {
+  return { code, path: normalizeRelative(filePath), message };
+}
+
+function warning(code, filePath, message) {
   return { code, path: normalizeRelative(filePath), message };
 }
 
