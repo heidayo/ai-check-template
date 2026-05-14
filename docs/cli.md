@@ -80,6 +80,7 @@ node bin/ai-check-template.mjs init --target ../app --profile node-cli --ci none
 node bin/ai-check-template.mjs --help
 node --test tests/cli/*.test.mjs
 npm pack --dry-run --json
+npm publish --dry-run --tag next --json
 make validate
 ```
 
@@ -96,6 +97,16 @@ The package tests assert that runtime files are included, repository-only SAGE a
 
 This still does not mean the package is published to npm. Until the publish SPEC is complete, use a local clone or local tarball for CLI trials.
 
+## Publish preflight
+
+Because `0.2.0-alpha.0` is a prerelease version, npm requires an explicit dist-tag. The publish preflight command is:
+
+```bash
+npm publish --dry-run --tag next --json
+```
+
+This command validates the publish payload without writing to the registry. Actual `npm publish --tag next` requires explicit maintainer approval and npm authentication, and is not performed by repository validation.
+
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness は検証しますが、registry publish は別 SPEC で扱います。まず `--dry-run` で差分を確認し、問題なければ `--yes` を付けて実行してください。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `--dry-run` で差分を確認し、問題なければ `--yes` を付けて実行してください。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。

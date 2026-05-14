@@ -50,6 +50,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Safe package script merge and file copy defaults
 - [x] Node built-in tests wired into repository validation
 - [x] `npm pack` dry-run contents check and local tarball-installed CLI smoke
+- [x] `npm publish --dry-run --tag next` preflight for prerelease publish
 - [ ] npm publish and `npx ai-check-template init`
 - [ ] `update` and `doctor`
 
