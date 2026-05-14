@@ -4,9 +4,9 @@ JSON_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path 
 YAML_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path '*/.next' \) -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 SHELL_FILES := $(shell find package-templates/scripts -type f -name '*.sh' -print | sort)
 
-.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-sage
+.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-npm-publish-dry-run validate-sage
 
-validate: validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-sage
+validate: validate-json validate-yaml validate-shell validate-structure validate-cli validate-npm-pack validate-npm-publish-dry-run validate-sage
 	@echo "validate: PASS"
 
 validate-json:
@@ -114,7 +114,7 @@ validate-structure:
 	@grep -q "uses: ./.github/workflows/ai-quality-reusable.yml" package-templates/ci-examples/github-actions/ai-quality-call.yml
 	@test -f package.json
 	@grep -q '"version": "0.2.0-alpha.0"' package.json
-	@grep -q '"ai-check-template": "./bin/ai-check-template.mjs"' package.json
+	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json
 	@grep -q '"repository"' package.json
 	@grep -q '"bugs"' package.json
 	@grep -q '"homepage"' package.json
@@ -141,6 +141,10 @@ validate-structure:
 	@grep -q "npm pack" README.md
 	@grep -q "npm pack" README-ja.md
 	@grep -q "npm pack" docs/roadmap.md
+	@grep -q "npm publish --dry-run --tag next" docs/cli.md
+	@grep -q "npm publish --dry-run --tag next" README.md
+	@grep -q "npm publish --dry-run --tag next" README-ja.md
+	@grep -q "npm publish --dry-run --tag next" docs/roadmap.md
 	@echo "validate-structure: PASS"
 
 validate-cli:
@@ -151,6 +155,10 @@ validate-cli:
 validate-npm-pack:
 	@npm pack --dry-run --json >/dev/null
 	@echo "validate-npm-pack: PASS"
+
+validate-npm-publish-dry-run:
+	@npm publish --dry-run --tag next --json >/dev/null
+	@echo "validate-npm-publish-dry-run: PASS"
 
 validate-sage:
 	@if [ -x scripts/sage-validate.sh ]; then \

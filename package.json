@@ -25,7 +25,7 @@
     "access": "public"
   },
   "bin": {
-    "ai-check-template": "./bin/ai-check-template.mjs"
+    "ai-check-template": "bin/ai-check-template.mjs"
   },
   "scripts": {
     "cli:help": "node bin/ai-check-template.mjs --help",

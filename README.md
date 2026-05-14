@@ -73,12 +73,12 @@ The repository ships templates and prompts for every step in this loop.
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init` command, `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--overwrite`, and `npm pack` readiness |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init` command, `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--overwrite`, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). A repository-local v0.2.0 alpha CLI and `npm pack` readiness checks are available in [`docs/cli.md`](./docs/cli.md); npm / `npx ai-check-template init` publishing is still future work.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). A repository-local v0.2.0 alpha CLI, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight are available in [`docs/cli.md`](./docs/cli.md); actual npm / `npx ai-check-template init` publishing is still future work.
 
 ```bash
 # 1. Clone or browse the templates
