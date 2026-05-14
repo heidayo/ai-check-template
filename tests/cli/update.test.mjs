@@ -35,6 +35,23 @@ function doctor(target, args = []) {
   return runCli(["doctor", "--target", target, ...args]);
 }
 
+function mergePackageScripts(target, scripts) {
+  const packageJsonPath = path.join(target, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts = { ...(packageJson.scripts ?? {}), ...scripts };
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
+function addStrictSupportScripts(target) {
+  mergePackageScripts(target, {
+    typecheck: "tsc --noEmit",
+    lint: "eslint .",
+    test: "vitest run",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:e2e:smoke": "playwright test --grep smoke",
+  });
+}
+
 function snapshotDirectory(dir) {
   const snapshot = {};
   for (const filePath of listFiles(dir)) {
@@ -224,6 +241,7 @@ test("update removes inactive managed CI workflows for ci none", (t) => {
   );
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check.yml")), false);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
+  addStrictSupportScripts(target);
   assert.equal(doctor(target, ["--ci", "none", "--strict"]).status, 0);
 });
 
@@ -238,6 +256,7 @@ test("update switches managed direct CI workflows to reusable workflows", (t) =>
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-reusable.yml")), true);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-call.yml")), true);
+  addStrictSupportScripts(target);
   assert.equal(doctor(target, ["--ci", "reusable", "--strict"]).status, 0);
 });
 

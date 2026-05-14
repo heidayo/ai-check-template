@@ -88,7 +88,7 @@ This changes generated package script invocations only. It does not install depe
 
 ## Profile diagnostics
 
-`doctor` also emits `warnings` from the effective profile and from stale managed CI workflow checks. These warnings use the same `{ code, path, message }` shape as issues. By default they are advisory and do not change the exit status. Add `--strict` when CI or release prep should fail on warnings without converting them into issues.
+`doctor` also emits `warnings` from the effective profile, missing referenced package scripts, and stale managed CI workflow checks. These warnings use the same `{ code, path, message }` shape as issues. By default they are advisory and do not change the exit status. Add `--strict` when CI or release prep should fail on warnings without converting them into issues.
 
 Current advisory checks cover:
 
@@ -97,8 +97,9 @@ Current advisory checks cover:
 - `expo-rn`: Playwright / React Doctor mismatch for mobile projects
 - `node-cli`: UI E2E mismatch for CLI or library projects
 - `supabase-rls`: missing RLS-related DB / integration test scripts
+- `ai:check` / `ai:check:fast`: missing referenced package scripts such as `typecheck`, `lint`, or `test:unit`
 
-Warnings remain advisory by default in this alpha. `doctor --strict` is available for stricter local or CI checks. Profile-specific file / CI migrations remain future work.
+Warnings remain advisory by default in this alpha. `doctor --strict` is available for stricter local or CI checks. Missing script diagnostics do not install dependencies or create scripts; profile-specific file / CI migrations remain future work.
 
 ## CI diagnostics
 
@@ -146,6 +147,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies, o
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
 - install state validity when `.ai-check-template.json` exists
 - profile-specific advisory warnings based on package scripts
+- missing referenced package script warnings from `ai:check` / `ai:check:fast`
 - stale managed CI workflow warnings for inactive `--ci` modes
 
 It exits with code `0` when no issues are found and code `1` when files are missing, drifted, or the install state is malformed. It does not repair files; use the reported paths to decide whether to run `update --dry-run` and then `update --yes`.
@@ -262,4 +264,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings と stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
