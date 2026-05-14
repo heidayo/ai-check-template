@@ -30,6 +30,10 @@ function readPackageJson(dir) {
   return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
 }
 
+function readInstallState(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, ".ai-check-template.json"), "utf8"));
+}
+
 test("prints help", () => {
   const result = runCli(["--help"]);
 
@@ -50,6 +54,37 @@ test("init merges package scripts and copies shell scripts", (t) => {
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
 });
 
+test("init writes deterministic install state", (t) => {
+  const target = createFixture(t);
+  const result = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs+supabase-rls",
+    "--ci",
+    "reusable",
+    "--claude-hooks",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readInstallState(target);
+  assert.deepEqual(state, {
+    schemaVersion: 1,
+    packageName: "ai-check-template",
+    packageVersion: "0.2.0-alpha.0",
+    profile: {
+      base: "react-nextjs",
+      addons: ["supabase-rls"],
+      all: ["react-nextjs", "supabase-rls"],
+    },
+    ci: "reusable",
+    claudeHooks: true,
+    managedBy: "ai-check-template",
+  });
+});
+
 test("dry-run writes nothing", (t) => {
   const packageJson = { name: "fixture", scripts: { test: "node --test" } };
   const target = createFixture(t, packageJson);
@@ -60,6 +95,7 @@ test("dry-run writes nothing", (t) => {
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
   assert.equal(fs.existsSync(path.join(target, ".github")), false);
+  assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
 
 test("direct CI mode copies direct workflow files", (t) => {

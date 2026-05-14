@@ -81,6 +81,32 @@ test("doctor passes for direct CI, reusable CI, and Claude hooks", (t) => {
   assert.equal(runCli(["doctor", "--target", claudeTarget, "--ci", "none", "--claude-hooks"]).status, 0);
 });
 
+test("doctor uses install state defaults and reports JSON context", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs+supabase-rls",
+    "--ci",
+    "reusable",
+    "--claude-hooks",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.installation.source, "state");
+  assert.equal(output.effectiveOptions.profile, "react-nextjs+supabase-rls");
+  assert.equal(output.effectiveOptions.ci, "reusable");
+  assert.equal(output.effectiveOptions.claudeHooks, true);
+});
+
 test("doctor returns non-zero for missing files", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
@@ -129,4 +155,17 @@ test("doctor rejects target without package.json", (t) => {
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /missing-file/);
   assert.match(result.stdout, /package\.json/);
+});
+
+test("doctor reports malformed install state without writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, ".ai-check-template.json"), "{bad json\n");
+  const before = snapshotDirectory(target);
+  const result = runCli(["doctor", "--target", target, "--ci", "none"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /invalid-install-state/);
+  assert.deepEqual(after, before);
 });

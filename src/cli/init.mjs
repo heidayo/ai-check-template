@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { parseProfiles } from "./profile.mjs";
 import {
   CliError,
@@ -58,6 +59,8 @@ export async function runInit(argv, io = {}) {
   if (options.claudeHooks) {
     await copyClaudeHooks(targetDir, options, operations);
   }
+
+  await writeInitInstallState(targetDir, profile, options, operations);
 
   writeLine(io.stdout, `ai-check-template init ${options.dryRun ? "dry-run" : "completed"}`);
   writeLine(io.stdout, `target: ${targetDir}`);
@@ -279,6 +282,32 @@ async function mergeClaudeSettings(targetDir, options, operations) {
   if (changed) {
     await writeJson(targetPath, nextSettings, { dryRun: options.dryRun });
   }
+}
+
+async function writeInitInstallState(targetDir, profile, options, operations) {
+  const targetPath = installStatePath(targetDir);
+  const exists = await pathExists(targetPath);
+  operations.push({
+    action: exists
+      ? options.dryRun
+        ? "would-update"
+        : "update"
+      : options.dryRun
+        ? "would-create"
+        : "create",
+    reason: "install state",
+    targetPath,
+  });
+
+  await writeInstallState(
+    targetDir,
+    {
+      profile,
+      ci: options.ci,
+      claudeHooks: options.claudeHooks,
+    },
+    { dryRun: options.dryRun },
+  );
 }
 
 function relativeTarget(targetDir, targetPath) {

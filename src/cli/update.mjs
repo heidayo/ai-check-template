@@ -1,6 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  assertWritableInstallState,
+  effectiveOptionsSummary,
+  installationSummary,
+  installStatePath,
+  loadInstallState,
+  resolveEffectiveOptions,
+  validateCiMode,
+  writeInstallState,
+} from "./install-state.mjs";
+import {
   CliError,
   fromTemplates,
   pathExists,
@@ -17,6 +27,7 @@ Usage:
 
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
+  --profile <name>     Profile to refresh in install state. Defaults to install state or react-nextjs.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
   --dry-run            Print planned operations without writing files.
@@ -45,27 +56,39 @@ export async function runUpdate(argv, io = {}) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
   }
 
+  const installState = await loadInstallState(targetDir);
+  assertWritableInstallState(installState);
+  const effectiveOptions = resolveEffectiveOptions(options, installState);
+  const writeOptions = {
+    ...options,
+    ci: effectiveOptions.ci,
+    claudeHooks: effectiveOptions.claudeHooks,
+  };
   const operations = [];
 
-  await updatePackageScripts(targetDir, packageJsonPath, options, operations);
-  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", options, operations);
-  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", options, operations);
-  await updateCi(targetDir, options, operations);
+  await updatePackageScripts(targetDir, packageJsonPath, writeOptions, operations);
+  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", writeOptions, operations);
+  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", writeOptions, operations);
+  await updateCi(targetDir, writeOptions, operations);
 
-  if (options.claudeHooks) {
+  if (writeOptions.claudeHooks) {
     await updateTemplateFile(
       targetDir,
       fromTemplates(".claude", "rules", "test-rules.md"),
       ".claude/rules/test-rules.md",
-      options,
+      writeOptions,
       operations,
     );
-    await updateClaudeSettings(targetDir, options, operations);
+    await updateClaudeSettings(targetDir, writeOptions, operations);
   }
+
+  await updateInstallState(targetDir, effectiveOptions, writeOptions, operations);
 
   const output = {
     status: options.dryRun ? "dry-run" : "updated",
     target: targetDir,
+    installation: installationSummary(installState),
+    effectiveOptions: effectiveOptionsSummary(effectiveOptions),
     operations,
   };
 
@@ -79,12 +102,18 @@ export async function runUpdate(argv, io = {}) {
 function parseUpdateArgs(argv, cwd) {
   const options = {
     target: cwd,
+    profile: "react-nextjs",
     ci: "direct",
     claudeHooks: false,
     dryRun: false,
     yes: false,
     json: false,
     help: false,
+    explicit: {
+      profile: false,
+      ci: false,
+      claudeHooks: false,
+    },
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -97,6 +126,7 @@ function parseUpdateArgs(argv, cwd) {
 
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
+      options.explicit.claudeHooks = true;
       continue;
     }
 
@@ -125,22 +155,34 @@ function parseUpdateArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--profile=")) {
+      options.profile = arg.slice("--profile=".length);
+      options.explicit.profile = true;
+      continue;
+    }
+
+    if (arg === "--profile") {
+      options.profile = readFlagValue(argv, (index += 1), arg);
+      options.explicit.profile = true;
+      continue;
+    }
+
     if (arg.startsWith("--ci=")) {
       options.ci = arg.slice("--ci=".length);
+      options.explicit.ci = true;
       continue;
     }
 
     if (arg === "--ci") {
       options.ci = readFlagValue(argv, (index += 1), arg);
+      options.explicit.ci = true;
       continue;
     }
 
     throw new CliError(`Unknown update option: ${arg}\n\n${UPDATE_USAGE}`);
   }
 
-  if (!["direct", "reusable", "none"].includes(options.ci)) {
-    throw new CliError("--ci must be one of: direct, reusable, none");
-  }
+  validateCiMode(options.ci);
 
   return options;
 }
@@ -276,6 +318,30 @@ async function updateClaudeSettings(targetDir, options, operations) {
   }
 }
 
+async function updateInstallState(targetDir, effectiveOptions, options, operations) {
+  const relativePath = ".ai-check-template.json";
+  const targetPath = installStatePath(targetDir);
+  const exists = await pathExists(targetPath);
+
+  operations.push(
+    operation(
+      exists ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
+      relativePath,
+      "install state",
+    ),
+  );
+
+  await writeInstallState(
+    targetDir,
+    {
+      profile: effectiveOptions.profile,
+      ci: effectiveOptions.ci,
+      claudeHooks: effectiveOptions.claudeHooks,
+    },
+    { dryRun: options.dryRun },
+  );
+}
+
 function operation(action, filePath, detail = undefined) {
   return {
     action,
@@ -291,6 +357,10 @@ function normalizeRelative(filePath) {
 function writeHumanOutput(stream, output) {
   writeLine(stream, `ai-check-template update ${output.status}`);
   writeLine(stream, `target: ${output.target}`);
+  writeLine(stream, `install-state: ${output.installation.source}`);
+  writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
+  writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
+  writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `operations: ${output.operations.length}`);
 
   for (const currentOperation of output.operations) {

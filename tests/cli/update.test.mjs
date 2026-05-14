@@ -59,6 +59,10 @@ function driftScriptAndFile(target) {
   fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "changed\n");
 }
 
+function readInstallState(target) {
+  return JSON.parse(fs.readFileSync(path.join(target, ".ai-check-template.json"), "utf8"));
+}
+
 test("prints update help", () => {
   const result = runCli(["update", "--help"]);
 
@@ -97,6 +101,33 @@ test("update handles direct CI, reusable CI, and Claude hooks", (t) => {
   assert.equal(doctor(claudeTarget, ["--ci", "none", "--claude-hooks"]).status, 0);
 });
 
+test("update uses install state defaults and refreshes state", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs+supabase-rls",
+    "--ci",
+    "reusable",
+    "--claude-hooks",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+  fs.writeFileSync(path.join(target, ".github", "workflows", "ai-quality-call.yml"), "changed\n");
+
+  const update = runCli(["update", "--target", target, "--yes"]);
+
+  assert.equal(update.status, 0, update.stderr);
+  assert.equal(doctor(target).status, 0);
+  const state = readInstallState(target);
+  assert.equal(state.profile.base, "react-nextjs");
+  assert.deepEqual(state.profile.addons, ["supabase-rls"]);
+  assert.equal(state.ci, "reusable");
+  assert.equal(state.claudeHooks, true);
+});
+
 test("dry-run writes nothing and emits operations", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
@@ -108,6 +139,7 @@ test("dry-run writes nothing and emits operations", (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /dry-run/);
   assert.match(result.stdout, /would-update/);
+  assert.match(result.stdout, /\.ai-check-template\.json/);
   assert.deepEqual(after, before);
 });
 
@@ -120,7 +152,33 @@ test("json output is parseable", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "dry-run");
+  assert.equal(output.installation.source, "state");
+  assert.equal(output.effectiveOptions.profile, "react-nextjs");
+  assert.equal(output.effectiveOptions.ci, "none");
   assert.equal(output.operations.some((operation) => operation.action === "would-update"), true);
+});
+
+test("explicit update flags override install state", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const result = runCli([
+    "update",
+    "--target",
+    target,
+    "--profile",
+    "node-cli",
+    "--ci",
+    "reusable",
+    "--claude-hooks",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readInstallState(target);
+  assert.equal(state.profile.base, "node-cli");
+  assert.deepEqual(state.profile.addons, []);
+  assert.equal(state.ci, "reusable");
+  assert.equal(state.claudeHooks, true);
 });
 
 test("update without yes is rejected and does not write", (t) => {
@@ -157,4 +215,18 @@ test("update rejects target without package.json", (t) => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /package\.json/);
+});
+
+test("update rejects malformed install state before writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  driftScriptAndFile(target);
+  fs.writeFileSync(path.join(target, ".ai-check-template.json"), "{bad json\n");
+  const before = snapshotDirectory(target);
+  const result = runCli(["update", "--target", target, "--yes"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Invalid install state/);
+  assert.deepEqual(after, before);
 });
