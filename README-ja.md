@@ -23,7 +23,7 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - AI 生成コード向けの**テスト設計思想**（Test Pyramid / Given-When-Then / QA 技法 / 形名参同）
 - 実装前に成功基準を AI に宣言させる **AI プロンプト雛形**
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
-- 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレ**
+- 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレ**（direct workflow / reusable workflow example）
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
 
 必要な部分をコピーして自プロジェクトに合わせ、検証可能なループを得る。特定の LLM・フレームワーク・ベンダーに依存しない設計。
@@ -70,7 +70,7 @@ AI 実装
 | **思想ドキュメント** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md)（形名参同）、[`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md)（責務分割）、[`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md)（GWT）、[`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md)（QA 技法） |
 | **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
-| **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）+ `ai-check-fast.yml`（PR の fast ループ） |
+| **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル |
 
@@ -90,6 +90,7 @@ cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+# reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
 
 # 4. scripts fragment を package.json にマージ
 cat ai-check-template/package-templates/package.scripts.fragment.json

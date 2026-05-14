@@ -32,7 +32,9 @@ package-templates/
 │   ├── README.md
 │   └── github-actions/
 │       ├── ai-check.yml
-│       └── ai-check-fast.yml
+│       ├── ai-check-fast.yml
+│       ├── ai-quality-reusable.yml
+│       └── ai-quality-call.yml
 ├── profiles/
 │   ├── react-nextjs/
 │   ├── react-vanilla/
