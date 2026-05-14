@@ -16,8 +16,8 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] GitHub Actions CI examples: `ai-check.yml` (full), `ai-check-fast.yml` (PR fast loop)
 - [x] Profiles (5): `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls`
 - [x] Phase 1 dogfooding protocol and feedback template
-- [ ] **OSS positioning**: external-facing README, vision, roadmap, Issue / PR templates, CONTRIBUTING / Code of Conduct / SECURITY (this PR series, SPEC-0009)
-- [ ] **GitHub Actions strengthening**: own repo CI, reusable workflow prototype, additional CI variants (SPEC-0010)
+- [x] **OSS positioning**: external-facing README, vision, roadmap, Issue / PR templates, CONTRIBUTING / Code of Conduct / SECURITY (SPEC-0009)
+- [x] **GitHub Actions strengthening**: own repo CI, reusable workflow prototype, additional CI variants (SPEC-0010)
 - [ ] **Example project**: `examples/nextjs-basic` showing a Before / After of AI-generated code under `ai-check-template` (SPEC-0011)
 - [ ] **Test design template + post-implementation diagnostic prompt** (SPEC-0012)
 - [ ] **First public dogfooding report** in an anonymized form (SPEC-0013)

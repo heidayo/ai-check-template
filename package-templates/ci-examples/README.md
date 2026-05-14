@@ -2,7 +2,7 @@
 
 `package-templates` から配布する CI 統合の **example**。本パッケージは特定の CI ツールに縛られないため、各 CI 環境向けの YAML / 設定ファイルを「例」として提供し、利用者は自プロジェクトの CI に合わせてカスタマイズする。
 
-> **ステータス**: Draft v0.1（Phase 1 dogfooding 後に改訂予定）
+> **ステータス**: v0.1 template set（Phase 1 dogfooding 後に改訂予定）
 
 ## ディレクトリ構成
 
@@ -10,8 +10,10 @@
 ci-examples/
 ├── README.md                   # このファイル
 └── github-actions/
-    ├── ai-check.yml            # full check（push / PR 全体）
-    └── ai-check-fast.yml       # fast check（PR のみ、軽量）
+    ├── ai-check.yml            # direct workflow: full check（push / PR 全体）
+    ├── ai-check-fast.yml       # direct workflow: fast check（PR のみ、軽量）
+    ├── ai-quality-reusable.yml # reusable workflow 本体
+    └── ai-quality-call.yml     # reusable workflow を呼ぶ caller
 ```
 
 将来の追加候補（別 SPEC で対応）:
@@ -19,7 +21,17 @@ ci-examples/
 - `circleci/` — CircleCI 用
 - `bitbucket-pipelines/` — Bitbucket Pipelines 用
 
-GitHub Actions が最初の対象である理由は、Notion Doc #2 の出典 YAML が GitHub Actions であること、および OSS / 個人開発を含む採用率が高いため。
+GitHub Actions が最初の対象である理由は、OSS / 個人開発を含む採用率が高く、PR Gate として導入しやすいため。
+
+## どれを使うか
+
+| 方式 | ファイル | 向いているケース |
+|---|---|---|
+| Direct full | `github-actions/ai-check.yml` | まず 1 つの workflow で `pnpm ai:check` を走らせたい |
+| Direct fast | `github-actions/ai-check-fast.yml` | PR push ごとに軽量な `pnpm ai:check:fast` を走らせたい |
+| Reusable | `github-actions/ai-quality-reusable.yml` + `ai-quality-call.yml` | install / check の共通ロジックを 1 か所に寄せたい |
+
+最初の導入は direct workflow が簡単。複数 workflow や複数リポで同じ品質ゲートを共有したくなったら reusable workflow に移行する。
 
 ## 思想
 
@@ -60,13 +72,39 @@ Claude Code Edit hook ─→ ai:check:fast ─→ ai-check-fast.yml (PR)
 | yarn | （Node 24+ では Corepack） | `yarn install --frozen-lockfile` |
 | bun | `oven-sh/setup-bun@v2` | `bun install --frozen-lockfile` |
 
-`actions/setup-node` の `cache:` キーも対応する PM 名に変更する。
+`actions/setup-node` の `cache:` キーも対応する PM 名に変更する。Reusable workflow を使う場合は `package-manager` input を変更する。
 
 ### 2. Node version
 
 デフォルトは `22`。プロジェクトの `.nvmrc` / `engines.node` に合わせて調整。LTS（偶数 major）を推奨。
 
-### 3. 任意ツールの有効化
+### 3. reusable workflow inputs
+
+`ai-quality-reusable.yml` は以下の inputs を持つ:
+
+| input | default | 用途 |
+|---|---|---|
+| `package-manager` | `pnpm` | `pnpm`, `npm`, `yarn`, `bun` の install path を選ぶ |
+| `node-version` | `22` | npm / pnpm / yarn 用 Node.js version |
+| `install-command` | 空 | 独自 install command を指定。空なら PM ごとの default を使う |
+| `check-command` | `pnpm ai:check` | 実行する品質ゲート |
+| `working-directory` | `.` | monorepo などでコマンドを実行するディレクトリ |
+| `timeout-minutes` | `30` | job timeout |
+| `upload-ai-check-artifacts` | `false` | `.ai-check/` を artifact upload するか |
+
+例:
+
+```yaml
+jobs:
+  ai-quality:
+    uses: ./.github/workflows/ai-quality-reusable.yml
+    with:
+      package-manager: pnpm
+      node-version: "22"
+      check-command: pnpm ai:check
+```
+
+### 4. 任意ツールの有効化
 
 `pnpm ai:check` の中身（`package.json` scripts）でツールを有効化する。本 YAML 自体は `pnpm ai:check` を呼ぶだけなので、ツール選定は利用者の責任。代表的な構成:
 
@@ -74,12 +112,13 @@ Claude Code Edit hook ─→ ai:check:fast ─→ ai-check-fast.yml (PR)
 - Node CLI: TypeScript + ESLint + Vitest + Knip + Semgrep
 - Pure React: TypeScript + ESLint + React Doctor + Knip + Playwright
 
-### 4. timeout 調整
+### 5. timeout 調整
 
 - `ai-check.yml`: default 30 分。E2E が長い場合は伸ばす
 - `ai-check-fast.yml`: default 10 分。fast の意義を保つため上げない（上げる場合はそもそも fast でない）
+- `ai-quality-reusable.yml`: caller 側の `timeout-minutes` input で調整
 
-### 5. third-party action の version pin
+### 6. third-party action の version pin
 
 セキュリティ要件が厳しい組織では、major version pin（`@v5`）ではなく SHA pin（`@<commit-sha>`）に変更する。Dependabot 等で自動更新する運用が必要。
 

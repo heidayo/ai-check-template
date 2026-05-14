@@ -21,7 +21,7 @@ A template collection for AI-driven development. It bundles:
 - A **testing philosophy** built for AI-written code (Test Pyramid, Given-When-Then, QA techniques, Formal Name Match)
 - **AI prompt templates** that force the model to declare success criteria before implementing
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
-- **GitHub Actions templates** that run the same `ai:check` on every PR
+- **GitHub Actions templates** that run the same `ai:check` on every PR, including direct and reusable workflow examples
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
 
 You copy what you need, adapt to your project, and get a verifiable loop — without depending on any specific LLM, framework, or vendor.
@@ -68,7 +68,7 @@ The repository ships templates and prompts for every step in this loop.
 | **Philosophy** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md), [`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md), [`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md), [`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md) |
 | **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
 | **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
-| **CI templates** | GitHub Actions `ai-check.yml` (full) + `ai-check-fast.yml` (PR-only fast loop) |
+| **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol |
 
@@ -88,6 +88,7 @@ cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+# Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
 
 # 4. Merge the scripts fragment into your package.json
 cat ai-check-template/package-templates/package.scripts.fragment.json

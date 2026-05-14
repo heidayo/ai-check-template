@@ -1,0 +1,26 @@
+# ai-quality-call.yml — caller workflow for ai-quality-reusable.yml
+#
+# Copy both files into your project's .github/workflows/ directory:
+#   - ai-quality-reusable.yml
+#   - ai-quality-call.yml
+#
+# The caller stays small while the reusable workflow keeps the install/check
+# details in one place.
+
+name: AI Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ai-quality:
+    uses: ./.github/workflows/ai-quality-reusable.yml
+    with:
+      package-manager: pnpm
+      node-version: "22"
+      check-command: pnpm ai:check
