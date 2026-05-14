@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
-JSON_FILES := $(shell find . -path ./.git -prune -o -path ./node_modules -prune -o -name '*.json' -print | sort)
-YAML_FILES := $(shell find . -path ./.git -prune -o -path ./node_modules -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
+JSON_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path '*/.next' \) -prune -o -name '*.json' -print | sort)
+YAML_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path '*/.next' \) -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 SHELL_FILES := $(shell find package-templates/scripts -type f -name '*.sh' -print | sort)
 
 .PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-sage
@@ -11,6 +11,7 @@ validate: validate-json validate-yaml validate-shell validate-structure validate
 
 validate-json:
 	@if [ -n "$(JSON_FILES)" ]; then \
+		set -e; \
 		for file in $(JSON_FILES); do \
 			python3 -m json.tool "$$file" >/dev/null; \
 		done; \
@@ -20,8 +21,8 @@ validate-json:
 validate-yaml:
 	@if [ -n "$(YAML_FILES)" ]; then \
 		if command -v ruby >/dev/null 2>&1; then \
-			ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file) }' $(YAML_FILES); \
-			echo "validate-yaml: PASS"; \
+			ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file) }' $(YAML_FILES) && \
+				echo "validate-yaml: PASS"; \
 		else \
 			echo "validate-yaml: SKIPPED (ruby not found)"; \
 		fi; \
@@ -29,6 +30,7 @@ validate-yaml:
 
 validate-shell:
 	@if [ -n "$(SHELL_FILES)" ]; then \
+		set -e; \
 		for file in $(SHELL_FILES); do \
 			bash -n "$$file"; \
 		done; \
@@ -38,6 +40,18 @@ validate-shell:
 validate-structure:
 	@test -f README.md
 	@test -f README-ja.md
+	@test -f examples/nextjs-basic/package.json
+	@test -f examples/nextjs-basic/tsconfig.json
+	@test -f examples/nextjs-basic/app/page.tsx
+	@test -f examples/nextjs-basic/app/api/users/[id]/route.ts
+	@test -f examples/nextjs-basic/app/users/[id]/page.tsx
+	@test -f examples/nextjs-basic/lib/users.ts
+	@test -f examples/nextjs-basic/tests/users.test.ts
+	@test -f examples/nextjs-basic/docs/before.md
+	@test -f examples/nextjs-basic/docs/after.md
+	@grep -q '"ai:check"' examples/nextjs-basic/package.json
+	@grep -q '"ai:check:fast"' examples/nextjs-basic/package.json
+	@grep -q '"strict": true' examples/nextjs-basic/tsconfig.json
 	@test -f package-templates/ci-examples/github-actions/ai-check.yml
 	@test -f package-templates/ci-examples/github-actions/ai-check-fast.yml
 	@test -f package-templates/ci-examples/github-actions/ai-quality-reusable.yml

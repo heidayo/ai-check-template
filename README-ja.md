@@ -71,6 +71,7 @@ AI 実装
 | **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
+| **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル |
 
@@ -99,6 +100,8 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 # 5. ループを回す
 pnpm ai:check
 ```
+
+実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。
 
 詳細は [`docs/roadmap.md`](./docs/roadmap.md) と各 profile の README（[`package-templates/profiles/`](./package-templates/profiles/)）を参照。
 

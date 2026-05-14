@@ -69,6 +69,7 @@ The repository ships templates and prompts for every step in this loop.
 | **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
 | **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
+| **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol |
 
@@ -97,6 +98,8 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 # 5. Run the loop
 pnpm ai:check
 ```
+
+To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/).
 
 Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-profile README under [`package-templates/profiles/`](./package-templates/profiles/).
 
