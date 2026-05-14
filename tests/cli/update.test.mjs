@@ -69,6 +69,7 @@ test("prints update help", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ai-check-template update/);
   assert.match(result.stdout, /--dry-run/);
+  assert.match(result.stdout, /--package-manager/);
 });
 
 test("update repairs package scripts and shell scripts then doctor passes", (t) => {
@@ -124,8 +125,39 @@ test("update uses install state defaults and refreshes state", (t) => {
   const state = readInstallState(target);
   assert.equal(state.profile.base, "react-nextjs");
   assert.deepEqual(state.profile.addons, ["supabase-rls"]);
+  assert.equal(state.packageManager, "pnpm");
   assert.equal(state.ci, "reusable");
   assert.equal(state.claudeHooks, true);
+});
+
+test("update repairs scripts using install state package manager", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "node-cli",
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+  const packageJsonPath = path.join(target, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts["ai:check"] = "custom";
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+  const result = runCli(["update", "--target", target, "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.packageManager, "npm");
+  const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  assert.equal(updatedPackageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run deadcode && npm run test");
+  assert.equal(doctor(target).status, 0);
 });
 
 test("update migrates generic scripts to node-cli profile scripts", (t) => {
@@ -262,6 +294,7 @@ test("json output is parseable", (t) => {
   assert.equal(output.status, "dry-run");
   assert.equal(output.installation.source, "state");
   assert.equal(output.effectiveOptions.profile, "react-nextjs");
+  assert.equal(output.effectiveOptions.packageManager, "pnpm");
   assert.equal(output.effectiveOptions.ci, "none");
   assert.equal(output.operations.some((operation) => operation.action === "would-update"), true);
 });
@@ -285,6 +318,7 @@ test("explicit update flags override install state", (t) => {
   const state = readInstallState(target);
   assert.equal(state.profile.base, "node-cli");
   assert.deepEqual(state.profile.addons, []);
+  assert.equal(state.packageManager, "pnpm");
   assert.equal(state.ci, "reusable");
   assert.equal(state.claudeHooks, true);
 });

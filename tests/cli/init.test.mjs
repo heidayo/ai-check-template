@@ -40,6 +40,7 @@ test("prints help", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Usage:/);
   assert.match(result.stdout, /init/);
+  assert.match(result.stdout, /--package-manager/);
 });
 
 test("init merges package scripts and copies shell scripts", (t) => {
@@ -54,6 +55,40 @@ test("init merges package scripts and copies shell scripts", (t) => {
   assert.equal(packageJson.scripts.deadcode, "knip");
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
+});
+
+test("init uses explicit npm package manager scripts", (t) => {
+  const target = createFixture(t);
+  const result = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs+supabase-rls",
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = readPackageJson(target);
+  assert.equal(packageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run doctor && npm run deadcode && npm run test && npm run test:e2e:smoke && npm run test:db && npm run test:integration:rls");
+  assert.equal(packageJson.scripts["ai:check:fast"], "npm run typecheck && npm run lint && npm run test:unit");
+  assert.equal(readInstallState(target).packageManager, "npm");
+});
+
+test("init detects yarn from lockfile", (t) => {
+  const target = createFixture(t);
+  fs.writeFileSync(path.join(target, "yarn.lock"), "");
+  const result = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = readPackageJson(target);
+  assert.equal(packageJson.scripts["ai:check"], "yarn typecheck && yarn lint && yarn deadcode && yarn test");
+  assert.equal(packageJson.scripts["ai:check:fast"], "yarn typecheck && yarn lint && yarn test:unit");
+  assert.equal(readInstallState(target).packageManager, "yarn");
 });
 
 test("node-cli profile scripts exclude UI E2E", (t) => {
@@ -103,6 +138,7 @@ test("init writes deterministic install state", (t) => {
       addons: ["supabase-rls"],
       all: ["react-nextjs", "supabase-rls"],
     },
+    packageManager: "pnpm",
     ci: "reusable",
     claudeHooks: true,
     managedBy: "ai-check-template",
@@ -179,4 +215,16 @@ test("invalid profile is rejected before writes", (t) => {
   assert.match(result.stderr, /Invalid profile/);
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
+});
+
+test("invalid package manager is rejected before writes", (t) => {
+  const packageJson = { name: "fixture", scripts: {} };
+  const target = createFixture(t, packageJson);
+  const result = runCli(["init", "--target", target, "--package-manager", "bad", "--yes"]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /package-manager must be one of/);
+  assert.deepEqual(readPackageJson(target), packageJson);
+  assert.equal(fs.existsSync(path.join(target, "scripts")), false);
+  assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });

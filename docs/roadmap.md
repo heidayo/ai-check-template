@@ -56,11 +56,12 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Install state foundation (`.ai-check-template.json`) for profile / CI / Claude hook defaults
 - [x] Non-blocking profile diagnostics warnings in `doctor`
 - [x] Profile-aware package script migrations for `init`, `doctor`, and `update`
+- [x] Package manager detection for generated package scripts (`pnpm`, `npm`, `yarn`, `bun`)
 - [x] Strict doctor warning mode (`doctor --strict`) for CI or release prep
 - [x] Stale managed CI workflow diagnostics in `doctor`
 - [x] Exact-managed workflow cleanup in `update`
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] deeper profile-aware file migrations
+- [ ] dependency install and deeper profile-aware file migrations
 
 **Dependencies on v0.1.0**
 

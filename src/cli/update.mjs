@@ -10,6 +10,7 @@ import {
   validateCiMode,
   writeInstallState,
 } from "./install-state.mjs";
+import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
@@ -29,6 +30,7 @@ Usage:
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Profile to refresh in install state. Defaults to install state or react-nextjs.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
   --dry-run            Print planned operations without writing files.
@@ -57,12 +59,16 @@ export async function runUpdate(argv, io = {}) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
   }
 
+  options.packageManager = options.explicit.packageManager
+    ? options.packageManager
+    : await detectPackageManager(targetDir);
   const installState = await loadInstallState(targetDir);
   assertWritableInstallState(installState);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
   const writeOptions = {
     ...options,
     profile: effectiveOptions.profile,
+    packageManager: effectiveOptions.packageManager,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
   };
@@ -106,6 +112,7 @@ function parseUpdateArgs(argv, cwd) {
   const options = {
     target: cwd,
     profile: "react-nextjs",
+    packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
     dryRun: false,
@@ -114,6 +121,7 @@ function parseUpdateArgs(argv, cwd) {
     help: false,
     explicit: {
       profile: false,
+      packageManager: false,
       ci: false,
       claudeHooks: false,
     },
@@ -170,6 +178,18 @@ function parseUpdateArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--package-manager=")) {
+      options.packageManager = validatePackageManager(arg.slice("--package-manager=".length));
+      options.explicit.packageManager = true;
+      continue;
+    }
+
+    if (arg === "--package-manager") {
+      options.packageManager = validatePackageManager(readFlagValue(argv, (index += 1), arg));
+      options.explicit.packageManager = true;
+      continue;
+    }
+
     if (arg.startsWith("--ci=")) {
       options.ci = arg.slice("--ci=".length);
       options.explicit.ci = true;
@@ -213,7 +233,7 @@ async function normalizeTargetDir(target) {
 async function updatePackageScripts(targetDir, packageJsonPath, options, operations) {
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
-  const expectedScripts = getProfileScripts(options.profile);
+  const expectedScripts = getProfileScripts(options.profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 
@@ -380,6 +400,7 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
     targetDir,
     {
       profile: effectiveOptions.profile,
+      packageManager: effectiveOptions.packageManager,
       ci: effectiveOptions.ci,
       claudeHooks: effectiveOptions.claudeHooks,
     },
@@ -404,6 +425,7 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `target: ${output.target}`);
   writeLine(stream, `install-state: ${output.installation.source}`);
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
+  writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `operations: ${output.operations.length}`);

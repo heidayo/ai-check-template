@@ -72,6 +72,7 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "src/cli/doctor.mjs",
     "src/cli/install-state.mjs",
     "src/cli/init.mjs",
+    "src/cli/package-manager.mjs",
     "src/cli/profile.mjs",
     "src/cli/profile-diagnostics.mjs",
     "src/cli/profile-scripts.mjs",

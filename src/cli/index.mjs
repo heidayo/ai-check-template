@@ -19,6 +19,7 @@ Commands:
 Init options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Profile name. Defaults to react-nextjs.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
   --dry-run            Print planned operations without writing files.
@@ -27,6 +28,7 @@ Init options:
 
 Doctor options:
   --target <dir>       Target project directory. Defaults to the current directory.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
   --strict             Treat warnings as failures.
@@ -34,6 +36,7 @@ Doctor options:
 
 Update options:
   --target <dir>       Target project directory. Defaults to the current directory.
+  --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
   --dry-run            Print planned operations without writing files.

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { DEFAULT_PACKAGE_MANAGER, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
 import {
   CliError,
@@ -18,15 +19,17 @@ export function installStatePath(targetDir) {
   return path.join(targetDir, INSTALL_STATE_FILE);
 }
 
-export async function buildInstallState({ profile, ci, claudeHooks }) {
+export async function buildInstallState({ profile, ci, claudeHooks, packageManager = DEFAULT_PACKAGE_MANAGER }) {
   const packageJson = await readJson(path.join(repoRoot, "package.json"));
   const parsedProfile = normalizeProfile(profile);
+  const normalizedPackageManager = validatePackageManager(packageManager);
 
   return {
     schemaVersion: INSTALL_STATE_SCHEMA_VERSION,
     packageName: packageJson.name ?? PACKAGE_NAME,
     packageVersion: packageJson.version ?? "0.0.0",
     profile: serializeProfile(parsedProfile),
+    packageManager: normalizedPackageManager,
     ci,
     claudeHooks: Boolean(claudeHooks),
     managedBy: PACKAGE_NAME,
@@ -66,6 +69,9 @@ export function resolveEffectiveOptions(options, installState) {
 
   return {
     profile,
+    packageManager: options.explicit.packageManager
+      ? options.packageManager
+      : state?.packageManager ?? options.packageManager ?? DEFAULT_PACKAGE_MANAGER,
     ci: options.explicit.ci ? options.ci : state?.ci ?? options.ci,
     claudeHooks: options.explicit.claudeHooks
       ? options.claudeHooks
@@ -97,6 +103,7 @@ export function installationSummary(installState) {
       schemaVersion: installState.state.schemaVersion,
       packageVersion: installState.state.packageVersion,
       profile: installState.state.profile,
+      packageManager: installState.state.packageManager,
       ci: installState.state.ci,
       claudeHooks: installState.state.claudeHooks,
     };
@@ -116,6 +123,7 @@ export function effectiveOptionsSummary(effectiveOptions) {
   return {
     profile: effectiveOptions.profile.all.join("+"),
     profiles: serializeProfile(effectiveOptions.profile),
+    packageManager: effectiveOptions.packageManager,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
   };
@@ -153,6 +161,15 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state packageVersion must be a string");
   }
 
+  let packageManager;
+  try {
+    packageManager = state.packageManager === undefined
+      ? DEFAULT_PACKAGE_MANAGER
+      : validatePackageManager(state.packageManager);
+  } catch (error) {
+    return invalidState("invalid-install-state", error.message);
+  }
+
   let profile;
   try {
     profile = normalizeProfile(state.profile);
@@ -175,6 +192,7 @@ function validateInstallState(state) {
       packageName: state.packageName,
       packageVersion: state.packageVersion,
       profile: serializeProfile(profile),
+      packageManager,
       ci: state.ci,
       claudeHooks: state.claudeHooks,
       managedBy: state.managedBy,

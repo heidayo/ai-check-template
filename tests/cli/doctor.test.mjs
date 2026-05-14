@@ -54,6 +54,7 @@ test("prints doctor help", () => {
   assert.match(result.stdout, /ai-check-template doctor/);
   assert.match(result.stdout, /--json/);
   assert.match(result.stdout, /--strict/);
+  assert.match(result.stdout, /--package-manager/);
 });
 
 test("doctor passes for a healthy target with scripts only", (t) => {
@@ -171,9 +172,50 @@ test("doctor uses install state defaults and reports JSON context", (t) => {
   assert.equal(output.status, "pass");
   assert.equal(output.installation.source, "state");
   assert.equal(output.effectiveOptions.profile, "react-nextjs+supabase-rls");
+  assert.equal(output.effectiveOptions.packageManager, "pnpm");
   assert.equal(output.effectiveOptions.ci, "reusable");
   assert.equal(output.effectiveOptions.claudeHooks, true);
   assert.equal(Array.isArray(output.warnings), true);
+});
+
+test("doctor uses install state package manager for script drift", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "node-cli",
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.effectiveOptions.packageManager, "npm");
+  assert.equal(output.issues.length, 0);
+});
+
+test("doctor accepts old install state without package manager", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const statePath = path.join(target, ".ai-check-template.json");
+  const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  delete state.packageManager;
+  fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.packageManager, "pnpm");
 });
 
 test("profile warnings do not fail doctor", (t) => {

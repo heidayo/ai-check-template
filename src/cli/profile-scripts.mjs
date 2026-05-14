@@ -1,4 +1,5 @@
 import { parseProfiles } from "./profile.mjs";
+import { DEFAULT_PACKAGE_MANAGER, scriptCommand } from "./package-manager.mjs";
 
 const BASE_PROFILE_SCRIPTS = {
   "react-nextjs": {
@@ -33,21 +34,22 @@ const ADDON_PROFILE_SCRIPTS = {
 };
 
 const ADDON_CHECK_STEPS = {
-  "supabase-rls": ["pnpm test:db", "pnpm test:integration:rls"],
+  "supabase-rls": ["test:db", "test:integration:rls"],
 };
 
-export function getProfileScripts(input = "react-nextjs") {
+export function getProfileScripts(input = "react-nextjs", options = {}) {
   const profile = typeof input === "string" ? parseProfiles(input) : input;
+  const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER;
   const scripts = { ...BASE_PROFILE_SCRIPTS[profile.base] };
 
   for (const addon of profile.addons) {
     Object.assign(scripts, ADDON_PROFILE_SCRIPTS[addon] ?? {});
     for (const step of ADDON_CHECK_STEPS[addon] ?? []) {
-      scripts["ai:check"] = appendScriptStep(scripts["ai:check"], step);
+      scripts["ai:check"] = appendScriptStep(scripts["ai:check"], scriptCommand(packageManager, step));
     }
   }
 
-  return scripts;
+  return renderPackageManagerScripts(scripts, packageManager);
 }
 
 function appendScriptStep(command, step) {
@@ -57,4 +59,16 @@ function appendScriptStep(command, step) {
   }
 
   return [...parts, step].join(" && ");
+}
+
+function renderPackageManagerScripts(scripts, packageManager) {
+  return Object.fromEntries(
+    Object.entries(scripts).map(([name, command]) => [name, renderScriptCommand(command, packageManager)]),
+  );
+}
+
+function renderScriptCommand(command, packageManager) {
+  return command.replace(/\bpnpm ([a-zA-Z0-9:_-]+)/g, (_, scriptName) => (
+    scriptCommand(packageManager, scriptName)
+  ));
 }
