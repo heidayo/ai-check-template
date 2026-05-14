@@ -41,7 +41,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 - `init` — flag-driven alpha setup that picks profiles, copies templates, and safely merges fragments
 - `update` — bring an existing setup up to a newer version of `ai-check-template`
-- `doctor` — diagnose drift between the installed templates and the current upstream version
+- `doctor` — diagnose drift between the installed templates and the current upstream version. Foundation is available; deeper profile-aware diagnostics remain planned.
 
 **Current alpha scope**
 
@@ -51,8 +51,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Node built-in tests wired into repository validation
 - [x] `npm pack` dry-run contents check and local tarball-installed CLI smoke
 - [x] `npm publish --dry-run --tag next` preflight for prerelease publish
+- [x] Read-only `doctor` foundation for scripts, files, CI, and Claude hook drift
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] `update` and `doctor`
+- [ ] `update` and deeper profile-aware `doctor` diagnostics
 
 **Dependencies on v0.1.0**
 

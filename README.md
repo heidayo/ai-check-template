@@ -73,7 +73,7 @@ The repository ships templates and prompts for every step in this loop.
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init` command, `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--overwrite`, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init` and read-only `doctor` commands, `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--overwrite`, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start
@@ -86,6 +86,7 @@ git clone https://github.com/heidayo/ai-check-template.git
 
 # 2. Preview the alpha CLI init, or pick a profile and copy manually
 node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+node ai-check-template/bin/ai-check-template.mjs doctor --target . --ci none
 
 # 3. Pick a profile that matches your stack
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md

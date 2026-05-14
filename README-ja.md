@@ -75,7 +75,7 @@ AI 実装
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、`--profile`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight を説明 |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、read-only `doctor` command、`--profile`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight を説明 |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start / 最短手順
@@ -88,6 +88,7 @@ git clone https://github.com/heidayo/ai-check-template.git
 
 # 2. alpha CLI init を dry-run するか、手動コピー用 profile を確認
 node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+node ai-check-template/bin/ai-check-template.mjs doctor --target . --ci none
 
 # 3. スタックに合う profile を確認
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md
