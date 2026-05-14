@@ -13,6 +13,7 @@ AI 駆動開発で利用する**プロンプト雛形ライブラリ**。`docs/p
 | [`state-transition.md`](./state-transition.md) | 状態遷移の許可・禁止両方をテスト | QA 技法 | qa-techniques §4 |
 | [`boundary-value.md`](./boundary-value.md) | 同値分割 + 境界値で入力空間網羅 | QA 技法 | qa-techniques §1, §2 |
 | [`rls-permission.md`](./rls-permission.md) | RLS / 権限境界の機械検証 | QA 技法 + DB-RLS 層 | test-pyramid §5 |
+| [`diagnostic-repair.md`](./diagnostic-repair.md) | `ai:check` / CI 失敗後に diagnostic output から修復計画・patch・再検証へ進める | 修復 | formal-name-match §Repair / Re-check |
 
 ## 使い方
 
@@ -41,9 +42,13 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
    ↓
 3. 補強した成功基準を SPEC / Plan に登録
    ↓
-4. 実装
+4. ../docs/test-design-template.md で AC と Test Matrix を固定
    ↓
-5. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
+5. 実装
+   ↓
+6. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
+   ↓
+7. 失敗時は diagnostic-repair.md に redacted diagnostic output を渡して修復し、同じ command を再実行
 ```
 
 ## 思想
@@ -73,6 +78,7 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 3. `state-transition.md` で決済ステータス遷移
 4. `decision-table.md` で割引条件組み合わせ
 5. `rls-permission.md` で組織別の権限
+6. `diagnostic-repair.md` で `ai:check` 失敗後の修復
 
 ## 隣接する思想
 

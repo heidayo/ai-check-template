@@ -52,6 +52,28 @@ validate-structure:
 	@grep -q '"ai:check"' examples/nextjs-basic/package.json
 	@grep -q '"ai:check:fast"' examples/nextjs-basic/package.json
 	@grep -q '"strict": true' examples/nextjs-basic/tsconfig.json
+	@test -f package-templates/docs/test-design-template.md
+	@test -f package-templates/prompts/diagnostic-repair.md
+	@grep -q "^## Requirement" package-templates/docs/test-design-template.md
+	@grep -q "^## Acceptance Criteria" package-templates/docs/test-design-template.md
+	@grep -q "^## Test Matrix" package-templates/docs/test-design-template.md
+	@grep -q "^## Given-When-Then" package-templates/docs/test-design-template.md
+	@grep -q "^## Verification Commands" package-templates/docs/test-design-template.md
+	@grep -q "^## Risks and Gaps" package-templates/docs/test-design-template.md
+	@grep -q "Do Not Change Acceptance Criteria" package-templates/prompts/diagnostic-repair.md
+	@grep -q "^## Repair Plan" package-templates/prompts/diagnostic-repair.md
+	@grep -q "^## Patch Rules" package-templates/prompts/diagnostic-repair.md
+	@grep -q "^## Re-check Commands" package-templates/prompts/diagnostic-repair.md
+	@grep -q "diagnostic-repair.md" package-templates/prompts/README.md
+	@grep -q "test-design-template.md" package-templates/README.md
+	@grep -q "test-design-template.md" README.md
+	@grep -q "diagnostic-repair.md" README.md
+	@grep -q "test-design-template.md" README-ja.md
+	@grep -q "diagnostic-repair.md" README-ja.md
+	@grep -q "test-design-template.md" docs/roadmap.md
+	@grep -q "diagnostic-repair.md" docs/roadmap.md
+	@lines=$$(wc -l < package-templates/docs/test-design-template.md); test "$$lines" -ge 120 -a "$$lines" -le 350
+	@lines=$$(wc -l < package-templates/prompts/diagnostic-repair.md); test "$$lines" -ge 80 -a "$$lines" -le 250
 	@test -f package-templates/ci-examples/github-actions/ai-check.yml
 	@test -f package-templates/ci-examples/github-actions/ai-check-fast.yml
 	@test -f package-templates/ci-examples/github-actions/ai-quality-reusable.yml

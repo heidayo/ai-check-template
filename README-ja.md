@@ -68,7 +68,8 @@ AI 実装
 | レイヤ | 内容 |
 |---|---|
 | **思想ドキュメント** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md)（形名参同）、[`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md)（責務分割）、[`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md)（GWT）、[`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md)（QA 技法） |
-| **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
+| **テスト設計** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) は要件を AC / Test Matrix / 検証コマンドへ落とすテンプレート |
+| **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
@@ -101,7 +102,7 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 pnpm ai:check
 ```
 
-実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。
+実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。自分のタスクを実装前に整理する場合は [`test-design-template.md`](./package-templates/docs/test-design-template.md) から始め、`ai:check` や CI の diagnostic が失敗したら [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) を使います。
 
 詳細は [`docs/roadmap.md`](./docs/roadmap.md) と各 profile の README（[`package-templates/profiles/`](./package-templates/profiles/)）を参照。
 
