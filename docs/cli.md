@@ -18,6 +18,7 @@ From another project after cloning this repository:
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --yes
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --json
+node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --strict --json
 node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 ```
 
@@ -41,7 +42,8 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--profile <name>` | install state or `react-nextjs` | Profile to check. One base profile plus optional `+supabase-rls`. |
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
-| `--json` | off | Prints `{ status, target, installation, effectiveOptions, warnings, issues }` for automation. |
+| `--strict` | off | Treats profile diagnostics warnings as a failing result while keeping them in `warnings`. |
+| `--json` | off | Prints `{ status, target, strict, installation, effectiveOptions, warnings, issues }` for automation. |
 
 ## Update options
 
@@ -69,7 +71,7 @@ Malformed or unsupported install state is reported by `doctor` as an issue. `upd
 
 ## Profile diagnostics
 
-`doctor` also emits non-blocking `warnings` from the effective profile. These warnings use the same `{ code, path, message }` shape as issues, but they do not change the exit status.
+`doctor` also emits `warnings` from the effective profile. These warnings use the same `{ code, path, message }` shape as issues. By default they are advisory and do not change the exit status. Add `--strict` when CI or release prep should fail on warnings without converting them into issues.
 
 Current advisory checks cover:
 
@@ -79,7 +81,7 @@ Current advisory checks cover:
 - `node-cli`: UI E2E mismatch for CLI or library projects
 - `supabase-rls`: missing RLS-related DB / integration test scripts
 
-Warnings are intentionally advisory in this alpha. Strict profile gates and profile-specific file / CI migrations are future work.
+Warnings remain advisory by default in this alpha. `doctor --strict` is available for stricter local or CI checks. Profile-specific file / CI migrations remain future work.
 
 ## Profile-aware scripts
 
@@ -171,6 +173,7 @@ Check an installed setup:
 ```bash
 node bin/ai-check-template.mjs doctor --target ../app
 node bin/ai-check-template.mjs doctor --target ../app --ci reusable --claude-hooks --json
+node bin/ai-check-template.mjs doctor --target ../app --strict --json
 ```
 
 Preview and apply an update:
@@ -218,4 +221,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新します。profile diagnostics warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
