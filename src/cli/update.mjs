@@ -11,7 +11,7 @@ import {
   writeInstallState,
 } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
-import { getProfileScripts } from "./profile-scripts.mjs";
+import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
   CliError,
   fromTemplates,
@@ -234,6 +234,7 @@ async function updatePackageScripts(targetDir, packageJsonPath, options, operati
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
   const expectedScripts = getProfileScripts(options.profile, { packageManager: options.packageManager });
+  const supportScripts = getProfileSupportScripts(options.profile);
   const nextScripts = { ...existingScripts };
   let changed = false;
 
@@ -254,6 +255,22 @@ async function updatePackageScripts(targetDir, packageJsonPath, options, operati
         relativePath,
         `script ${name}`,
       ),
+    );
+  }
+
+  for (const [name, expected] of Object.entries(supportScripts)) {
+    const current = nextScripts[name];
+    const relativePath = "package.json";
+
+    if (current) {
+      operations.push(operation("keep", relativePath, `support script ${name}`));
+      continue;
+    }
+
+    nextScripts[name] = expected;
+    changed = true;
+    operations.push(
+      operation(options.dryRun ? "would-create" : "create", relativePath, `support script ${name}`),
     );
   }
 

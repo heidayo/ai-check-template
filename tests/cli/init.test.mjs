@@ -53,6 +53,10 @@ test("init merges package scripts and copies shell scripts", (t) => {
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
   assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
   assert.equal(packageJson.scripts.deadcode, "knip");
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
+  assert.equal(packageJson.scripts.lint, "eslint .");
+  assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
+  assert.equal(packageJson.scripts["test:e2e:smoke"], "playwright test --grep smoke");
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
 });
@@ -98,7 +102,12 @@ test("node-cli profile scripts exclude UI E2E", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
+  assert.equal(packageJson.scripts.lint, "eslint .");
+  assert.equal(packageJson.scripts.test, "node --test");
+  assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
   assert.equal(packageJson.scripts["ai:check"].includes("test:e2e:smoke"), false);
+  assert.equal(Object.hasOwn(packageJson.scripts, "test:e2e:smoke"), false);
 });
 
 test("supabase addon profile scripts add RLS checks", (t) => {
@@ -192,6 +201,7 @@ test("existing files and scripts are not overwritten by default", (t) => {
     name: "fixture",
     scripts: {
       "ai:check": "custom check",
+      lint: "custom lint",
     },
   });
   fs.mkdirSync(path.join(target, "scripts"), { recursive: true });
@@ -203,6 +213,8 @@ test("existing files and scripts are not overwritten by default", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "custom check");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
+  assert.equal(packageJson.scripts.lint, "custom lint");
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
   assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "custom script\n");
 });
 

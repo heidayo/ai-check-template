@@ -189,6 +189,28 @@ test("update migrates generic scripts to node-cli profile scripts", (t) => {
   assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none"]).status, 0);
 });
 
+test("update creates missing support scripts without overwriting custom scripts", (t) => {
+  const target = createFixture(t);
+  mergePackageScripts(target, {
+    test: "node --test",
+    lint: "custom lint",
+  });
+
+  const result = runCli(["update", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "create" && operation.detail === "support script typecheck",
+  ), true);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"));
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
+  assert.equal(packageJson.scripts.lint, "custom lint");
+  assert.equal(packageJson.scripts.test, "node --test");
+  assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
+  assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none", "--strict"]).status, 0);
+});
+
 test("dry-run writes nothing and emits operations", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);

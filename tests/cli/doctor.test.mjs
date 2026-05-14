@@ -38,6 +38,15 @@ function mergePackageScripts(dir, scripts) {
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 }
 
+function deletePackageScripts(dir, names) {
+  const packageJsonPath = path.join(dir, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  for (const name of names) {
+    delete packageJson.scripts[name];
+  }
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
 function missingScriptWarningNames(output) {
   return output.warnings
     .filter((warning) => warning.code === "script-advice")
@@ -256,6 +265,7 @@ test("doctor warns on missing referenced package scripts", (t) => {
   const target = createFixture(t);
   const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
   assert.equal(init.status, 0, init.stderr);
+  deletePackageScripts(target, ["typecheck", "lint", "test", "test:unit"]);
   const before = snapshotDirectory(target);
 
   const result = runCli(["doctor", "--target", target, "--json"]);
@@ -275,6 +285,7 @@ test("strict mode fails on missing referenced package scripts", (t) => {
   const target = createFixture(t);
   const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
   assert.equal(init.status, 0, init.stderr);
+  deletePackageScripts(target, ["typecheck"]);
 
   const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
 
@@ -309,6 +320,7 @@ test("missing script parser supports package manager invocation forms", (t) => {
   const target = createFixture(t);
   const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
   assert.equal(init.status, 0, init.stderr);
+  deletePackageScripts(target, ["typecheck", "lint", "test:unit"]);
   mergePackageScripts(target, {
     "ai:check": "npm run typecheck && yarn lint && bun run test:unit && pnpm deadcode",
     "ai:check:fast": "bun run typecheck && pnpm lint",
