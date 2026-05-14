@@ -187,6 +187,7 @@ package-templates 更新
 
 ### Phase 1 内部
 - [`./phase-1-feedback-template.md`](./phase-1-feedback-template.md) — フィードバック記録テンプレ
+- [`./phase-1-initial-dogfooding-report.md`](./phase-1-initial-dogfooding-report.md) — 初回公開 dogfooding report（内部 repo / example の匿名化結果。Phase 2 昇格証跡ではない）
 
 ### Phase 0 成果物
 - `package-templates/docs/philosophy/` — 思想 4 ドキュメント
