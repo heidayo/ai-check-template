@@ -79,9 +79,23 @@ node bin/ai-check-template.mjs init --target ../app --profile node-cli --ci none
 ```bash
 node bin/ai-check-template.mjs --help
 node --test tests/cli/*.test.mjs
+npm pack --dry-run --json
 make validate
 ```
 
+## Package readiness
+
+SPEC-0016 verifies that the package can be packed and installed from a local tarball before any registry publish happens.
+
+```bash
+npm pack --dry-run --json
+node --test tests/cli/package.test.mjs
+```
+
+The package tests assert that runtime files are included, repository-only SAGE artifacts are excluded, and a tarball-installed `ai-check-template` binary can run both `--help` and `init`.
+
+This still does not mean the package is published to npm. Until the publish SPEC is complete, use a local clone or local tarball for CLI trials.
+
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。まず `--dry-run` で差分を確認し、問題なければ `--yes` を付けて実行してください。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness は検証しますが、registry publish は別 SPEC で扱います。まず `--dry-run` で差分を確認し、問題なければ `--yes` を付けて実行してください。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。

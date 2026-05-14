@@ -4,6 +4,26 @@
   "description": "Templates and CLI for verifying, repairing, and safely merging AI-generated code.",
   "license": "Apache-2.0",
   "type": "module",
+  "keywords": [
+    "ai",
+    "testing",
+    "verification",
+    "cli",
+    "templates",
+    "github-actions",
+    "claude-code"
+  ],
+  "homepage": "https://github.com/heidayo/ai-check-template#readme",
+  "bugs": {
+    "url": "https://github.com/heidayo/ai-check-template/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heidayo/ai-check-template.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "ai-check-template": "./bin/ai-check-template.mjs"
   },
