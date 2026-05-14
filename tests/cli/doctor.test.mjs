@@ -82,6 +82,73 @@ test("doctor passes for direct CI, reusable CI, and Claude hooks", (t) => {
   assert.equal(runCli(["doctor", "--target", claudeTarget, "--ci", "none", "--claude-hooks"]).status, 0);
 });
 
+test("doctor warns on inactive managed CI workflows", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "direct"]);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "none", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.issues.length, 0);
+  assert.deepEqual(
+    output.warnings
+      .filter((warning) => warning.code === "ci-advice")
+      .map((warning) => warning.path)
+      .sort(),
+    [".github/workflows/ai-check-fast.yml", ".github/workflows/ai-check.yml"],
+  );
+  assert.deepEqual(after, before);
+});
+
+test("strict mode fails on inactive managed CI workflows", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "direct"]);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "none", "--strict", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "fail");
+  assert.equal(output.strict, true);
+  assert.equal(output.issues.length, 0);
+  assert.equal(output.warnings.some((warning) => warning.code === "ci-advice"), true);
+  assert.deepEqual(after, before);
+});
+
+test("doctor does not warn on custom inactive CI workflow content", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  fs.mkdirSync(path.join(target, ".github", "workflows"), { recursive: true });
+  fs.writeFileSync(path.join(target, ".github", "workflows", "ai-check.yml"), "name: custom\n");
+
+  const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "none", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.warnings.some((warning) => warning.code === "ci-advice"), false);
+});
+
+test("selected CI mode issues remain issues", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+
+  const result = runCli(["doctor", "--target", target, "--profile", "node-cli", "--ci", "direct", "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "fail");
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "missing-file" && issue.path === ".github/workflows/ai-check.yml",
+  ), true);
+});
+
 test("doctor uses install state defaults and reports JSON context", (t) => {
   const target = createFixture(t);
   const init = runCli([
