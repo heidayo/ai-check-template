@@ -126,12 +126,15 @@ validate-structure:
 	@test -f src/cli/doctor.mjs
 	@test -f src/cli/init.mjs
 	@test -f src/cli/profile.mjs
+	@test -f src/cli/update.mjs
 	@test -f src/cli/utils.mjs
 	@test -f tests/cli/doctor.test.mjs
 	@test -f tests/cli/package.test.mjs
+	@test -f tests/cli/update.test.mjs
 	@test -f docs/cli.md
 	@grep -q "doctor" docs/cli.md
 	@grep -q "init" docs/cli.md
+	@grep -q "update" docs/cli.md
 	@grep -q -- "--profile" docs/cli.md
 	@grep -q -- "--dry-run" docs/cli.md
 	@grep -q -- "--overwrite" docs/cli.md
@@ -142,6 +145,9 @@ validate-structure:
 	@grep -q "doctor" README.md
 	@grep -q "doctor" README-ja.md
 	@grep -q "doctor" docs/roadmap.md
+	@grep -q "update" README.md
+	@grep -q "update" README-ja.md
+	@grep -q "update" docs/roadmap.md
 	@grep -q "./cli.md" docs/roadmap.md
 	@grep -q "npm pack" docs/cli.md
 	@grep -q "npm pack" README.md
@@ -156,6 +162,7 @@ validate-structure:
 validate-cli:
 	@node bin/ai-check-template.mjs --help >/dev/null
 	@node bin/ai-check-template.mjs doctor --help >/dev/null
+	@node bin/ai-check-template.mjs update --help >/dev/null
 	@node --test tests/cli/*.test.mjs
 	@echo "validate-cli: PASS"
 

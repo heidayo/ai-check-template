@@ -9,6 +9,7 @@ Use it to copy the v0.1.0 templates into an existing project with safer defaults
 ```bash
 node bin/ai-check-template.mjs init --target ../your-project --profile react-nextjs --yes
 node bin/ai-check-template.mjs doctor --target ../your-project --ci direct
+node bin/ai-check-template.mjs update --target ../your-project --ci direct --dry-run
 ```
 
 From another project after cloning this repository:
@@ -17,6 +18,7 @@ From another project after cloning this repository:
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --yes
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --ci direct --json
+node ../ai-check-template/bin/ai-check-template.mjs update --target . --ci direct --yes
 ```
 
 ## Init options
@@ -40,6 +42,17 @@ node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --ci direc
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
 | `--json` | off | Prints `{ status, target, issues }` for automation. |
 
+## Update options
+
+| Option | Default | Description |
+|---|---|---|
+| `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
+| `--ci <mode>` | `direct` | Updates `direct`, `reusable`, or no workflow files. |
+| `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed hook keys in `.claude/settings.json`. |
+| `--dry-run` | off | Prints planned operations without writing files. |
+| `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
+| `--json` | off | Prints `{ status, target, operations }` for automation. |
+
 ## What init changes
 
 `init` reads from `package-templates/` and may update the target project:
@@ -61,6 +74,17 @@ It does not modify `package-templates/`, publish to npm, install dependencies, o
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
 
 It exits with code `0` when no issues are found and code `1` when files are missing or drifted. It does not repair files; use the reported paths to decide whether to rerun `init --overwrite` or wait for the future `update` command.
+
+## What update changes
+
+`update` writes current templates to known template-managed paths only:
+
+- `ai:check` and `ai:check:fast` package scripts
+- `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
+- selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
+- optional Claude Code rule and managed hook settings when `--claude-hooks` is set
+
+It requires `--yes` before writing. Use `--dry-run` to preview operations. It does not perform profile-aware migrations or semantic merges of custom user scripts.
 
 ## Safety behavior
 
@@ -103,11 +127,20 @@ node bin/ai-check-template.mjs doctor --target ../app --ci direct
 node bin/ai-check-template.mjs doctor --target ../app --ci reusable --claude-hooks --json
 ```
 
+Preview and apply an update:
+
+```bash
+node bin/ai-check-template.mjs update --target ../app --ci direct --dry-run
+node bin/ai-check-template.mjs update --target ../app --ci direct --yes
+node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --json --yes
+```
+
 ## Verification
 
 ```bash
 node bin/ai-check-template.mjs --help
 node bin/ai-check-template.mjs doctor --help
+node bin/ai-check-template.mjs update --help
 node --test tests/cli/*.test.mjs
 npm pack --dry-run --json
 npm publish --dry-run --tag next --json
@@ -139,4 +172,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `doctor` で drift を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `doctor` で drift を確認し、`update --dry-run` で更新予定を確認できます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
