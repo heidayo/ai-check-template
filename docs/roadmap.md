@@ -31,15 +31,26 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.2.0 — CLI scaffolding
 
+**Status**: In progress. The first alpha foundation is documented in [`./cli.md`](./cli.md).
+
 **Theme**: Reduce friction from manual copy to one command.
 
 **Goal**: `npx ai-check-template@latest init --profile react-nextjs+supabase-rls` produces a working setup in an existing project, with safe merging into `package.json`, `.claude/settings.json`, and `.github/workflows/`.
 
 **Planned commands**
 
-- `init` — interactive (or flag-driven) setup that picks profiles, copies templates, and merges fragments
+- `init` — flag-driven alpha setup that picks profiles, copies templates, and safely merges fragments
 - `update` — bring an existing setup up to a newer version of `ai-check-template`
 - `doctor` — diagnose drift between the installed templates and the current upstream version
+
+**Current alpha scope**
+
+- [x] Repository-local `node bin/ai-check-template.mjs init`
+- [x] `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--yes`, and `--overwrite`
+- [x] Safe package script merge and file copy defaults
+- [x] Node built-in tests wired into repository validation
+- [ ] npm publish and `npx ai-check-template init`
+- [ ] `update` and `doctor`
 
 **Dependencies on v0.1.0**
 

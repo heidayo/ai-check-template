@@ -25,6 +25,7 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
 - 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレ**（direct workflow / reusable workflow example）
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
+- 安全な初期導入のための alpha **CLI foundation**
 
 必要な部分をコピーして自プロジェクトに合わせ、検証可能なループを得る。特定の LLM・フレームワーク・ベンダーに依存しない設計。
 
@@ -74,31 +75,35 @@ AI 実装
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、`--profile`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。CLI（`npx ai-check-template init`）は v0.2.0 で提供予定。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。repository-local の v0.2.0 alpha CLI は [`docs/cli.md`](./docs/cli.md) を参照。npm / `npx ai-check-template init` 公開は今後の作業です。
 
 ```bash
 # 1. リポをクローン
 git clone https://github.com/heidayo/ai-check-template.git
 
-# 2. スタックに合う profile を確認
+# 2. alpha CLI init を dry-run するか、手動コピー用 profile を確認
+node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+
+# 3. スタックに合う profile を確認
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md
 
-# 3. 必要なファイルを自プロジェクトにコピー
+# 4. 必要なファイルを自プロジェクトにコピー
 cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
 
-# 4. scripts fragment を package.json にマージ
+# 5. scripts fragment を package.json にマージ
 cat ai-check-template/package-templates/package.scripts.fragment.json
 # 出力の "ai:check" / "ai:check:fast" を自プロジェクトの package.json の scripts に追加
 
-# 5. ループを回す
+# 6. ループを回す
 pnpm ai:check
 ```
 
@@ -121,7 +126,7 @@ pnpm ai:check
 | バージョン | テーマ | 状態 |
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
-| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | 計画中 |
+| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | 進行中（[alpha CLI docs](./docs/cli.md)） |
 | **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
