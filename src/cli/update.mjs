@@ -17,6 +17,7 @@ import {
   writeInstallState,
 } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
+import { getProfileDocFiles } from "./profile-docs.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
   CliError,
@@ -92,6 +93,7 @@ export async function runUpdate(argv, io = {}) {
   await updatePackageScripts(targetDir, packageJsonPath, writeOptions, operations);
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", writeOptions, operations);
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", writeOptions, operations);
+  await createMissingProfileDocs(targetDir, writeOptions, operations);
   await updateCi(targetDir, writeOptions, operations);
   await cleanupInactiveCi(targetDir, writeOptions, operations);
 
@@ -325,6 +327,28 @@ async function updateTemplateFile(targetDir, sourcePath, relativePath, options, 
   if (!options.dryRun) {
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
     await fs.writeFile(targetPath, expected);
+  }
+}
+
+async function createMissingProfileDocs(targetDir, options, operations) {
+  for (const file of getProfileDocFiles(options.profile)) {
+    await createMissingTemplateFile(targetDir, file.sourcePath, file.relativePath, options, operations, "profile doc");
+  }
+}
+
+async function createMissingTemplateFile(targetDir, sourcePath, relativePath, options, operations, detail) {
+  const targetPath = path.join(targetDir, relativePath);
+
+  if (await pathExists(targetPath)) {
+    operations.push(operation("keep", relativePath, detail));
+    return;
+  }
+
+  operations.push(operation(options.dryRun ? "would-create" : "create", relativePath, detail));
+
+  if (!options.dryRun) {
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.copyFile(sourcePath, targetPath);
   }
 }
 

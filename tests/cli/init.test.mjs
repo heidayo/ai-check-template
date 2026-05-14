@@ -142,6 +142,8 @@ test("node-cli profile scripts exclude UI E2E", (t) => {
   assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
   assert.equal(packageJson.scripts["ai:check"].includes("test:e2e:smoke"), false);
   assert.equal(Object.hasOwn(packageJson.scripts, "test:e2e:smoke"), false);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "node-cli", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "react-nextjs", "README.md")), false);
 });
 
 test("supabase addon profile scripts add RLS checks", (t) => {
@@ -154,6 +156,20 @@ test("supabase addon profile scripts add RLS checks", (t) => {
   assert.equal(packageJson.scripts["test:integration:rls"], "vitest run --dir tests/rls");
   assert.match(packageJson.scripts["ai:check"], /pnpm test:db/);
   assert.match(packageJson.scripts["ai:check"], /pnpm test:integration:rls/);
+});
+
+test("init copies common and selected profile docs", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs+supabase-rls", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "test-design-template.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "philosophy", "formal-name-match.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "prompts", "diagnostic-repair.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "react-nextjs", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "supabase-rls", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "node-cli", "README.md")), false);
 });
 
 test("init writes deterministic install state", (t) => {
@@ -196,7 +212,9 @@ test("dry-run writes nothing", (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /dry-run/);
   assert.deepEqual(readPackageJson(target), packageJson);
+  assert.match(result.stdout, /would-copy: docs\/ai-check-template\/docs\/test-design-template\.md \(profile doc\)/);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template")), false);
   assert.equal(fs.existsSync(path.join(target, ".github")), false);
   assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
@@ -281,6 +299,7 @@ test("install deps missing package manager fails before writes", (t) => {
   assert.match(result.stderr, /Package manager command not found/);
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template")), false);
   assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
 

@@ -126,6 +126,21 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 
 `init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` and `--package-manager` taking precedence over install state.
 
+## Profile document migrations
+
+`init` and `update` copy profile guidance into the target project under `docs/ai-check-template/`.
+
+The copied set includes:
+
+- `docs/test-design-template.md`
+- `docs/philosophy/*.md`
+- `prompts/diagnostic-repair.md`
+- `profiles/README.md`
+- the selected base profile README, such as `profiles/react-nextjs/README.md` or `profiles/node-cli/README.md`
+- selected addon profile READMEs, such as `profiles/supabase-rls/README.md`
+
+The target layout preserves the package-template-like `docs/`, `prompts/`, and `profiles/` structure so existing relative links in the copied Markdown continue to work. `init` skips existing files by default and follows `--overwrite` for conflicts. `update` creates missing docs only and keeps existing target docs unchanged.
+
 ## Support script defaults
 
 `init` and `update` also add missing support package scripts referenced by `ai:check` / `ai:check:fast`, such as `typecheck`, `lint`, `test`, `test:unit`, and for `react-nextjs`, `test:e2e:smoke`.
@@ -156,6 +171,7 @@ These defaults are intentionally conservative:
 - Adds missing support package scripts while preserving existing user scripts
 - Uses the selected or detected package manager for generated package script invocations
 - Optionally installs missing npm dev dependencies when `--install-deps` is set
+- Copies common test design / philosophy docs and selected profile docs under `docs/ai-check-template/`
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
@@ -170,6 +186,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies wi
 - profile-aware package scripts
 - missing support package scripts referenced by `ai:check` / `ai:check:fast`
 - package-manager-aware package script invocations
+- selected profile docs under `docs/ai-check-template/`
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
@@ -188,6 +205,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - package-manager-aware package script invocations
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
+- missing profile docs under `docs/ai-check-template/`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
@@ -200,7 +218,8 @@ It requires `--yes` before writing. Use `--dry-run` to preview operations. It pe
 - During `init`, existing target files are not overwritten by default.
 - During `init`, existing target scripts are not overwritten by default.
 - During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
-- During `update`, only known template-managed paths are rewritten, and `--yes` is required.
+- During `update`, only known template-managed non-doc paths are rewritten, and `--yes` is required.
+- During `update`, existing files under `docs/ai-check-template/` are kept instead of overwritten.
 - During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates.
 - `--install-deps` is the explicit opt-in for dependency install; without it, no package manager install command runs.
 - Actual `--install-deps --yes` preflights the package manager binary before target writes.

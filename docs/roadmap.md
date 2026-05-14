@@ -63,8 +63,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Stale managed CI workflow diagnostics in `doctor`
 - [x] Exact-managed workflow cleanup in `update`
 - [x] Optional npm dev dependency install with `--install-deps`
+- [x] Profile-aware docs migration for test design, philosophy, prompt, and selected profile guidance
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] deeper profile-aware file migrations
+- [ ] deeper non-doc profile-aware file migrations
 
 **Dependencies on v0.1.0**
 
