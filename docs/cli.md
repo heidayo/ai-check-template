@@ -123,24 +123,37 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 
 `init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` and `--package-manager` taking precedence over install state.
 
+## Support script defaults
+
+`init` and `update` also add missing support package scripts referenced by `ai:check` / `ai:check:fast`, such as `typecheck`, `lint`, `test`, `test:unit`, and for `react-nextjs`, `test:e2e:smoke`.
+
+These defaults are intentionally conservative:
+
+- Existing user scripts are kept, even with `--overwrite`
+- Missing support scripts are added before `doctor --strict` checks for `script-advice`
+- Dependencies are not installed
+- The manual `package-templates/package.scripts.fragment.json` is not changed
+
 ## What init changes
 
 `init` reads from `package-templates/` and the CLI profile resolver, then may update the target project:
 
 - Merges profile-aware package scripts for the selected `--profile`
+- Adds missing support package scripts while preserving existing user scripts
 - Uses the selected or detected package manager for generated package script invocations
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
 - Writes `.ai-check-template.json` with install metadata
 
-It does not modify `package-templates/`, publish to npm, install dependencies, or rewrite project-specific tool choices.
+It does not modify `package-templates/`, publish to npm, install dependencies, or rewrite existing project-specific tool choices.
 
 ## What doctor checks
 
 `doctor` is read-only. It checks the target project for the files and fragments installed by `init`:
 
 - profile-aware package scripts
+- missing support package scripts referenced by `ai:check` / `ai:check:fast`
 - package-manager-aware package script invocations
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
@@ -164,12 +177,13 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - optional Claude Code rule and managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
 
-It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations and exact-managed workflow cleanup only; semantic merges of arbitrary custom user scripts and arbitrary workflow cleanup are still out of scope.
+It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations, missing support script creation, and exact-managed workflow cleanup only; dependency install, semantic merges of arbitrary custom user scripts, and arbitrary workflow cleanup are still out of scope.
 
 ## Safety behavior
 
 - During `init`, existing target files are not overwritten by default.
 - During `init`, existing target scripts are not overwritten by default.
+- During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
 - During `update`, only known template-managed paths are rewritten, and `--yes` is required.
 - During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates.
 - `--dry-run` writes nothing.
@@ -264,4 +278,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。

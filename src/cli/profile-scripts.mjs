@@ -37,6 +37,23 @@ const ADDON_CHECK_STEPS = {
   "supabase-rls": ["test:db", "test:integration:rls"],
 };
 
+const COMMON_SUPPORT_SCRIPTS = {
+  typecheck: "tsc --noEmit",
+  lint: "eslint .",
+  test: "vitest run",
+  "test:unit": "vitest run --dir tests/unit",
+};
+
+const BASE_PROFILE_SUPPORT_SCRIPTS = {
+  "react-nextjs": {
+    ...COMMON_SUPPORT_SCRIPTS,
+    "test:e2e:smoke": "playwright test --grep smoke",
+  },
+  "react-vanilla": COMMON_SUPPORT_SCRIPTS,
+  "expo-rn": COMMON_SUPPORT_SCRIPTS,
+  "node-cli": COMMON_SUPPORT_SCRIPTS,
+};
+
 export function getProfileScripts(input = "react-nextjs", options = {}) {
   const profile = typeof input === "string" ? parseProfiles(input) : input;
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER;
@@ -50,6 +67,11 @@ export function getProfileScripts(input = "react-nextjs", options = {}) {
   }
 
   return renderPackageManagerScripts(scripts, packageManager);
+}
+
+export function getProfileSupportScripts(input = "react-nextjs") {
+  const profile = typeof input === "string" ? parseProfiles(input) : input;
+  return { ...BASE_PROFILE_SUPPORT_SCRIPTS[profile.base] };
 }
 
 function appendScriptStep(command, step) {

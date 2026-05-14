@@ -3,7 +3,7 @@ import path from "node:path";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
-import { getProfileScripts } from "./profile-scripts.mjs";
+import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
   CliError,
   copyFileSafe,
@@ -198,6 +198,7 @@ async function mergePackageScripts(packageJsonPath, profile, options, operations
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
   const expectedScripts = getProfileScripts(profile, { packageManager: options.packageManager });
+  const supportScripts = getProfileSupportScripts(profile);
   const nextScripts = { ...existingScripts };
   let changed = false;
 
@@ -223,6 +224,21 @@ async function mergePackageScripts(packageJsonPath, profile, options, operations
           ? "would-merge"
           : "merge",
       reason: `script ${name}`,
+      targetPath: packageJsonPath,
+    });
+  }
+
+  for (const [name, command] of Object.entries(supportScripts)) {
+    if (nextScripts[name]) {
+      operations.push({ action: "keep", reason: `support script ${name}`, targetPath: packageJsonPath });
+      continue;
+    }
+
+    nextScripts[name] = command;
+    changed = true;
+    operations.push({
+      action: options.dryRun ? "would-merge" : "merge",
+      reason: `support script ${name}`,
       targetPath: packageJsonPath,
     });
   }
