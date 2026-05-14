@@ -1,6 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  dependencyInstallOperation,
+  planDependencyInstall,
+  preflightDependencyInstaller,
+  runDependencyInstall,
+} from "./dependency-installer.mjs";
+import {
   assertWritableInstallState,
   effectiveOptionsSummary,
   installationSummary,
@@ -33,6 +39,7 @@ Options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
+  --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --json               Print machine-readable JSON output.`;
@@ -72,6 +79,14 @@ export async function runUpdate(argv, io = {}) {
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
   };
+  const dependencyInstallPlan = writeOptions.installDeps
+    ? await planDependencyInstall(packageJsonPath, writeOptions.profile, writeOptions.packageManager)
+    : null;
+
+  if (dependencyInstallPlan && !writeOptions.dryRun) {
+    preflightDependencyInstaller(dependencyInstallPlan, targetDir);
+  }
+
   const operations = [];
 
   await updatePackageScripts(targetDir, packageJsonPath, writeOptions, operations);
@@ -92,6 +107,7 @@ export async function runUpdate(argv, io = {}) {
   }
 
   await updateInstallState(targetDir, effectiveOptions, writeOptions, operations);
+  await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
   const output = {
     status: options.dryRun ? "dry-run" : "updated",
@@ -115,6 +131,7 @@ function parseUpdateArgs(argv, cwd) {
     packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
+    installDeps: false,
     dryRun: false,
     yes: false,
     json: false,
@@ -138,6 +155,11 @@ function parseUpdateArgs(argv, cwd) {
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
       options.explicit.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--install-deps") {
+      options.installDeps = true;
       continue;
     }
 
@@ -425,6 +447,23 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
   );
 }
 
+async function maybeInstallDependencies(targetDir, dependencyInstallPlan, options, operations) {
+  if (!dependencyInstallPlan) {
+    return;
+  }
+
+  operations.push(
+    dependencyInstallOperation(dependencyInstallPlan, {
+      dryRun: options.dryRun,
+      path: "package.json",
+    }),
+  );
+
+  if (!options.dryRun) {
+    runDependencyInstall(dependencyInstallPlan, targetDir);
+  }
+}
+
 function operation(action, filePath, detail = undefined) {
   return {
     action,
@@ -450,7 +489,7 @@ function writeHumanOutput(stream, output) {
   for (const currentOperation of output.operations) {
     writeLine(
       stream,
-      `- ${currentOperation.action}: ${currentOperation.path}${currentOperation.detail ? ` (${currentOperation.detail})` : ""}`,
+      `- ${currentOperation.action}: ${currentOperation.path}${currentOperation.detail ? ` (${currentOperation.detail})` : ""}${currentOperation.command ? ` [${currentOperation.command}]` : ""}`,
     );
   }
 }

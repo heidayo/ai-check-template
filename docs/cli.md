@@ -16,6 +16,7 @@ From another project after cloning this repository:
 
 ```bash
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --install-deps --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --yes
 node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile node-cli --package-manager npm --dry-run
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --json
@@ -32,6 +33,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | `direct` copies `ai-check.yml` and `ai-check-fast.yml`; `reusable` copies `ai-quality-reusable.yml` and `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges the hook fragment into `.claude/settings.json`. |
+| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
 | `--overwrite` | off | Replaces conflicting files or scripts. Without this flag, conflicts are skipped. |
@@ -57,6 +59,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Updates `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed hook keys in `.claude/settings.json`. |
+| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
 | `--json` | off | Prints `{ status, target, installation, effectiveOptions, operations }` for automation. |
@@ -84,7 +87,7 @@ The CLI alpha generates profile-aware package scripts for `pnpm`, `npm`, `yarn`,
 4. lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `bun.lock`, `bun.lockb`)
 5. `pnpm` default
 
-This changes generated package script invocations only. It does not install dependencies, create lockfiles, or change the manual `package-templates/package.scripts.fragment.json`.
+Package manager detection changes generated package script invocations and, when `--install-deps` is explicitly set on `init` or `update`, selects the install command. It does not change the manual `package-templates/package.scripts.fragment.json`.
 
 ## Profile diagnostics
 
@@ -131,8 +134,19 @@ These defaults are intentionally conservative:
 
 - Existing user scripts are kept, even with `--overwrite`
 - Missing support scripts are added before `doctor --strict` checks for `script-advice`
-- Dependencies are not installed
+- Dependencies are installed only when `--install-deps` is explicitly set
 - The manual `package-templates/package.scripts.fragment.json` is not changed
+
+## Dependency install opt-in
+
+`init` and `update` can install missing npm dev dependencies for generated package scripts when `--install-deps` is explicitly provided. This is intentionally opt-in:
+
+- `--install-deps --dry-run` prints the package manager command, such as `pnpm add -D typescript eslint vitest knip @playwright/test`, without requiring the package manager binary and without writing lockfiles.
+- `--install-deps --yes` preflights the selected package manager binary before template files are written, then runs the install command after package scripts and install state are updated.
+- Already declared packages in `dependencies`, `devDependencies`, `peerDependencies`, or `optionalDependencies` are skipped.
+- Supported commands are `pnpm add -D`, `npm install --save-dev`, `yarn add --dev`, and `bun add --dev`.
+- The allowlist covers npm dev dependencies for generated defaults: `typescript`, `eslint`, `vitest`, `knip`, and `@playwright/test` for `react-nextjs`.
+- External tools such as Supabase CLI, Maestro, and React Doctor are not installed by this flag. React Doctor remains invoked through the generated `npx -y react-doctor@latest` script.
 
 ## What init changes
 
@@ -141,12 +155,13 @@ These defaults are intentionally conservative:
 - Merges profile-aware package scripts for the selected `--profile`
 - Adds missing support package scripts while preserving existing user scripts
 - Uses the selected or detected package manager for generated package script invocations
+- Optionally installs missing npm dev dependencies when `--install-deps` is set
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
 - Writes `.ai-check-template.json` with install metadata
 
-It does not modify `package-templates/`, publish to npm, install dependencies, or rewrite existing project-specific tool choices.
+It does not modify `package-templates/`, publish to npm, install dependencies without `--install-deps`, or rewrite existing project-specific tool choices.
 
 ## What doctor checks
 
@@ -176,8 +191,9 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
+- missing npm dev dependencies when `--install-deps` is set
 
-It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations, missing support script creation, and exact-managed workflow cleanup only; dependency install, semantic merges of arbitrary custom user scripts, and arbitrary workflow cleanup are still out of scope.
+It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations, missing support script creation, exact-managed workflow cleanup, and optional npm dev dependency install only; semantic merges of arbitrary custom user scripts, external toolchain install, and arbitrary workflow cleanup are still out of scope.
 
 ## Safety behavior
 
@@ -186,6 +202,9 @@ It requires `--yes` before writing. Use `--dry-run` to preview operations. It pe
 - During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
 - During `update`, only known template-managed paths are rewritten, and `--yes` is required.
 - During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates.
+- `--install-deps` is the explicit opt-in for dependency install; without it, no package manager install command runs.
+- Actual `--install-deps --yes` preflights the package manager binary before target writes.
+- `--install-deps --dry-run` prints the command without requiring the package manager binary.
 - `--dry-run` writes nothing.
 - Invalid profiles are rejected before any target write.
 - Malformed install state blocks `update` before any target write.
@@ -197,6 +216,7 @@ Preview a Next.js setup:
 
 ```bash
 node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --dry-run
+node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --install-deps --dry-run
 ```
 
 Preview an npm-based CLI/library setup:
@@ -209,6 +229,7 @@ Apply direct GitHub Actions workflows:
 
 ```bash
 node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --ci direct --yes
+node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --ci direct --install-deps --yes
 ```
 
 Apply reusable workflow examples and Claude hooks:
@@ -239,6 +260,7 @@ node bin/ai-check-template.mjs update --target ../app --yes
 node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --json --yes
 node bin/ai-check-template.mjs update --target ../app --ci none --dry-run --json
 node bin/ai-check-template.mjs update --target ../app --package-manager yarn --dry-run --json
+node bin/ai-check-template.mjs update --target ../app --install-deps --dry-run --json
 ```
 
 ## Verification
@@ -278,4 +300,4 @@ This command validates the publish payload without writing to the registry. Actu
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。ただし dependency install や lockfile 作成は行いません。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI は v0.2.0 alpha foundation です。現時点では npm 公開済みの安定版ではありません。`npm pack` と local tarball smoke で package readiness を検証し、`npm publish --dry-run --tag next --json` で publish preflight を検証しますが、registry への actual publish は別 SPEC で扱います。まず `init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。

@@ -62,8 +62,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Strict doctor warning mode (`doctor --strict`) for CI or release prep
 - [x] Stale managed CI workflow diagnostics in `doctor`
 - [x] Exact-managed workflow cleanup in `update`
+- [x] Optional npm dev dependency install with `--install-deps`
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] dependency install and deeper profile-aware file migrations
+- [ ] deeper profile-aware file migrations
 
 **Dependencies on v0.1.0**
 

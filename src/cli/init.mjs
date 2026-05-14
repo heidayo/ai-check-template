@@ -1,5 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import {
+  dependencyInstallOperation,
+  planDependencyInstall,
+  preflightDependencyInstaller,
+  runDependencyInstall,
+} from "./dependency-installer.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
@@ -26,6 +32,7 @@ Options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to target detection.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
+  --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --overwrite          Replace conflicting files/scripts.`;
@@ -57,6 +64,14 @@ export async function runInit(argv, io = {}) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
   }
 
+  const dependencyInstallPlan = writeOptions.installDeps
+    ? await planDependencyInstall(packageJsonPath, profile, writeOptions.packageManager)
+    : null;
+
+  if (dependencyInstallPlan && !writeOptions.dryRun) {
+    preflightDependencyInstaller(dependencyInstallPlan, targetDir);
+  }
+
   const operations = [];
 
   await mergePackageScripts(packageJsonPath, profile, writeOptions, operations);
@@ -68,13 +83,17 @@ export async function runInit(argv, io = {}) {
   }
 
   await writeInitInstallState(targetDir, profile, writeOptions, operations);
+  await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
   writeLine(io.stdout, `ai-check-template init ${writeOptions.dryRun ? "dry-run" : "completed"}`);
   writeLine(io.stdout, `target: ${targetDir}`);
   writeLine(io.stdout, `profile: ${profile.all.join("+")}`);
   writeLine(io.stdout, `package-manager: ${writeOptions.packageManager}`);
   for (const operation of operations) {
-    writeLine(io.stdout, `${operation.action}: ${relativeTarget(targetDir, operation.targetPath)}${operation.reason ? ` (${operation.reason})` : ""}`);
+    writeLine(
+      io.stdout,
+      `${operation.action}: ${relativeTarget(targetDir, operation.targetPath)}${operation.reason ? ` (${operation.reason})` : ""}${operation.command ? ` [${operation.command}]` : ""}`,
+    );
   }
 }
 
@@ -85,6 +104,7 @@ function parseInitArgs(argv, cwd) {
     packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
+    installDeps: false,
     dryRun: false,
     yes: false,
     overwrite: false,
@@ -104,6 +124,11 @@ function parseInitArgs(argv, cwd) {
 
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--install-deps") {
+      options.installDeps = true;
       continue;
     }
 
@@ -349,6 +374,27 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     },
     { dryRun: options.dryRun },
   );
+}
+
+async function maybeInstallDependencies(targetDir, dependencyInstallPlan, options, operations) {
+  if (!dependencyInstallPlan) {
+    return;
+  }
+
+  const dependencyOperation = dependencyInstallOperation(dependencyInstallPlan, {
+    dryRun: options.dryRun,
+    path: "package.json",
+  });
+  operations.push({
+    action: dependencyOperation.action,
+    reason: dependencyOperation.detail,
+    targetPath: path.join(targetDir, dependencyOperation.path),
+    ...(dependencyOperation.command ? { command: dependencyOperation.command } : {}),
+  });
+
+  if (!options.dryRun) {
+    runDependencyInstall(dependencyInstallPlan, targetDir);
+  }
 }
 
 function relativeTarget(targetDir, targetPath) {

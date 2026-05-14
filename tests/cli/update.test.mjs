@@ -17,12 +17,17 @@ function runCli(args, options = {}) {
   });
 }
 
-function createFixture(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-check-template-update-"));
-  fs.writeFileSync(path.join(dir, "package.json"), `${JSON.stringify({ name: "fixture", scripts: {} }, null, 2)}\n`);
+function createTempDir(t, prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   t.after(() => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
+  return dir;
+}
+
+function createFixture(t) {
+  const dir = createTempDir(t, "ai-check-template-update-");
+  fs.writeFileSync(path.join(dir, "package.json"), `${JSON.stringify({ name: "fixture", scripts: {} }, null, 2)}\n`);
   return dir;
 }
 
@@ -50,6 +55,18 @@ function addStrictSupportScripts(target) {
     "test:unit": "vitest run --dir tests/unit",
     "test:e2e:smoke": "playwright test --grep smoke",
   });
+}
+
+function createFakePackageManager(t, name) {
+  const binDir = createTempDir(t, "ai-check-template-bin-");
+  const logPath = path.join(binDir, "package-manager.log");
+  const commandPath = path.join(binDir, name);
+  fs.writeFileSync(
+    commandPath,
+    "#!/bin/sh\nprintf '%s\\n' \"$0 $*\" >> \"$AI_CHECK_PM_LOG\"\n",
+  );
+  fs.chmodSync(commandPath, 0o755);
+  return { binDir, logPath };
 }
 
 function snapshotDirectory(dir) {
@@ -87,6 +104,7 @@ test("prints update help", () => {
   assert.match(result.stdout, /ai-check-template update/);
   assert.match(result.stdout, /--dry-run/);
   assert.match(result.stdout, /--package-manager/);
+  assert.match(result.stdout, /--install-deps/);
 });
 
 test("update repairs package scripts and shell scripts then doctor passes", (t) => {
@@ -209,6 +227,41 @@ test("update creates missing support scripts without overwriting custom scripts"
   assert.equal(packageJson.scripts.test, "node --test");
   assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
   assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none", "--strict"]).status, 0);
+});
+
+test("update install deps invokes fake package manager and emits json operation", (t) => {
+  const target = createFixture(t);
+  const fakeNpm = createFakePackageManager(t, "npm");
+  const result = runCli(
+    [
+      "update",
+      "--target",
+      target,
+      "--profile",
+      "react-nextjs",
+      "--package-manager",
+      "npm",
+      "--ci",
+      "none",
+      "--install-deps",
+      "--yes",
+      "--json",
+    ],
+    { env: { ...process.env, PATH: fakeNpm.binDir, AI_CHECK_PM_LOG: fakeNpm.logPath } },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => (
+      operation.action === "install" &&
+      operation.path === "package.json" &&
+      operation.command === "npm install --save-dev typescript eslint vitest knip @playwright/test"
+    ),
+  ), true);
+  const log = fs.readFileSync(fakeNpm.logPath, "utf8");
+  assert.match(log, /npm --version/);
+  assert.match(log, /npm install --save-dev typescript eslint vitest knip @playwright\/test/);
 });
 
 test("dry-run writes nothing and emits operations", (t) => {

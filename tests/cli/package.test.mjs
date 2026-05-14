@@ -68,6 +68,7 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "README-ja.md",
     "package.json",
     "bin/ai-check-template.mjs",
+    "src/cli/dependency-installer.mjs",
     "src/cli/index.mjs",
     "src/cli/doctor.mjs",
     "src/cli/install-state.mjs",
