@@ -54,6 +54,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Read-only `doctor` foundation for scripts, files, CI, and Claude hook drift
 - [x] Guarded `update` foundation for package scripts, files, CI, and Claude hook drift
 - [x] Install state foundation (`.ai-check-template.json`) for profile / CI / Claude hook defaults
+- [x] Non-blocking profile diagnostics warnings in `doctor`
 - [ ] npm publish and `npx ai-check-template init`
 - [ ] profile-aware `update` migrations and deeper `doctor` diagnostics
 
