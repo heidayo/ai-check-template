@@ -45,7 +45,7 @@
 - `.github/ISSUE_TEMPLATE/feature_request.md`（英語）
 - `.github/ISSUE_TEMPLATE/template_request.md`（英語、本リポ特有：「こういうテンプレが欲しい」要望用）
 - `.github/ISSUE_TEMPLATE/config.yml`（blank issue disable + リンク誘導）
-- `.github/PULL_REQUEST_TEMPLATE.md`（英語、本 OSS らしい構造：What / Why / Type / Verification / Risks）
+- `.github/PULL_REQUEST_TEMPLATE.md`（日本語、SAGE 運用に合わせた構造：概要 / 変更内容 / 確認手順 / 影響範囲 / Promotion / リスクとロールバック / チェックリスト）
 
 ### ガバナンスドキュメント
 - `CONTRIBUTING.md`（英語、貢献方法・PR フロー・SAGE 規律の薄い説明）
@@ -88,7 +88,7 @@
 
 | ルール | 実装時の遵守事項 |
 |---|---|
-| 言語規約 | README 等外部向けは英語 Primary、`README-ja.md` 別建てで日本語版。`docs/vision.md` / `docs/roadmap.md` / `.github/**` / `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` / `SECURITY.md` は英語 |
+| 言語規約 | README 等外部向けは英語 Primary、`README-ja.md` 別建てで日本語版。`docs/vision.md` / `docs/roadmap.md` / `.github/ISSUE_TEMPLATE/**` / `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` / `SECURITY.md` は英語。`.github/PULL_REQUEST_TEMPLATE.md` は maintainers の運用に合わせて日本語 |
 | 汎用ファースト | OSS 価値命題に gakuten 等の固有プロジェクト名を含めない。日本語版でも一般化された記述 |
 | Protected files | `CLAUDE.md` / `.sage/config.yaml` / `sage/*` は本 SPEC で変更しない |
 
@@ -124,7 +124,7 @@
 - [FR-04] `docs/vision.md` が OSS 思想を 100-300 行で記述
 - [FR-05] `docs/roadmap.md` が v0.1.0 / v0.2.0 / v0.3.0+ のマイルストーンを列挙
 - [FR-06] `.github/ISSUE_TEMPLATE/` に bug / feature / template_request の 3 種 + config.yml
-- [FR-07] `.github/PULL_REQUEST_TEMPLATE.md` に What / Why / Type / Verification / Risks の 5 セクション
+- [FR-07] `.github/PULL_REQUEST_TEMPLATE.md` に 概要 / 変更内容 / 確認手順 / 影響範囲 / Promotion / リスクとロールバック / チェックリスト の 7 セクション
 - [FR-08] `CONTRIBUTING.md` が PR の流れ・SAGE 規律の薄い説明・lite/standard レーンの選び方を含む
 - [FR-09] `CODE_OF_CONDUCT.md` が Contributor Covenant v2.1 ベース
 - [FR-10] `SECURITY.md` が脆弱性報告連絡先 + 対応 SLO を含む
@@ -178,7 +178,7 @@
 - [x] AC-07: `README-ja.md` への参照が `README.md` にある（`grep -q "README-ja.md" README.md`）
 - [x] AC-08: `CONTRIBUTING.md` が PR テンプレへ言及（`grep -qE "PULL_REQUEST_TEMPLATE|SAGE|TASK-ID" CONTRIBUTING.md`）
 - [x] AC-09: `SECURITY.md` が脆弱性報告手段を明示（`grep -qE "Security Advisor|vulnerability|report" SECURITY.md`、または日本語の場合は適宜）
-- [x] AC-10: `.github/PULL_REQUEST_TEMPLATE.md` が 5 必須セクション含む（`for s in "What changed" "Why" "Type" "Verification" "Risks"; do grep -qi "$s" .github/PULL_REQUEST_TEMPLATE.md || exit 1; done`）
+- [x] AC-10: `.github/PULL_REQUEST_TEMPLATE.md` が 7 必須セクション含む（`for s in "概要" "変更内容" "確認手順" "影響範囲" "Promotion" "リスクとロールバック" "チェックリスト"; do grep -q "$s" .github/PULL_REQUEST_TEMPLATE.md || exit 1; done`）
 
 ### 異常系
 - [x] AC-11: gakuten 固有語が含まれない（`grep -riE "gakuten|学生転職|apps/web|web_ipo|academy|internships" README.md README-ja.md docs/vision.md docs/roadmap.md .github/ CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md` が空）
@@ -209,7 +209,7 @@
 | AC-07 | README.md に README-ja.md への参照追加 |
 | AC-08 | CONTRIBUTING.md に PR テンプレ / SAGE 言及追加 |
 | AC-09 | SECURITY.md に脆弱性報告手段追加 |
-| AC-10 | PULL_REQUEST_TEMPLATE.md に 5 セクション追加 |
+| AC-10 | PULL_REQUEST_TEMPLATE.md に 7 セクション追加 |
 | AC-11 | gakuten 固有語を汎用語に置換 |
 | AC-12 | secret 直書きを削除 |
 | AC-13 | 余分な変更ファイルを `git checkout HEAD -- <file>` |
@@ -239,7 +239,7 @@
 
 - リスク1: 英語版 README の表現が不自然 / 文法エラー → 軽減策: 一次資料（レビュー本文の英語コピー例）を出発点、後で英語 native speaker のレビュー SPEC を別途検討
 - リスク2: 英語版 / 日本語版の同期維持コスト → 軽減策: `CONTRIBUTING.md` で「英語 Primary、日本語は best effort で同期」と明記
-- リスク3: Issue / PR テンプレが既存利用者（日本語話者）に負担 → 軽減策: テンプレ自体は英語だが、回答は日本語可と明示
+- リスク3: Issue テンプレが既存利用者（日本語話者）に負担 → 軽減策: Issue テンプレは英語だが回答は日本語可、PR テンプレは maintainer 運用に合わせて日本語
 - リスク4: Contributor Covenant 採用で社内文化との齟齬 → 軽減策: 公式英語版を採用、組織独自の条項は将来 SPEC で追加
 - リスク5: README が長文すぎて訴求力が落ちる → 軽減策: NFR-01 で 300 行上限、Quick start を上部に配置
 
@@ -335,36 +335,46 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 ### .github/PULL_REQUEST_TEMPLATE.md の構造
 
 ```markdown
-## What changed?
-（変更内容）
+## 概要
+- このPRで何を変更したかを簡潔に記載
 
-## Why?
-（動機）
+## 変更内容
+- [ ] 機能追加
+- [ ] バグ修正
+- [ ] ドキュメント更新
+- [ ] リファクタ
+- [ ] SAGE governance
+- [ ] その他
 
-## Type
-- [ ] philosophy
-- [ ] template
-- [ ] prompt
-- [ ] script
-- [ ] CI
-- [ ] profile
-- [ ] example
-- [ ] documentation
-- [ ] other
+## 確認手順
+1.
+2.
+3.
 
-## Verification
-- [ ] markdown lint pass
-- [ ] shell syntax check pass
-- [ ] example smoke test pass
-- [ ] manual review
+## 影響範囲
+- 画面:
+- API:
+- DB:
+- インフラ:
 
-## Risks
-（既存利用者への影響、breaking change の有無）
+## Promotion (promote/* のみ)
+- [ ] Retro-SPEC 作成・レビュー済み
+- [ ] TBD 全解消
+- [ ] テスト追加済み
 
-## Related
-- SPEC-ID:
-- PLAN-ID:
-- TASK-ID:
+## リスクとロールバック
+- 想定リスク:
+- ロールバック手順:
+
+## チェックリスト
+- [ ] ブランチ命名規則に従っている
+- [ ] コミットメッセージ規約に従っている
+- [ ] CIが通過している
+- [ ] File Scope 内の変更
+- [ ] TODO/FIXME なし
+- [ ] `make validate` pass
+- [ ] Gate 誤検知があった場合 `sage/failures.md` に記録済み
+- [ ] レビュー観点をPR本文に記載した
 ```
 
 ### TASK 分解の指針

@@ -1,45 +1,48 @@
-## What changed?
+## 概要
 
-<!-- A concise summary of the change. One or two sentences. -->
+- このPRで何を変更したかを簡潔に記載
 
-## Why?
 
-<!-- The motivation. What problem does this solve, or what value does it add? -->
+## 変更内容
 
-## Type
+- [ ] 機能追加
+- [ ] バグ修正
+- [ ] ドキュメント更新
+- [ ] リファクタ
+- [ ] SAGE governance
+- [ ] その他
 
-- [ ] philosophy (`package-templates/docs/philosophy/`)
-- [ ] template (any reusable file under `package-templates/`)
-- [ ] prompt (`package-templates/prompts/`)
-- [ ] script (`package-templates/scripts/`)
-- [ ] CI (`package-templates/ci-examples/` or `.github/workflows/`)
-- [ ] profile (`package-templates/profiles/`)
-- [ ] example (`examples/`)
-- [ ] documentation (`README.md`, `docs/`, `CONTRIBUTING.md`, etc.)
-- [ ] governance (SAGE artifacts: `specs/`, `plans/`, `tasks/`)
-- [ ] other: <describe>
+## 確認手順
 
-## Verification
+1.
+2.
+3.
 
-- [ ] Markdown renders correctly (no broken links, no malformed tables)
-- [ ] Shell scripts pass `bash -n` syntax check
-- [ ] YAML files pass syntax check
-- [ ] JSON files pass syntax check
-- [ ] Example smoke test pass (if an `examples/` directory is touched)
-- [ ] Existing AC for the touched SPEC still pass
-- [ ] Manual review for templates that cannot be machine-verified
+## 影響範囲
 
-## Risks
+- 画面:
+- API:
+- DB:
+- インフラ:
 
-<!-- Impact on existing users. Breaking changes. Migration steps. If none, write "None — additive change only." -->
+## Promotion (promote/* のみ)
 
-## Related
+- [ ] Retro-SPEC 作成・レビュー済み
+- [ ] TBD 全解消
+- [ ] テスト追加済み
 
-- SPEC-ID: SPEC-XXXX
-- PLAN-ID: PLAN-XXXX
-- TASK-ID: TASK-XXXX
+## リスクとロールバック
 
-<!--
-If your contribution is on the `vibe/*` exploration lane, SPEC/PLAN/TASK can be empty for now. See CONTRIBUTING.md for lane selection.
-You can reply in English or Japanese. 日本語でも構いません。
--->
+- 想定リスク:
+- ロールバック手順:
+
+## チェックリスト
+
+- [ ] ブランチ命名規則に従っている（`feature/*`, `fix/*`, `hotfix/*`, `docs/*`, `chore/*`, `vibe/*`, `promote/*`）
+- [ ] コミットメッセージ規約に従っている（`feat|fix|docs|refactor|test|chore`）
+- [ ] CIが通過している
+- [ ] File Scope 内の変更
+- [ ] TODO/FIXME なし
+- [ ] `make validate` pass
+- [ ] Gate 誤検知があった場合 `sage/failures.md` に記録済み
+- [ ] レビュー観点をPR本文に記載した

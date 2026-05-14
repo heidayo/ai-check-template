@@ -47,7 +47,7 @@ If unsure, default to `feature/` for new content or `docs/` for documentation tw
 ### 3. Open a PR
 
 - Reference the Issue you filed (if any) in the PR description.
-- Use the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). It covers What / Why / Type / Verification / Risks.
+- Use the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). It covers summary, change type, verification steps, impact, promotion checks, risks, and rollback.
 - Every commit message must include a TASK-ID for the `standard` lane (e.g. `TASK-0029: rewrite README`). For `lite` lane PRs this is optional but recommended for traceability.
 - Keep PRs focused. One PR per logical change. Multi-purpose PRs are difficult to review.
 
