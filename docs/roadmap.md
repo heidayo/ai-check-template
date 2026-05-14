@@ -53,6 +53,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] `npm publish --dry-run --tag next` preflight for prerelease publish
 - [x] Read-only `doctor` foundation for scripts, files, CI, and Claude hook drift
 - [x] Guarded `update` foundation for package scripts, files, CI, and Claude hook drift
+- [x] Install state foundation (`.ai-check-template.json`) for profile / CI / Claude hook defaults
 - [ ] npm publish and `npx ai-check-template init`
 - [ ] profile-aware `update` migrations and deeper `doctor` diagnostics
 

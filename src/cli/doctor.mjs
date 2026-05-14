@@ -1,6 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  effectiveOptionsSummary,
+  installationSummary,
+  installStateIssue,
+  loadInstallState,
+  resolveEffectiveOptions,
+  validateCiMode,
+} from "./install-state.mjs";
+import {
   CliError,
   fromTemplates,
   pathExists,
@@ -16,6 +24,7 @@ Usage:
 
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
+  --profile <name>     Profile to check. Defaults to install state or react-nextjs.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
   --json               Print machine-readable JSON output.`;
@@ -32,11 +41,17 @@ export async function runDoctor(argv, io = {}) {
   }
 
   const targetDir = await normalizeTargetDir(options.target);
-  const result = await diagnoseTarget(targetDir, options);
+  const installState = await loadInstallState(targetDir);
+  const effectiveOptions = resolveEffectiveOptions(options, installState);
+  const result = await diagnoseTarget(targetDir, effectiveOptions);
+  const stateIssue = installStateIssue(installState);
+  const issues = stateIssue ? [stateIssue, ...result.issues] : result.issues;
   const output = {
-    status: result.issues.length === 0 ? "pass" : "fail",
+    status: issues.length === 0 ? "pass" : "fail",
     target: targetDir,
-    issues: result.issues,
+    installation: installationSummary(installState),
+    effectiveOptions: effectiveOptionsSummary(effectiveOptions),
+    issues,
   };
 
   if (options.json) {
@@ -53,10 +68,16 @@ export async function runDoctor(argv, io = {}) {
 function parseDoctorArgs(argv, cwd) {
   const options = {
     target: cwd,
+    profile: "react-nextjs",
     ci: "direct",
     claudeHooks: false,
     json: false,
     help: false,
+    explicit: {
+      profile: false,
+      ci: false,
+      claudeHooks: false,
+    },
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -69,6 +90,7 @@ function parseDoctorArgs(argv, cwd) {
 
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
+      options.explicit.claudeHooks = true;
       continue;
     }
 
@@ -87,22 +109,34 @@ function parseDoctorArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--profile=")) {
+      options.profile = arg.slice("--profile=".length);
+      options.explicit.profile = true;
+      continue;
+    }
+
+    if (arg === "--profile") {
+      options.profile = readFlagValue(argv, (index += 1), arg);
+      options.explicit.profile = true;
+      continue;
+    }
+
     if (arg.startsWith("--ci=")) {
       options.ci = arg.slice("--ci=".length);
+      options.explicit.ci = true;
       continue;
     }
 
     if (arg === "--ci") {
       options.ci = readFlagValue(argv, (index += 1), arg);
+      options.explicit.ci = true;
       continue;
     }
 
     throw new CliError(`Unknown doctor option: ${arg}\n\n${DOCTOR_USAGE}`);
   }
 
-  if (!["direct", "reusable", "none"].includes(options.ci)) {
-    throw new CliError("--ci must be one of: direct, reusable, none");
-  }
+  validateCiMode(options.ci);
 
   return options;
 }
@@ -252,6 +286,10 @@ function normalizeRelative(filePath) {
 function writeHumanOutput(stream, output) {
   writeLine(stream, `ai-check-template doctor ${output.status}`);
   writeLine(stream, `target: ${output.target}`);
+  writeLine(stream, `install-state: ${output.installation.source}`);
+  writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
+  writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
+  writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
 
   if (output.issues.length === 0) {
     writeLine(stream, "issues: 0");
