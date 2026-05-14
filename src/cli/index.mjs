@@ -22,6 +22,7 @@ Init options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
+  --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --overwrite          Replace conflicting files/scripts.
@@ -39,6 +40,7 @@ Update options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
+  --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --json               Print machine-readable JSON output.

@@ -75,12 +75,12 @@ AI 実装
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight を説明 |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は repository-local `init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight を説明 |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。repository-local の v0.2.0 alpha CLI、install state、profile-aware package script migrations、support script defaults、package manager detection、exact-managed workflow cleanup、advisory profile / missing-script / stale managed CI diagnostics と `doctor --strict`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight は [`docs/cli.md`](./docs/cli.md) を参照。actual npm / `npx ai-check-template init` 公開は今後の作業です。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。repository-local の v0.2.0 alpha CLI、install state、profile-aware package script migrations、support script defaults、package manager detection、optional `--install-deps`、exact-managed workflow cleanup、advisory profile / missing-script / stale managed CI diagnostics と `doctor --strict`、`npm pack` readiness、`npm publish --dry-run --tag next` preflight は [`docs/cli.md`](./docs/cli.md) を参照。actual npm / `npx ai-check-template init` 公開は今後の作業です。
 
 ```bash
 # 1. リポをクローン
@@ -88,6 +88,7 @@ git clone https://github.com/heidayo/ai-check-template.git
 
 # 2. alpha CLI init を dry-run するか、手動コピー用 profile を確認
 node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --install-deps --dry-run
 node ai-check-template/bin/ai-check-template.mjs init --target . --profile node-cli --package-manager npm --dry-run
 node ai-check-template/bin/ai-check-template.mjs doctor --target . --ci none
 node ai-check-template/bin/ai-check-template.mjs doctor --target . --strict --json

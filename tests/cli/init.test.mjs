@@ -17,12 +17,17 @@ function runCli(args, options = {}) {
   });
 }
 
-function createFixture(t, packageJson = { name: "fixture", scripts: { test: "node --test" } }) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-check-template-"));
-  fs.writeFileSync(path.join(dir, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`);
+function createTempDir(t, prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   t.after(() => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
+  return dir;
+}
+
+function createFixture(t, packageJson = { name: "fixture", scripts: { test: "node --test" } }) {
+  const dir = createTempDir(t, "ai-check-template-");
+  fs.writeFileSync(path.join(dir, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`);
   return dir;
 }
 
@@ -34,6 +39,34 @@ function readInstallState(dir) {
   return JSON.parse(fs.readFileSync(path.join(dir, ".ai-check-template.json"), "utf8"));
 }
 
+function snapshotDirectory(dir) {
+  const snapshot = {};
+  for (const filePath of listFiles(dir)) {
+    snapshot[path.relative(dir, filePath)] = fs.readFileSync(filePath, "utf8");
+  }
+  return snapshot;
+}
+
+function listFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const entryPath = path.join(dir, entry.name);
+    return entry.isDirectory() ? listFiles(entryPath) : [entryPath];
+  });
+}
+
+function createFakePackageManager(t, name) {
+  const binDir = createTempDir(t, "ai-check-template-bin-");
+  const logPath = path.join(binDir, "package-manager.log");
+  const commandPath = path.join(binDir, name);
+  fs.writeFileSync(
+    commandPath,
+    "#!/bin/sh\nprintf '%s\\n' \"$0 $*\" >> \"$AI_CHECK_PM_LOG\"\n",
+  );
+  fs.chmodSync(commandPath, 0o755);
+  return { binDir, logPath };
+}
+
 test("prints help", () => {
   const result = runCli(["--help"]);
 
@@ -41,6 +74,7 @@ test("prints help", () => {
   assert.match(result.stdout, /Usage:/);
   assert.match(result.stdout, /init/);
   assert.match(result.stdout, /--package-manager/);
+  assert.match(result.stdout, /--install-deps/);
 });
 
 test("init merges package scripts and copies shell scripts", (t) => {
@@ -164,6 +198,89 @@ test("dry-run writes nothing", (t) => {
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
   assert.equal(fs.existsSync(path.join(target, ".github")), false);
+  assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
+});
+
+test("install deps dry-run reports command without requiring package manager", (t) => {
+  const packageJson = { name: "fixture", scripts: {} };
+  const target = createFixture(t, packageJson);
+  const emptyPath = createTempDir(t, "ai-check-template-empty-path-");
+  const before = snapshotDirectory(target);
+  const result = runCli(
+    ["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--install-deps", "--dry-run"],
+    { env: { ...process.env, PATH: emptyPath } },
+  );
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /would-install/);
+  assert.match(result.stdout, /pnpm add -D typescript eslint vitest knip @playwright\/test/);
+  assert.deepEqual(after, before);
+  assert.equal(fs.existsSync(path.join(target, "pnpm-lock.yaml")), false);
+});
+
+test("install deps invokes fake package manager and skips declared packages", (t) => {
+  const target = createFixture(t, {
+    name: "fixture",
+    scripts: {},
+    dependencies: {
+      typescript: "^5.0.0",
+    },
+    devDependencies: {
+      eslint: "^9.0.0",
+    },
+  });
+  const fakePnpm = createFakePackageManager(t, "pnpm");
+  const result = runCli(
+    [
+      "init",
+      "--target",
+      target,
+      "--profile",
+      "react-nextjs",
+      "--package-manager",
+      "pnpm",
+      "--ci",
+      "none",
+      "--install-deps",
+      "--yes",
+    ],
+    { env: { ...process.env, PATH: fakePnpm.binDir, AI_CHECK_PM_LOG: fakePnpm.logPath } },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const log = fs.readFileSync(fakePnpm.logPath, "utf8");
+  assert.match(log, /pnpm --version/);
+  assert.match(log, /pnpm add -D vitest knip @playwright\/test/);
+  assert.doesNotMatch(log, /add -D .*typescript/);
+  assert.doesNotMatch(log, /add -D .*eslint/);
+});
+
+test("install deps missing package manager fails before writes", (t) => {
+  const packageJson = { name: "fixture", scripts: {} };
+  const target = createFixture(t, packageJson);
+  const emptyPath = createTempDir(t, "ai-check-template-empty-path-");
+  const result = runCli(
+    [
+      "init",
+      "--target",
+      target,
+      "--profile",
+      "react-nextjs",
+      "--package-manager",
+      "pnpm",
+      "--ci",
+      "none",
+      "--install-deps",
+      "--yes",
+    ],
+    { env: { ...process.env, PATH: emptyPath } },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Package manager command not found/);
+  assert.deepEqual(readPackageJson(target), packageJson);
+  assert.equal(fs.existsSync(path.join(target, "scripts")), false);
   assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
 
