@@ -48,7 +48,7 @@ package-templates/
 
 ## ステータス
 
-Phase 0 — 完了（SPEC-0001..SPEC-0005 で全 7 サブ成果物の骨格を整備）。Phase 1 dogfooding で実プロジェクト検証を行い、フィードバックを SPEC 改訂に反映する予定。
+v0.1.0 — Released（2026-05-14）。手動コピーで使う template set として配布。CLI scaffolding は v0.2.0 以降。
 
 ## テスト設計と修復
 

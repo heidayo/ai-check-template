@@ -92,6 +92,20 @@ validate-structure:
 	@grep -q "phase-1-initial-dogfooding-report.md" docs/roadmap.md
 	@grep -q "phase-1-initial-dogfooding-report.md" docs/phase-1-dogfooding-protocol.md
 	@lines=$$(wc -l < docs/phase-1-initial-dogfooding-report.md); test "$$lines" -ge 90 -a "$$lines" -le 260
+	@test -f docs/releases/v0.1.0.md
+	@grep -q "^## Highlights" docs/releases/v0.1.0.md
+	@grep -q "^## Included" docs/releases/v0.1.0.md
+	@grep -q "^## Install" docs/releases/v0.1.0.md
+	@grep -q "^## Verification" docs/releases/v0.1.0.md
+	@grep -q "^## Limitations" docs/releases/v0.1.0.md
+	@grep -q "^## Next" docs/releases/v0.1.0.md
+	@grep -q "v0.2.0" docs/releases/v0.1.0.md
+	@grep -q "docs/releases/v0.1.0.md" README.md
+	@grep -q "docs/releases/v0.1.0.md" README-ja.md
+	@grep -q "releases/v0.1.0.md" docs/roadmap.md
+	@grep -q "Released" docs/roadmap.md
+	@grep -q "v0.1.0.*Released" package-templates/README.md
+	@lines=$$(wc -l < docs/releases/v0.1.0.md); test "$$lines" -ge 80 -a "$$lines" -le 240
 	@test -f package-templates/ci-examples/github-actions/ai-check.yml
 	@test -f package-templates/ci-examples/github-actions/ai-check-fast.yml
 	@test -f package-templates/ci-examples/github-actions/ai-quality-reusable.yml

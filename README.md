@@ -76,7 +76,7 @@ The repository ships templates and prompts for every step in this loop.
 
 ## Quick start
 
-> v0.1.0 is "copy & adapt." CLI / `npx ai-check-template init` arrives in v0.2.0.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). CLI / `npx ai-check-template init` arrives in v0.2.0.
 
 ```bash
 # 1. Clone or browse the templates
@@ -118,7 +118,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 
 | Version | Theme | Status |
 |---|---|---|
-| **v0.1.0** | Manual templates for AI code verification | In progress (this PR series) |
+| **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
 | **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Planned |
 | **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
 
