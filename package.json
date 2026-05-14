@@ -1,0 +1,27 @@
+{
+  "name": "ai-check-template",
+  "version": "0.2.0-alpha.0",
+  "description": "Templates and CLI for verifying, repairing, and safely merging AI-generated code.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "ai-check-template": "./bin/ai-check-template.mjs"
+  },
+  "scripts": {
+    "cli:help": "node bin/ai-check-template.mjs --help",
+    "test": "node --test tests/cli/*.test.mjs",
+    "test:cli": "node --test tests/cli/*.test.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "package-templates/",
+    "docs/cli.md",
+    "README.md",
+    "README-ja.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

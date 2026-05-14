@@ -4,9 +4,9 @@ JSON_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path 
 YAML_FILES := $(shell find . \( -path ./.git -o -path '*/node_modules' -o -path '*/.next' \) -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 SHELL_FILES := $(shell find package-templates/scripts -type f -name '*.sh' -print | sort)
 
-.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-sage
+.PHONY: validate validate-json validate-yaml validate-shell validate-structure validate-cli validate-sage
 
-validate: validate-json validate-yaml validate-shell validate-structure validate-sage
+validate: validate-json validate-yaml validate-shell validate-structure validate-cli validate-sage
 	@echo "validate: PASS"
 
 validate-json:
@@ -112,7 +112,30 @@ validate-structure:
 	@test -f package-templates/ci-examples/github-actions/ai-quality-call.yml
 	@grep -q "workflow_call" package-templates/ci-examples/github-actions/ai-quality-reusable.yml
 	@grep -q "uses: ./.github/workflows/ai-quality-reusable.yml" package-templates/ci-examples/github-actions/ai-quality-call.yml
+	@test -f package.json
+	@grep -q '"version": "0.2.0-alpha.0"' package.json
+	@grep -q '"ai-check-template": "./bin/ai-check-template.mjs"' package.json
+	@test -f bin/ai-check-template.mjs
+	@test -f src/cli/index.mjs
+	@test -f src/cli/init.mjs
+	@test -f src/cli/profile.mjs
+	@test -f src/cli/utils.mjs
+	@test -f docs/cli.md
+	@grep -q "init" docs/cli.md
+	@grep -q -- "--profile" docs/cli.md
+	@grep -q -- "--dry-run" docs/cli.md
+	@grep -q -- "--overwrite" docs/cli.md
+	@grep -q -- "--ci" docs/cli.md
+	@grep -q -- "--claude-hooks" docs/cli.md
+	@grep -q "docs/cli.md" README.md
+	@grep -q "docs/cli.md" README-ja.md
+	@grep -q "./cli.md" docs/roadmap.md
 	@echo "validate-structure: PASS"
+
+validate-cli:
+	@node bin/ai-check-template.mjs --help >/dev/null
+	@node --test tests/cli/*.test.mjs
+	@echo "validate-cli: PASS"
 
 validate-sage:
 	@if [ -x scripts/sage-validate.sh ]; then \

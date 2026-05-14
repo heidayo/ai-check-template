@@ -23,6 +23,7 @@ A template collection for AI-driven development. It bundles:
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
 - **GitHub Actions templates** that run the same `ai:check` on every PR, including direct and reusable workflow examples
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
+- An alpha **CLI foundation** for safer repository-local initialization
 
 You copy what you need, adapt to your project, and get a verifiable loop — without depending on any specific LLM, framework, or vendor.
 
@@ -72,31 +73,35 @@ The repository ships templates and prompts for every step in this loop.
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init` command, `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, and `--overwrite` |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). CLI / `npx ai-check-template init` arrives in v0.2.0.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). A repository-local v0.2.0 alpha CLI is available in [`docs/cli.md`](./docs/cli.md); npm / `npx ai-check-template init` publishing is still future work.
 
 ```bash
 # 1. Clone or browse the templates
 git clone https://github.com/heidayo/ai-check-template.git
 
-# 2. Pick a profile that matches your stack
+# 2. Preview the alpha CLI init, or pick a profile and copy manually
+node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
+
+# 3. Pick a profile that matches your stack
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md
 
-# 3. Copy what you need into your project
+# 4. Copy what you need into your project
 cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
 
-# 4. Merge the scripts fragment into your package.json
+# 5. Merge the scripts fragment into your package.json
 cat ai-check-template/package-templates/package.scripts.fragment.json
 # Then add the "ai:check" and "ai:check:fast" entries to your package.json "scripts"
 
-# 5. Run the loop
+# 6. Run the loop
 pnpm ai:check
 ```
 
@@ -119,7 +124,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 | Version | Theme | Status |
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
-| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Planned |
+| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | In progress ([alpha CLI docs](./docs/cli.md)) |
 | **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
