@@ -123,11 +123,14 @@ validate-structure:
 	@grep -q '"access": "public"' package.json
 	@test -f bin/ai-check-template.mjs
 	@test -f src/cli/index.mjs
+	@test -f src/cli/doctor.mjs
 	@test -f src/cli/init.mjs
 	@test -f src/cli/profile.mjs
 	@test -f src/cli/utils.mjs
+	@test -f tests/cli/doctor.test.mjs
 	@test -f tests/cli/package.test.mjs
 	@test -f docs/cli.md
+	@grep -q "doctor" docs/cli.md
 	@grep -q "init" docs/cli.md
 	@grep -q -- "--profile" docs/cli.md
 	@grep -q -- "--dry-run" docs/cli.md
@@ -136,6 +139,9 @@ validate-structure:
 	@grep -q -- "--claude-hooks" docs/cli.md
 	@grep -q "docs/cli.md" README.md
 	@grep -q "docs/cli.md" README-ja.md
+	@grep -q "doctor" README.md
+	@grep -q "doctor" README-ja.md
+	@grep -q "doctor" docs/roadmap.md
 	@grep -q "./cli.md" docs/roadmap.md
 	@grep -q "npm pack" docs/cli.md
 	@grep -q "npm pack" README.md
@@ -149,6 +155,7 @@ validate-structure:
 
 validate-cli:
 	@node bin/ai-check-template.mjs --help >/dev/null
+	@node bin/ai-check-template.mjs doctor --help >/dev/null
 	@node --test tests/cli/*.test.mjs
 	@echo "validate-cli: PASS"
 
