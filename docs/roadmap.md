@@ -11,7 +11,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 **Deliverables**
 
 - [x] Philosophy documents (4): Formal Name Match, Test Pyramid, Given-When-Then, QA techniques
-- [x] AI prompt templates (5): decision-table, state-transition, boundary-value, rls-permission, plan-first
+- [x] AI prompt templates (6): decision-table, state-transition, boundary-value, rls-permission, plan-first, diagnostic-repair
 - [x] `ai:check` execution stack: shell scripts, `package.scripts.fragment.json`, Claude Code hook fragment, Locator priority rule
 - [x] GitHub Actions CI examples: `ai-check.yml` (full), `ai-check-fast.yml` (PR fast loop)
 - [x] Profiles (5): `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls`
@@ -19,7 +19,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] **OSS positioning**: external-facing README, vision, roadmap, Issue / PR templates, CONTRIBUTING / Code of Conduct / SECURITY (SPEC-0009)
 - [x] **GitHub Actions strengthening**: own repo CI, reusable workflow prototype, additional CI variants (SPEC-0010)
 - [x] **Example project**: `examples/nextjs-basic` showing a Before / After of AI-generated code under `ai-check-template` (SPEC-0011)
-- [ ] **Test design template + post-implementation diagnostic prompt** (SPEC-0012)
+- [x] **Test design template + post-implementation diagnostic prompt**: `package-templates/docs/test-design-template.md` and `package-templates/prompts/diagnostic-repair.md` (SPEC-0012)
 - [ ] **First public dogfooding report** in an anonymized form (SPEC-0013)
 - [ ] **v0.1.0 git tag and GitHub Release** (SPEC-0014)
 
