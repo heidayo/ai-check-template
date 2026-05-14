@@ -4,6 +4,8 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.1.0 — Manual templates for AI code verification
 
+**Status**: Released on 2026-05-14. Release notes: [`./releases/v0.1.0.md`](./releases/v0.1.0.md).
+
 **Theme**: Copy & adapt. No CLI, no npm install. Ship the philosophy, prompts, scripts, hooks, CI templates, and profiles as plain files that a developer can drop into their project.
 
 **Goal**: A reviewer can land on the GitHub repository, understand the philosophy in five minutes, and successfully copy templates into their own project within one hour.
@@ -21,7 +23,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] **Example project**: `examples/nextjs-basic` showing a Before / After of AI-generated code under `ai-check-template` (SPEC-0011)
 - [x] **Test design template + post-implementation diagnostic prompt**: `package-templates/docs/test-design-template.md` and `package-templates/prompts/diagnostic-repair.md` (SPEC-0012)
 - [x] **First public dogfooding report** in an anonymized form: [`phase-1-initial-dogfooding-report.md`](./phase-1-initial-dogfooding-report.md) (SPEC-0013)
-- [ ] **v0.1.0 git tag and GitHub Release** (SPEC-0014)
+- [x] **v0.1.0 git tag and GitHub Release**: [`releases/v0.1.0.md`](./releases/v0.1.0.md) (SPEC-0014)
 
 **Audience**: Early adopters who are comfortable copying files manually, are already doing AI-driven development, and want a verification scaffold quickly.
 

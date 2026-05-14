@@ -78,7 +78,7 @@ AI 実装
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型。CLI（`npx ai-check-template init`）は v0.2.0 で提供予定。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。CLI（`npx ai-check-template init`）は v0.2.0 で提供予定。
 
 ```bash
 # 1. リポをクローン
@@ -120,7 +120,7 @@ pnpm ai:check
 
 | バージョン | テーマ | 状態 |
 |---|---|---|
-| **v0.1.0** | 手動コピーで使うテンプレ集 | 進行中（本 PR シリーズ） |
+| **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
 | **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | 計画中 |
 | **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
 
