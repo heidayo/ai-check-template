@@ -9,6 +9,7 @@ import {
   validateCiMode,
 } from "./install-state.mjs";
 import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
+import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
   fromTemplates,
@@ -185,7 +186,7 @@ async function diagnoseTarget(targetDir, options) {
     return { issues, warnings };
   }
 
-  await checkPackageScripts(packageJson, issues);
+  checkPackageScripts(packageJson, options.profile, issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
   await checkCi(targetDir, options.ci, issues);
@@ -205,11 +206,11 @@ async function diagnoseTarget(targetDir, options) {
   return { issues, warnings };
 }
 
-async function checkPackageScripts(packageJson, issues) {
-  const fragment = await readJson(fromTemplates("package.scripts.fragment.json"));
+function checkPackageScripts(packageJson, profile, issues) {
+  const expectedScripts = getProfileScripts(profile);
   const scripts = packageJson.scripts ?? {};
 
-  for (const [name, expected] of Object.entries(fragment.scripts ?? {})) {
+  for (const [name, expected] of Object.entries(expectedScripts)) {
     if (!scripts[name]) {
       issues.push(issue("missing-script", "package.json", `Missing package script: ${name}`));
       continue;

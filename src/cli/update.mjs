@@ -10,6 +10,7 @@ import {
   validateCiMode,
   writeInstallState,
 } from "./install-state.mjs";
+import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
   fromTemplates,
@@ -61,6 +62,7 @@ export async function runUpdate(argv, io = {}) {
   const effectiveOptions = resolveEffectiveOptions(options, installState);
   const writeOptions = {
     ...options,
+    profile: effectiveOptions.profile,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
   };
@@ -209,12 +211,12 @@ async function normalizeTargetDir(target) {
 
 async function updatePackageScripts(targetDir, packageJsonPath, options, operations) {
   const packageJson = await readJson(packageJsonPath);
-  const fragment = await readJson(fromTemplates("package.scripts.fragment.json"));
   const existingScripts = packageJson.scripts ?? {};
+  const expectedScripts = getProfileScripts(options.profile);
   const nextScripts = { ...existingScripts };
   let changed = false;
 
-  for (const [name, expected] of Object.entries(fragment.scripts ?? {})) {
+  for (const [name, expected] of Object.entries(expectedScripts)) {
     const current = existingScripts[name];
     const relativePath = "package.json";
 

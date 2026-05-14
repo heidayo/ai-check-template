@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { parseProfiles } from "./profile.mjs";
+import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
   copyFileSafe,
@@ -52,7 +53,7 @@ export async function runInit(argv, io = {}) {
 
   const operations = [];
 
-  await mergePackageScripts(packageJsonPath, options, operations);
+  await mergePackageScripts(packageJsonPath, profile, options, operations);
   await copyScripts(targetDir, options, operations);
   await copyCiFiles(targetDir, options, operations);
 
@@ -170,14 +171,14 @@ async function normalizeTargetDir(target) {
   }
 }
 
-async function mergePackageScripts(packageJsonPath, options, operations) {
+async function mergePackageScripts(packageJsonPath, profile, options, operations) {
   const packageJson = await readJson(packageJsonPath);
-  const fragment = await readJson(fromTemplates("package.scripts.fragment.json"));
   const existingScripts = packageJson.scripts ?? {};
+  const expectedScripts = getProfileScripts(profile);
   const nextScripts = { ...existingScripts };
   let changed = false;
 
-  for (const [name, command] of Object.entries(fragment.scripts ?? {})) {
+  for (const [name, command] of Object.entries(expectedScripts)) {
     if (existingScripts[name] === command) {
       operations.push({ action: "keep", reason: "same script", targetPath: packageJsonPath });
       continue;
