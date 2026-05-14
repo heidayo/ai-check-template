@@ -1,71 +1,134 @@
 # ai-check-template
 
-AI 駆動開発のための **テストフローテンプレート** と **テスト設計思想** を npm パッケージとして配布する（WIP）。
+**AI-generated code should not be trusted by default.**
 
-> **ステータス**: Phase 0（思想 + テンプレ骨格を設計中）。CLI / npm 公開は Phase 2 以降。
+`ai-check-template` provides reusable templates for **verifying, repairing, and safely merging AI-generated code**. It helps teams move from:
 
-## ゴール
+> "AI implemented it."
 
-AI 駆動開発において「実装速度に対して検証・品質担保が追いつかない」課題を解決するための、汎用テンプレート集を提供する。
+to:
 
-特定プロジェクト（gakuten 等）固有のフローを設計するのではなく、**AI 開発全般で再利用可能な思想とテンプレート** を整備する。
+> "AI implemented it, checks passed, risks are visible, and humans can accept it with evidence."
 
-## 提供するもの（予定）
+> 日本語版 / Japanese: [`README-ja.md`](./README-ja.md)
 
-### 1. テスト設計思想
-- **形名参同**: 事前宣言した成功基準（名）と実測値（形）の照合
-- **Test Pyramid**: Static / Unit / Integration / E2E / DB-RLS / Monitoring の責務分割
-- **Given-When-Then**: 受け入れ条件を AI に先に書かせる運用
-- **QA 技法**: 同値分割・境界値・デシジョンテーブル・状態遷移・エラー推測・チェックリスト
+---
 
-### 2. テストフローテンプレート
-- `ai:check` / `ai:check:fast` 統合 npm script
-- Claude Code hook 設定（Edit=fast / Stop=full のハイブリッド）
-- Playwright Locator 優先順位ルール（`getByRole > getByLabel > getByText > getByTestId > locator`）
-- AI プロンプト雛形（テスト観点設計、デシジョンテーブル生成、状態遷移検証）
-- CI 統合例（`ci-examples/github-actions/ai-check.yml` / `ai-check-fast.yml`、GitLab CI 等は将来追加）
+## What is this?
 
-### 3. プロファイル
-| プロファイル | 対象 |
-|---|---|
-| `react-nextjs` | Next.js App Router |
-| `react-vanilla` | 純 React |
-| `expo-rn` | Expo / React Native（React Doctor 非対応、別構成） |
-| `node-cli` | Node.js CLI |
-| `supabase-rls` | Supabase + RLS 観点（pgTAP、InBucket Magic Link E2E） |
+A template collection for AI-driven development. It bundles:
 
-### 4. 連携
-- **SAGE Development System** と横並びコンパニオン（SAGE 非依存でも動作、SAGE 検出時は specs テンプレに追記）
+- A **testing philosophy** built for AI-written code (Test Pyramid, Given-When-Then, QA techniques, Formal Name Match)
+- **AI prompt templates** that force the model to declare success criteria before implementing
+- An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
+- **GitHub Actions templates** that run the same `ai:check` on every PR
+- **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
 
-## 使い方（予定）
+You copy what you need, adapt to your project, and get a verifiable loop — without depending on any specific LLM, framework, or vendor.
 
-```bash
-npx ai-check-template@latest init --profile react-nextjs+supabase-rls
+## Why?
+
+AI coding tools (Claude Code, Codex, Cursor) make implementation fast. They do not make verification fast.
+
+In practice, AI-generated code often:
+
+- Passes a quick eyeball check, then fails type / lint / E2E
+- Looks correct, but ignores authorization, RLS, or rate limiting
+- Leaves dead code, unused exports, or accidental scope drift
+- Self-reports "Done" when reality is "Partially done"
+
+`ai-check-template` is built around the principle of **Formal Name Match** (形名参同): declare the success criteria **before** implementation, then mechanically compare against the actual evidence after. AI cannot self-grade.
+
+## Core loop
+
+```
+Requirement
+   ↓
+Acceptance Criteria (Given-When-Then)
+   ↓
+Test Design (QA techniques: equivalence partitioning, boundary value, decision table, state transition, RLS permission)
+   ↓
+AI Implementation
+   ↓
+Quality Check (typecheck → lint → unit → diagnostics → E2E smoke)
+   ↓
+Repair (AI auto-fix in the same session)
+   ↓
+Re-check
+   ↓
+Human Acceptance (with evidence)
 ```
 
-## 開発手法
+The repository ships templates and prompts for every step in this loop.
 
-このリポジトリ自身も AI 駆動開発で構築している。SAGE Development System で SPEC → PLAN → TASK の規律下で開発する。詳細は [CLAUDE.md](./CLAUDE.md)。
+## What you get
 
-> SAGE がインストールしたファイル（`.sage/`, `sage/`, `scripts/sage-*.sh`, `specs/_template.md` 等）は local-only として `.gitignore` 済み。Contributor は別途 [heidayo/sage-ai-template](https://github.com/heidayo/sage-ai-template) の install.sh をローカル実行する。
+| Layer | Contents |
+|---|---|
+| **Philosophy** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md), [`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md), [`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md), [`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md) |
+| **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` |
+| **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
+| **CI templates** | GitHub Actions `ai-check.yml` (full) + `ai-check-fast.yml` (PR-only fast loop) |
+| **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
+| **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol |
 
-## 段階
+## Quick start
 
-| Phase | 内容 | 状態 |
+> v0.1.0 is "copy & adapt." CLI / `npx ai-check-template init` arrives in v0.2.0.
+
+```bash
+# 1. Clone or browse the templates
+git clone https://github.com/heidayo/ai-check-template.git
+
+# 2. Pick a profile that matches your stack
+cat ai-check-template/package-templates/profiles/react-nextjs/README.md
+
+# 3. Copy what you need into your project
+cp -r ai-check-template/package-templates/scripts ./scripts
+cp -r ai-check-template/package-templates/.claude ./.claude
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+
+# 4. Merge the scripts fragment into your package.json
+cat ai-check-template/package-templates/package.scripts.fragment.json
+# Then add the "ai:check" and "ai:check:fast" entries to your package.json "scripts"
+
+# 5. Run the loop
+pnpm ai:check
+```
+
+Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-profile README under [`package-templates/profiles/`](./package-templates/profiles/).
+
+## Supported profiles
+
+| Profile | Target stack | Notes |
 |---|---|---|
-| 0 | 思想 + テンプレ骨格設計 | 完了（SPEC-0001..SPEC-0005） |
-| 1 | dogfooding（gakuten 等で手動運用） | 未着手 |
-| 2 | CLI / npm パッケージ化 | 未着手 |
-| 3 | 複数プロジェクト横展開 | 未着手 |
+| [`react-nextjs`](./package-templates/profiles/react-nextjs/) | Next.js App Router + TypeScript | Full toolchain (RD / Knip / Playwright / Semgrep) |
+| [`react-vanilla`](./package-templates/profiles/react-vanilla/) | Plain React + TypeScript (Vite / CRA) | Next.js-specific RD checks skipped |
+| [`expo-rn`](./package-templates/profiles/expo-rn/) | Expo / React Native | React Doctor not supported; use Maestro / Detox for E2E |
+| [`node-cli`](./package-templates/profiles/node-cli/) | Node CLI / library | No UI / E2E; Static + Unit focus |
+| [`supabase-rls`](./package-templates/profiles/supabase-rls/) | Supabase + RLS (addon) | Combine with any of the above (e.g. `react-nextjs+supabase-rls`) |
 
-## 参考資料
+## Roadmap
 
-設計の根拠となる文書（Notion、社内）:
-- テストフロー再設計（責務分割・Given-When-Then・テスト設計テンプレ）
-- 無料で作る AI エージェント開発診断フロー（`ai:check` 構成・形名参同・判定基準）
-- AI 駆動開発時代に押さえる QA 技法（観点設計の理論）
-- Supabase Testing 戦略（pgTAP・RLS・InBucket）
+| Version | Theme | Status |
+|---|---|---|
+| **v0.1.0** | Manual templates for AI code verification | In progress (this PR series) |
+| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Planned |
+| **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
 
-## ライセンス
+Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
 
-Apache-2.0（[LICENSE](./LICENSE)）
+## Contributing
+
+We welcome contributions. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR flow and lane selection, [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) for community standards, and [`SECURITY.md`](./SECURITY.md) for vulnerability reporting.
+
+Issue and PR templates live under [`.github/`](./.github/).
+
+## License
+
+[Apache-2.0](./LICENSE)
+
+---
+
+> This repository is itself developed under the [SAGE Development System](https://github.com/heidayo/sage-ai-template) (Spec → Plan → Task → Execute → Verify). Contributors do not need SAGE installed to use the templates; SAGE coexistence is opt-in. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for details.
