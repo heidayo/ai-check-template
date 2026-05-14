@@ -1,5 +1,6 @@
 import { runDoctor } from "./doctor.mjs";
 import { runInit } from "./init.mjs";
+import { runUpdate } from "./update.mjs";
 import { CliError, writeLine } from "./utils.mjs";
 
 const USAGE = `ai-check-template
@@ -8,10 +9,12 @@ Usage:
   ai-check-template --help
   ai-check-template init [options]
   ai-check-template doctor [options]
+  ai-check-template update [options]
 
 Commands:
   doctor  Diagnose an existing ai-check-template installation.
   init    Copy ai-check templates into an existing project.
+  update  Update template-managed files in an existing installation.
 
 Init options:
   --target <dir>       Target project directory. Defaults to the current directory.
@@ -28,10 +31,19 @@ Doctor options:
   --claude-hooks       Check Claude rule and hook settings.
   --json               Print machine-readable JSON output.
 
+Update options:
+  --target <dir>       Target project directory. Defaults to the current directory.
+  --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
+  --claude-hooks       Update Claude rule and hook settings.
+  --dry-run            Print planned operations without writing files.
+  --yes                Confirm non-interactive writes.
+  --json               Print machine-readable JSON output.
+
 Examples:
   ai-check-template init --target . --profile react-nextjs --yes
   ai-check-template init --target . --profile react-nextjs+supabase-rls --ci reusable --dry-run
-  ai-check-template doctor --target . --ci direct --json`;
+  ai-check-template doctor --target . --ci direct --json
+  ai-check-template update --target . --ci direct --dry-run`;
 
 export async function main(argv = process.argv.slice(2), io = {}) {
   const args = [...argv];
@@ -50,6 +62,11 @@ export async function main(argv = process.argv.slice(2), io = {}) {
 
   if (command === "doctor") {
     await runDoctor(args, io);
+    return;
+  }
+
+  if (command === "update") {
+    await runUpdate(args, io);
     return;
   }
 

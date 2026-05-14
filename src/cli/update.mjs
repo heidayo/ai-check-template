@@ -1,0 +1,302 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import {
+  CliError,
+  fromTemplates,
+  pathExists,
+  readJson,
+  resolveTarget,
+  writeJson,
+  writeLine,
+} from "./utils.mjs";
+
+const UPDATE_USAGE = `ai-check-template update
+
+Usage:
+  ai-check-template update --target <dir> --yes [options]
+
+Options:
+  --target <dir>       Target project directory. Defaults to the current directory.
+  --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
+  --claude-hooks       Update Claude rule and hook settings.
+  --dry-run            Print planned operations without writing files.
+  --yes                Confirm non-interactive writes.
+  --json               Print machine-readable JSON output.`;
+
+const DIRECT_CI_FILES = ["ai-check.yml", "ai-check-fast.yml"];
+const REUSABLE_CI_FILES = ["ai-quality-reusable.yml", "ai-quality-call.yml"];
+
+export async function runUpdate(argv, io = {}) {
+  const options = parseUpdateArgs(argv, io.cwd ?? process.cwd());
+
+  if (options.help) {
+    writeLine(io.stdout, UPDATE_USAGE);
+    return;
+  }
+
+  if (!options.yes && !options.dryRun) {
+    throw new CliError("Refusing to write without --yes. Use --dry-run to preview.");
+  }
+
+  const targetDir = await normalizeTargetDir(options.target);
+  const packageJsonPath = path.join(targetDir, "package.json");
+
+  if (!(await pathExists(packageJsonPath))) {
+    throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
+  }
+
+  const operations = [];
+
+  await updatePackageScripts(targetDir, packageJsonPath, options, operations);
+  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", options, operations);
+  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", options, operations);
+  await updateCi(targetDir, options, operations);
+
+  if (options.claudeHooks) {
+    await updateTemplateFile(
+      targetDir,
+      fromTemplates(".claude", "rules", "test-rules.md"),
+      ".claude/rules/test-rules.md",
+      options,
+      operations,
+    );
+    await updateClaudeSettings(targetDir, options, operations);
+  }
+
+  const output = {
+    status: options.dryRun ? "dry-run" : "updated",
+    target: targetDir,
+    operations,
+  };
+
+  if (options.json) {
+    writeLine(io.stdout, JSON.stringify(output, null, 2));
+  } else {
+    writeHumanOutput(io.stdout, output);
+  }
+}
+
+function parseUpdateArgs(argv, cwd) {
+  const options = {
+    target: cwd,
+    ci: "direct",
+    claudeHooks: false,
+    dryRun: false,
+    yes: false,
+    json: false,
+    help: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--help" || arg === "-h") {
+      options.help = true;
+      continue;
+    }
+
+    if (arg === "--claude-hooks") {
+      options.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--dry-run") {
+      options.dryRun = true;
+      continue;
+    }
+
+    if (arg === "--yes") {
+      options.yes = true;
+      continue;
+    }
+
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+
+    if (arg.startsWith("--target=")) {
+      options.target = resolveTarget(arg.slice("--target=".length), cwd);
+      continue;
+    }
+
+    if (arg === "--target") {
+      options.target = resolveTarget(readFlagValue(argv, (index += 1), arg), cwd);
+      continue;
+    }
+
+    if (arg.startsWith("--ci=")) {
+      options.ci = arg.slice("--ci=".length);
+      continue;
+    }
+
+    if (arg === "--ci") {
+      options.ci = readFlagValue(argv, (index += 1), arg);
+      continue;
+    }
+
+    throw new CliError(`Unknown update option: ${arg}\n\n${UPDATE_USAGE}`);
+  }
+
+  if (!["direct", "reusable", "none"].includes(options.ci)) {
+    throw new CliError("--ci must be one of: direct, reusable, none");
+  }
+
+  return options;
+}
+
+function readFlagValue(argv, index, flagName) {
+  const value = argv[index];
+
+  if (!value || value.startsWith("--")) {
+    throw new CliError(`Missing value for ${flagName}`);
+  }
+
+  return value;
+}
+
+async function normalizeTargetDir(target) {
+  const resolved = path.resolve(target);
+
+  try {
+    return await fs.realpath(resolved);
+  } catch (error) {
+    throw new CliError(`Target directory does not exist: ${resolved}\n${error.message}`);
+  }
+}
+
+async function updatePackageScripts(targetDir, packageJsonPath, options, operations) {
+  const packageJson = await readJson(packageJsonPath);
+  const fragment = await readJson(fromTemplates("package.scripts.fragment.json"));
+  const existingScripts = packageJson.scripts ?? {};
+  const nextScripts = { ...existingScripts };
+  let changed = false;
+
+  for (const [name, expected] of Object.entries(fragment.scripts ?? {})) {
+    const current = existingScripts[name];
+    const relativePath = "package.json";
+
+    if (current === expected) {
+      operations.push(operation("keep", relativePath, `script ${name}`));
+      continue;
+    }
+
+    nextScripts[name] = expected;
+    changed = true;
+    operations.push(
+      operation(
+        current ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
+        relativePath,
+        `script ${name}`,
+      ),
+    );
+  }
+
+  if (changed && !options.dryRun) {
+    packageJson.scripts = nextScripts;
+    await writeJson(packageJsonPath, packageJson);
+  }
+}
+
+async function updateTemplateFile(targetDir, sourcePath, relativePath, options, operations) {
+  const targetPath = path.join(targetDir, relativePath);
+  const expected = await fs.readFile(sourcePath, "utf8");
+  const exists = await pathExists(targetPath);
+
+  if (exists) {
+    const actual = await fs.readFile(targetPath, "utf8");
+    if (actual === expected) {
+      operations.push(operation("keep", relativePath));
+      return;
+    }
+  }
+
+  operations.push(
+    operation(
+      exists ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
+      relativePath,
+    ),
+  );
+
+  if (!options.dryRun) {
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, expected);
+  }
+}
+
+async function updateCi(targetDir, options, operations) {
+  const files = options.ci === "direct"
+    ? DIRECT_CI_FILES
+    : options.ci === "reusable"
+      ? REUSABLE_CI_FILES
+      : [];
+
+  for (const fileName of files) {
+    await updateTemplateFile(
+      targetDir,
+      fromTemplates("ci-examples", "github-actions", fileName),
+      path.join(".github", "workflows", fileName),
+      options,
+      operations,
+    );
+  }
+}
+
+async function updateClaudeSettings(targetDir, options, operations) {
+  const relativePath = ".claude/settings.json";
+  const targetPath = path.join(targetDir, relativePath);
+  const fragment = await readJson(fromTemplates(".claude", "settings.hook-fragment.json"));
+  const settings = (await pathExists(targetPath)) ? await readJson(targetPath) : {};
+  const nextSettings = { ...settings, hooks: { ...(settings.hooks ?? {}) } };
+  let changed = false;
+
+  for (const [name, hooks] of Object.entries(fragment.hooks ?? {})) {
+    const current = nextSettings.hooks[name];
+    const currentJson = current ? JSON.stringify(current) : "";
+    const expectedJson = JSON.stringify(hooks);
+
+    if (currentJson === expectedJson) {
+      operations.push(operation("keep", relativePath, `Claude hook ${name}`));
+      continue;
+    }
+
+    nextSettings.hooks[name] = hooks;
+    changed = true;
+    operations.push(
+      operation(
+        current ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
+        relativePath,
+        `Claude hook ${name}`,
+      ),
+    );
+  }
+
+  if (changed && !options.dryRun) {
+    await writeJson(targetPath, nextSettings);
+  }
+}
+
+function operation(action, filePath, detail = undefined) {
+  return {
+    action,
+    path: normalizeRelative(filePath),
+    ...(detail ? { detail } : {}),
+  };
+}
+
+function normalizeRelative(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+function writeHumanOutput(stream, output) {
+  writeLine(stream, `ai-check-template update ${output.status}`);
+  writeLine(stream, `target: ${output.target}`);
+  writeLine(stream, `operations: ${output.operations.length}`);
+
+  for (const currentOperation of output.operations) {
+    writeLine(
+      stream,
+      `- ${currentOperation.action}: ${currentOperation.path}${currentOperation.detail ? ` (${currentOperation.detail})` : ""}`,
+    );
+  }
+}
