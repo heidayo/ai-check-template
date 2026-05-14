@@ -29,6 +29,7 @@ Options:
   --profile <name>     Profile to check. Defaults to install state or react-nextjs.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
+  --strict             Treat warnings as failures.
   --json               Print machine-readable JSON output.`;
 
 const DIRECT_CI_FILES = ["ai-check.yml", "ai-check-fast.yml"];
@@ -48,9 +49,11 @@ export async function runDoctor(argv, io = {}) {
   const result = await diagnoseTarget(targetDir, effectiveOptions);
   const stateIssue = installStateIssue(installState);
   const issues = stateIssue ? [stateIssue, ...result.issues] : result.issues;
+  const failed = issues.length > 0 || (options.strict && result.warnings.length > 0);
   const output = {
-    status: issues.length === 0 ? "pass" : "fail",
+    status: failed ? "fail" : "pass",
     target: targetDir,
+    strict: options.strict,
     installation: installationSummary(installState),
     effectiveOptions: effectiveOptionsSummary(effectiveOptions),
     warnings: result.warnings,
@@ -64,7 +67,10 @@ export async function runDoctor(argv, io = {}) {
   }
 
   if (output.status === "fail") {
-    throw new CliError(`doctor found ${output.issues.length} issue(s)`, 1);
+    throw new CliError(
+      `doctor found ${output.issues.length} issue(s) and ${output.warnings.length} warning(s)`,
+      1,
+    );
   }
 }
 
@@ -74,6 +80,7 @@ function parseDoctorArgs(argv, cwd) {
     profile: "react-nextjs",
     ci: "direct",
     claudeHooks: false,
+    strict: false,
     json: false,
     help: false,
     explicit: {
@@ -99,6 +106,11 @@ function parseDoctorArgs(argv, cwd) {
 
     if (arg === "--json") {
       options.json = true;
+      continue;
+    }
+
+    if (arg === "--strict") {
+      options.strict = true;
       continue;
     }
 
@@ -297,6 +309,7 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
+  writeLine(stream, `strict: ${output.strict}`);
 
   writeLine(stream, `issues: ${output.issues.length}`);
   for (const currentIssue of output.issues) {

@@ -29,6 +29,7 @@ Doctor options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
+  --strict             Treat warnings as failures.
   --json               Print machine-readable JSON output.
 
 Update options:

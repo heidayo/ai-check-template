@@ -53,6 +53,7 @@ test("prints doctor help", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ai-check-template doctor/);
   assert.match(result.stdout, /--json/);
+  assert.match(result.stdout, /--strict/);
 });
 
 test("doctor passes for a healthy target with scripts only", (t) => {
@@ -122,9 +123,45 @@ test("profile warnings do not fail doctor", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "pass");
+  assert.equal(output.strict, false);
   assert.equal(output.issues.length, 0);
   assert.equal(output.warnings.some((warning) => warning.code === "profile-advice"), true);
   assert.doesNotMatch(result.stdout, /pnpm typecheck/);
+});
+
+test("strict mode fails on profile warnings without converting them to issues", (t) => {
+  const target = createFixture(t);
+  const init = runCli(["init", "--target", target, "--profile", "node-cli", "--ci", "none", "--yes"]);
+  assert.equal(init.status, 0, init.stderr);
+  const packageJsonPath = path.join(target, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.scripts["test:e2e:smoke"] = "playwright test";
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "fail");
+  assert.equal(output.strict, true);
+  assert.equal(output.issues.length, 0);
+  assert.equal(output.warnings.some((warning) => warning.code === "profile-advice"), true);
+  assert.deepEqual(after, before);
+});
+
+test("strict mode passes when there are no issues or warnings", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "node-cli", "--ci", "none"]);
+  const result = runCli(["doctor", "--target", target, "--strict", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.strict, true);
+  assert.equal(output.issues.length, 0);
+  assert.equal(output.warnings.length, 0);
 });
 
 test("explicit profile controls diagnostics warnings", (t) => {
@@ -196,9 +233,23 @@ test("doctor json output is parseable", (t) => {
   assert.notEqual(result.status, 0);
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "fail");
+  assert.equal(output.strict, false);
   assert.equal(Array.isArray(output.warnings), true);
   assert.equal(output.issues[0].code, "drift");
   assert.equal(output.issues[0].path, "scripts/ai-check-fast.sh");
+});
+
+test("strict mode keeps issue failures as failures", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check-fast.sh"), "changed\n");
+  const result = runCli(["doctor", "--target", target, "--ci", "none", "--strict", "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "fail");
+  assert.equal(output.strict, true);
+  assert.equal(output.issues[0].code, "drift");
 });
 
 test("doctor skips profile warnings for malformed package json", (t) => {
