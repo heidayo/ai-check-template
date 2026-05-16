@@ -161,6 +161,12 @@ validate-structure:
 	@grep -q "^## Limitations" docs/releases/v0.2.0.md
 	@grep -q "0.2.0" docs/releases/v0.2.0.md
 	@grep -q "v0.2.0-alpha.0" docs/releases/v0.2.0.md
+	@grep -q "v0.2.0.*Released" README.md
+	@grep -q "v0.2.0.*Released" README-ja.md
+	@grep -q "Released on 2026-05-16" docs/roadmap.md
+	@grep -q "v0.2.0.*Released" package-templates/README.md
+	@grep -q "npx -y ai-check-template@latest" docs/releases/v0.2.0.md
+	@grep -q "GitHub Release" docs/releases/v0.2.0.md
 	@grep -q "npm publish --dry-run --tag latest" docs/cli.md
 	@grep -q "npm publish --dry-run --tag latest" README.md
 	@grep -q "npm publish --dry-run --tag latest" README-ja.md
@@ -179,7 +185,12 @@ validate-npm-pack:
 	@echo "validate-npm-pack: PASS"
 
 validate-npm-publish-dry-run:
-	@npm publish --dry-run --tag latest --json >/dev/null
+	@version=$$(node -p "require('./package.json').version"); \
+	if npm view "ai-check-template@$$version" version >/dev/null 2>&1; then \
+		npm view ai-check-template version dist-tags --json >/dev/null; \
+	else \
+		npm publish --dry-run --tag latest --json >/dev/null; \
+	fi
 	@echo "validate-npm-publish-dry-run: PASS"
 
 validate-sage:

@@ -48,7 +48,8 @@ package-templates/
 
 ## ステータス
 
-v0.1.0 — Released（2026-05-14）。手動コピーで使う template set として配布。CLI scaffolding は v0.2.0 以降。
+- v0.1.0 — Released（2026-05-14）。手動コピーで使う template set として配布。
+- v0.2.0 — Released（2026-05-16）。`npx ai-check-template init` でこの template set を導入できる stable CLI release。
 
 ## テスト設計と修復
 
