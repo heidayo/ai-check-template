@@ -1,8 +1,8 @@
 # CI Examples
 
-`package-templates` から配布する CI 統合の **example**。本パッケージは特定の CI ツールに縛られないため、各 CI 環境向けの YAML / 設定ファイルを「例」として提供し、利用者は自プロジェクトの CI に合わせてカスタマイズする。
+`package-templates` から配布する CI 統合の **copy examples**。本パッケージは特定の CI ツールに縛られないため、各 CI 環境向けの YAML / 設定ファイルを「例」として提供し、利用者は自プロジェクトの CI に合わせてカスタマイズする。
 
-> **ステータス**: v0.1 template set（Phase 1 dogfooding 後に改訂予定）
+> **ステータス**: v0.1 template set。v0.3.0 foundation では repository root に hosted reusable workflow / Composite Action も追加する。使い分けは [`../../docs/github-actions.md`](../../docs/github-actions.md) を参照。
 
 ## ディレクトリ構成
 
@@ -30,8 +30,10 @@ GitHub Actions が最初の対象である理由は、OSS / 個人開発を含�
 | Direct full | `github-actions/ai-check.yml` | まず 1 つの workflow で `pnpm ai:check` を走らせたい |
 | Direct fast | `github-actions/ai-check-fast.yml` | PR push ごとに軽量な `pnpm ai:check:fast` を走らせたい |
 | Reusable | `github-actions/ai-quality-reusable.yml` + `ai-quality-call.yml` | install / check の共通ロジックを 1 か所に寄せたい |
+| Hosted reusable workflow | `heidayo/ai-check-template/.github/workflows/ai-quality.yml@v0.3.0` | release tag に pin して、このリポ側の workflow contract を使いたい |
+| Composite Action | `heidayo/ai-check-template/ai-quality@v0.3.0` | 自リポの workflow は維持しつつ setup / install / check steps を再利用したい |
 
-最初の導入は direct workflow が簡単。複数 workflow や複数リポで同じ品質ゲートを共有したくなったら reusable workflow に移行する。
+最初の導入は direct workflow の copy examples が簡単。複数 workflow や複数リポで同じ品質ゲートを共有したくなったら reusable workflow に移行する。release tag に pin できる段階では hosted reusable workflow または Composite Action も選択肢になる。
 
 ## 思想
 
@@ -127,6 +129,8 @@ jobs:
 CI ツールごとに syntax が異なるため、本パッケージは **CI 統合を強制しない**。各 CI 向けの YAML / 設定は「出発点としての example」と位置付け、利用者は自プロジェクトの CI に合わせてカスタマイズする。
 
 これは本パッケージの**汎用ファースト原則**に基づく。特定 CI（GitHub Actions 等）に強く依存した設計を全利用者に強制せず、思想（形名参同 / 責務分割 / ハイブリッドループ）の方を共有する。
+
+hosted reusable workflow / Composite Action は、この copy examples とは別の hosted contract。Marketplace listing は後続で、現時点では `@v0.3.0` exact pin を前提にした foundation として扱う。
 
 ## 出典
 

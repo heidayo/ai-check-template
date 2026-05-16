@@ -81,18 +81,29 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.3.0+ — Reusable workflow and Composite Action
 
+**Status**: Foundation in progress. The hosted workflow / Composite Action guide is [`./github-actions.md`](./github-actions.md).
+
 **Theme**: Make the CI integration first-class on GitHub.
 
 **Goals**
 
-- A reusable workflow at `.github/workflows/ai-quality-reusable.yml` callable via `uses: heidayo/ai-check-template/.github/workflows/ai-quality.yml@v0.3.0`
-- A Composite Action callable as `uses: heidayo/ai-check-template/ai-quality@v1` with a small set of parameters (profile, strictness, fail-on warning toggles)
+- A hosted reusable workflow at `.github/workflows/ai-quality.yml` callable via `uses: heidayo/ai-check-template/.github/workflows/ai-quality.yml@v0.3.0`
+- A Composite Action at `ai-quality/action.yml` callable via `uses: heidayo/ai-check-template/ai-quality@v0.3.0`
+- Documentation that distinguishes the hosted workflow, Composite Action, and local copy examples
 - GitHub Marketplace listing once the Composite Action surface is stable
+
+**Foundation scope**
+
+- [x] Hosted reusable workflow foundation
+- [x] Composite Action foundation
+- [x] GitHub Actions documentation and structure validation
+- [ ] v0.3.0 tag and GitHub Release
+- [ ] GitHub Marketplace listing
 
 **Dependencies on v0.2.0**
 
 - Profile names and the per-profile script set are stable
-- Versioning policy is clear (`@v1` major-pin, `@v0.3.0` exact-pin)
+- Versioning policy is clear (`@v0.3.0` exact-pin first, future `@v1` major alias after contract stability)
 
 ## Beyond v0.3.0
 
@@ -115,5 +126,6 @@ If a candidate is not on this roadmap, that does not mean it is rejected — it 
 ## References
 
 - [`./vision.md`](./vision.md) — the philosophical motivation
+- [`./github-actions.md`](./github-actions.md) — hosted workflow, Composite Action, and copy examples
 - [`../README.md`](../README.md) — the external-facing entry point
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — how to participate

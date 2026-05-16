@@ -23,7 +23,7 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - AI 生成コード向けの**テスト設計思想**（Test Pyramid / Given-When-Then / QA 技法 / 形名参同）
 - 実装前に成功基準を AI に宣言させる **AI プロンプト雛形**
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
-- 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレ**（direct workflow / reusable workflow example）
+- 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレと hosted workflow foundation**
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
 - 安全な初期導入のための stable npm **CLI**
 
@@ -72,7 +72,7 @@ AI 実装
 | **テスト設計** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) は要件を AC / Test Matrix / 検証コマンドへ落とすテンプレート |
 | **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
-| **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
+| **CI 統合** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples、hosted workflow / Composite Action guide の [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
 | **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
@@ -101,6 +101,7 @@ cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
+# hosted reusable workflow / Composite Action foundation は docs/github-actions.md を参照
 
 # 5. scripts fragment を package.json にマージ
 cat ai-check-template/package-templates/package.scripts.fragment.json
@@ -130,7 +131,7 @@ pnpm ai:check
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
 | **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Released（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
-| **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
+| **v0.3.0+** | Hosted reusable workflow + Composite Action（[GitHub Actions guide](./docs/github-actions.md)）、GitHub Marketplace は後続 | foundation 進行中 |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
 

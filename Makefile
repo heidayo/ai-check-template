@@ -112,6 +112,28 @@ validate-structure:
 	@test -f package-templates/ci-examples/github-actions/ai-quality-call.yml
 	@grep -q "workflow_call" package-templates/ci-examples/github-actions/ai-quality-reusable.yml
 	@grep -q "uses: ./.github/workflows/ai-quality-reusable.yml" package-templates/ci-examples/github-actions/ai-quality-call.yml
+	@test -f .github/workflows/ai-quality.yml
+	@grep -q "workflow_call" .github/workflows/ai-quality.yml
+	@grep -q "permissions:" .github/workflows/ai-quality.yml
+	@grep -q "contents: read" .github/workflows/ai-quality.yml
+	@grep -q "package-manager" .github/workflows/ai-quality.yml
+	@grep -q "check-command" .github/workflows/ai-quality.yml
+	@test -f ai-quality/action.yml
+	@grep -q "using: composite" ai-quality/action.yml
+	@grep -q "package-manager" ai-quality/action.yml
+	@grep -q "check-command" ai-quality/action.yml
+	@grep -q "working-directory" ai-quality/action.yml
+	@grep -q "upload-ai-check-artifacts" ai-quality/action.yml
+	@test -f docs/github-actions.md
+	@grep -q "Hosted reusable workflow" docs/github-actions.md
+	@grep -q "Composite Action" docs/github-actions.md
+	@grep -q "copy examples" docs/github-actions.md
+	@grep -q "Marketplace" docs/github-actions.md
+	@grep -q "docs/github-actions.md" README.md
+	@grep -q "docs/github-actions.md" README-ja.md
+	@grep -q "./github-actions.md" docs/roadmap.md
+	@grep -q "hosted reusable workflow" package-templates/ci-examples/README.md
+	@grep -q "Composite Action" package-templates/ci-examples/README.md
 	@test -f package.json
 	@grep -q '"version": "0.2.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json
