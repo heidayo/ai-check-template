@@ -80,7 +80,7 @@ AI 実装
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は stable CLI package `ai-check-template@0.2.0` としてリリース済みです。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は stable CLI package `ai-check-template@0.2.0` としてリリース済みです。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。v0.3.0 は GitHub Actions integration foundation としてリリース済みです。詳細は [`docs/releases/v0.3.0.md`](./docs/releases/v0.3.0.md) と [`docs/github-actions.md`](./docs/github-actions.md) を参照。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 ```bash
 # 1. リポをクローン
@@ -101,7 +101,7 @@ cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
-# hosted reusable workflow / Composite Action foundation は docs/github-actions.md を参照
+# hosted reusable workflow / Composite Action は docs/github-actions.md を参照
 
 # 5. scripts fragment を package.json にマージ
 cat ai-check-template/package-templates/package.scripts.fragment.json
@@ -131,7 +131,7 @@ pnpm ai:check
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
 | **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Released（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
-| **v0.3.0+** | Hosted reusable workflow + Composite Action（[GitHub Actions guide](./docs/github-actions.md)）、GitHub Marketplace は後続 | foundation 進行中 |
+| **v0.3.0** | Hosted reusable workflow + Composite Action（[GitHub Actions guide](./docs/github-actions.md)）、GitHub Marketplace は後続 | Released（[notes](./docs/releases/v0.3.0.md)） |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
 

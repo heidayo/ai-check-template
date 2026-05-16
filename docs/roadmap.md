@@ -79,9 +79,11 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 **Out of scope for v0.2.0**: GitHub Actions Composite Action, Marketplace listing.
 
-## v0.3.0+ — Reusable workflow and Composite Action
+## v0.3.0 — Reusable workflow and Composite Action
 
-**Status**: Foundation in progress. The hosted workflow / Composite Action guide is [`./github-actions.md`](./github-actions.md).
+**Status**: Released on 2026-05-16. Release notes: [`./releases/v0.3.0.md`](./releases/v0.3.0.md). The hosted workflow / Composite Action guide is [`./github-actions.md`](./github-actions.md).
+
+**Release type**: GitHub Actions integration. The npm CLI package remains `ai-check-template@0.2.0`.
 
 **Theme**: Make the CI integration first-class on GitHub.
 
@@ -97,7 +99,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Hosted reusable workflow foundation
 - [x] Composite Action foundation
 - [x] GitHub Actions documentation and structure validation
-- [ ] v0.3.0 tag and GitHub Release
+- [x] v0.3.0 tag and GitHub Release
 - [ ] GitHub Marketplace listing
 
 **Dependencies on v0.2.0**

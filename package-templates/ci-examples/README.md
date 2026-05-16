@@ -2,7 +2,7 @@
 
 `package-templates` から配布する CI 統合の **copy examples**。本パッケージは特定の CI ツールに縛られないため、各 CI 環境向けの YAML / 設定ファイルを「例」として提供し、利用者は自プロジェクトの CI に合わせてカスタマイズする。
 
-> **ステータス**: v0.1 template set。v0.3.0 foundation では repository root に hosted reusable workflow / Composite Action も追加する。使い分けは [`../../docs/github-actions.md`](../../docs/github-actions.md) を参照。
+> **ステータス**: v0.1 template set。v0.3.0 Released では repository root に hosted reusable workflow / Composite Action も追加済み。使い分けは [`../../docs/github-actions.md`](../../docs/github-actions.md) を参照。
 
 ## ディレクトリ構成
 
@@ -130,7 +130,7 @@ CI ツールごとに syntax が異なるため、本パッケージは **CI 統
 
 これは本パッケージの**汎用ファースト原則**に基づく。特定 CI（GitHub Actions 等）に強く依存した設計を全利用者に強制せず、思想（形名参同 / 責務分割 / ハイブリッドループ）の方を共有する。
 
-hosted reusable workflow / Composite Action は、この copy examples とは別の hosted contract。Marketplace listing は後続で、現時点では `@v0.3.0` exact pin を前提にした foundation として扱う。
+hosted reusable workflow / Composite Action は、この copy examples とは別の hosted contract。Marketplace listing は後続で、`@v0.3.0` exact pin を前提にした released foundation として扱う。
 
 ## 出典
 
