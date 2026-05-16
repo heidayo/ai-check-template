@@ -23,7 +23,7 @@ A template collection for AI-driven development. It bundles:
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
 - **GitHub Actions templates** that run the same `ai:check` on every PR, including direct and reusable workflow examples
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
-- An alpha **CLI foundation** for safer repository-local initialization
+- A published alpha **CLI foundation** for safer initialization
 
 You copy what you need, adapt to your project, and get a verifiable loop — without depending on any specific LLM, framework, or vendor.
 
@@ -73,24 +73,22 @@ The repository ships templates and prompts for every step in this loop.
 | **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the repository-local `init`, read-only `doctor`, and guarded `update` commands, install state (`.ai-check-template.json`), profile-aware package script migrations, profile docs migration, support script defaults, package manager detection plus Claude hook and CI workflow command rendering for `pnpm` / `npm` / `yarn` / `bun`, optional `--install-deps` npm dev dependency install, exact-managed workflow cleanup, advisory profile and missing-script diagnostics warnings, stale managed CI diagnostics, `doctor --strict`, `--profile`, `--package-manager`, `--ci`, `--claude-hooks`, `--dry-run`, `--overwrite`, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight |
+| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) documents the published `ai-check-template@0.2.0-alpha.0` CLI, `init`, read-only `doctor`, and guarded `update` commands, install state (`.ai-check-template.json`), profile-aware package script migrations, profile docs migration, support script defaults, package manager detection plus Claude hook and CI workflow command rendering for `pnpm` / `npm` / `yarn` / `bun`, optional `--install-deps` npm dev dependency install, exact-managed workflow cleanup, advisory profile and missing-script diagnostics warnings, stale managed CI diagnostics, `doctor --strict`, `--profile`, `--package-manager`, `--ci`, `--claude-hooks`, `--dry-run`, and `--overwrite` |
 | **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). A repository-local v0.2.0 alpha CLI, install state, profile-aware package script migrations, profile docs migration, support script defaults, package manager detection, package-manager-aware Claude hook and CI workflow rendering, optional `--install-deps`, exact-managed workflow cleanup, advisory profile / missing-script / stale managed CI diagnostics with `doctor --strict`, `npm pack` readiness, and `npm publish --dry-run --tag next` preflight are available in [`docs/cli.md`](./docs/cli.md); actual npm / `npx ai-check-template init` publishing is still future work.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). The v0.2.0 alpha CLI is published as `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag; see [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md) and [`docs/cli.md`](./docs/cli.md). It is an alpha, not a stable v0.2.0 release. Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag next` preflight before future publishes.
 
 ```bash
 # 1. Clone or browse the templates
 git clone https://github.com/heidayo/ai-check-template.git
 
-# 2. Preview the alpha CLI init, or pick a profile and copy manually
-node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --dry-run
-node ai-check-template/bin/ai-check-template.mjs init --target . --profile react-nextjs --install-deps --dry-run
-node ai-check-template/bin/ai-check-template.mjs init --target . --profile node-cli --package-manager npm --dry-run
-node ai-check-template/bin/ai-check-template.mjs doctor --target . --ci none
-node ai-check-template/bin/ai-check-template.mjs doctor --target . --strict --json
-node ai-check-template/bin/ai-check-template.mjs update --target . --dry-run
+# 2. Preview the alpha CLI init from npm
+npx -y ai-check-template@next init --target . --profile react-nextjs --dry-run
+npx -y ai-check-template@next init --target . --profile node-cli --package-manager npm --ci none --dry-run
+npx -y ai-check-template@next doctor --target . --ci none
+npx -y ai-check-template@next update --target . --dry-run
 
 # 3. Pick a profile that matches your stack
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md
@@ -129,7 +127,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 | Version | Theme | Status |
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
-| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | In progress ([alpha CLI docs + `npm pack` readiness](./docs/cli.md)) |
+| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Published alpha ([notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
 | **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).

@@ -31,17 +31,17 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.2.0 — CLI scaffolding
 
-**Status**: In progress. The first alpha foundation is documented in [`./cli.md`](./cli.md).
+**Status**: Alpha published on npm as `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. See [`./releases/v0.2.0-alpha.0.md`](./releases/v0.2.0-alpha.0.md) and [`./cli.md`](./cli.md).
 
 **Theme**: Reduce friction from manual copy to one command.
 
-**Goal**: `npx ai-check-template@latest init --profile react-nextjs+supabase-rls` produces a working setup in an existing project, with safe merging into `package.json`, `.claude/settings.json`, and `.github/workflows/`.
+**Goal**: `npx -y ai-check-template@next init --profile react-nextjs+supabase-rls` produces an alpha working setup in an existing project, with safe merging into `package.json`, `.claude/settings.json`, and `.github/workflows/`.
 
 **Planned commands**
 
 - `init` — flag-driven alpha setup that picks profiles, copies templates, and safely merges fragments
-- `update` — bring known template-managed files and profile-aware package scripts in an existing setup up to the current package version. Foundation and exact-managed workflow cleanup are available; deeper migrations remain planned.
-- `doctor` — diagnose drift between the installed templates and the current upstream version. Foundation, strict warning mode, and stale managed CI diagnostics are available; deeper profile-aware diagnostics remain planned.
+- `update` — bring known template-managed files, profile docs, package scripts, CI workflows, and Claude hook commands in an existing setup up to the current package version
+- `doctor` — diagnose drift between the installed templates and the current upstream version, including package scripts, files, CI workflows, Claude hooks, profile warnings, and strict warning mode
 
 **Current alpha scope**
 
@@ -66,7 +66,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Profile-aware docs migration for test design, philosophy, prompt, and selected profile guidance
 - [x] Package-manager-aware Claude hook command migration
 - [x] Package-manager-aware CI workflow command migration
-- [ ] npm publish and `npx ai-check-template init`
+- [x] npm publish and `npx ai-check-template init`
 - [x] deeper non-doc profile-aware file migrations
 
 **Dependencies on v0.1.0**
