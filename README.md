@@ -78,7 +78,7 @@ The repository ships templates and prompts for every step in this loop.
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). v0.2.0 is released as the stable CLI package `ai-check-template@0.2.0`; see [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md), the alpha history in [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md), and [`docs/cli.md`](./docs/cli.md). Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). v0.2.0 is released as the stable CLI package `ai-check-template@0.2.0`; see [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md), the alpha history in [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md), and [`docs/cli.md`](./docs/cli.md). v0.3.0 is released as the GitHub Actions integration foundation; see [`docs/releases/v0.3.0.md`](./docs/releases/v0.3.0.md) and [`docs/github-actions.md`](./docs/github-actions.md). Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
 
 ```bash
 # 1. Clone or browse the templates
@@ -99,7 +99,7 @@ cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
-# For the hosted reusable workflow and Composite Action foundation, see docs/github-actions.md.
+# For the hosted reusable workflow and Composite Action, see docs/github-actions.md.
 
 # 5. Merge the scripts fragment into your package.json
 cat ai-check-template/package-templates/package.scripts.fragment.json
@@ -129,7 +129,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
 | **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Released ([notes](./docs/releases/v0.2.0.md), [alpha notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
-| **v0.3.0+** | Hosted reusable workflow + Composite Action ([GitHub Actions guide](./docs/github-actions.md)); GitHub Marketplace later | Foundation in progress |
+| **v0.3.0** | Hosted reusable workflow + Composite Action ([GitHub Actions guide](./docs/github-actions.md)); GitHub Marketplace later | Released ([notes](./docs/releases/v0.3.0.md)) |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
 

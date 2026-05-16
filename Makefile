@@ -134,6 +134,24 @@ validate-structure:
 	@grep -q "./github-actions.md" docs/roadmap.md
 	@grep -q "hosted reusable workflow" package-templates/ci-examples/README.md
 	@grep -q "Composite Action" package-templates/ci-examples/README.md
+	@test -f docs/releases/v0.3.0.md
+	@grep -q "^## Highlights" docs/releases/v0.3.0.md
+	@grep -q "^## Install" docs/releases/v0.3.0.md
+	@grep -q "^## Verification" docs/releases/v0.3.0.md
+	@grep -q "^## Limitations" docs/releases/v0.3.0.md
+	@grep -q "^## Next" docs/releases/v0.3.0.md
+	@grep -q "GitHub Actions integration" docs/releases/v0.3.0.md
+	@grep -q "not an npm package release" docs/releases/v0.3.0.md
+	@grep -q "v0.3.0.*Released" README.md
+	@grep -q "v0.3.0.*Released" README-ja.md
+	@grep -q "Released on 2026-05-16" docs/roadmap.md
+	@grep -q "docs/releases/v0.3.0.md" README.md
+	@grep -q "docs/releases/v0.3.0.md" README-ja.md
+	@grep -q "releases/v0.3.0.md" docs/roadmap.md
+	@grep -q "@v0.3.0" docs/github-actions.md
+	@grep -q "future @v1" docs/github-actions.md
+	@grep -q "Marketplace listing is planned" docs/github-actions.md
+	@grep -q "v0.3.0.*Released" package-templates/ci-examples/README.md
 	@test -f package.json
 	@grep -q '"version": "0.2.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json

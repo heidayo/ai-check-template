@@ -7,7 +7,7 @@ smallest contract that fits your project.
 
 Use the hosted reusable workflow when you want this repository to own the
 install/check workflow contract and your repository only to provide inputs.
-After the v0.3.0 release tag is cut, call it from your project like this:
+With v0.3.0 released, call it from your project like this:
 
 ```yaml
 name: AI Quality
@@ -29,7 +29,7 @@ jobs:
       check-command: pnpm ai:check
 ```
 
-Pin `@v0.3.0` for the exact released contract. A future `@v1` major alias is
+Pin `@v0.3.0` for the exact released contract. A future @v1 major alias is
 planned after the workflow and action surfaces are stable.
 
 ## Composite Action
@@ -102,5 +102,5 @@ can SHA-pin these actions after copying the examples, or use policy tooling to
 enforce pinned references.
 
 GitHub Marketplace listing is planned after the Composite Action contract has
-been exercised through at least one release. This page documents the v0.3.0
-foundation; it does not claim Marketplace availability.
+been exercised through at least one release. This page documents the released
+v0.3.0 foundation; it does not claim Marketplace availability.
