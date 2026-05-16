@@ -31,7 +31,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.2.0 — CLI scaffolding
 
-**Status**: Stable release prep for `ai-check-template@0.2.0`. See [`./releases/v0.2.0.md`](./releases/v0.2.0.md), alpha history in [`./releases/v0.2.0-alpha.0.md`](./releases/v0.2.0-alpha.0.md), and [`./cli.md`](./cli.md).
+**Status**: Released on 2026-05-16 as `ai-check-template@0.2.0`. See [`./releases/v0.2.0.md`](./releases/v0.2.0.md), alpha history in [`./releases/v0.2.0-alpha.0.md`](./releases/v0.2.0-alpha.0.md), and [`./cli.md`](./cli.md).
 
 **Theme**: Reduce friction from manual copy to one command.
 
@@ -43,7 +43,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - `update` — bring known template-managed files, profile docs, package scripts, CI workflows, and Claude hook commands in an existing setup up to the current package version
 - `doctor` — diagnose drift between the installed templates and the current upstream version, including package scripts, files, CI workflows, Claude hooks, profile warnings, and strict warning mode
 
-**Current alpha scope**
+**Delivered scope**
 
 - [x] Repository-local `node bin/ai-check-template.mjs init`
 - [x] `--profile`, `--ci`, `--claude-hooks`, `--dry-run`, `--yes`, and `--overwrite`
@@ -68,7 +68,8 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Package-manager-aware CI workflow command migration
 - [x] npm publish and `npx ai-check-template init`
 - [x] deeper non-doc profile-aware file migrations
-- [x] stable release prep for `0.2.0` with `npm publish --dry-run --tag latest`
+- [x] stable release readiness validation for `0.2.0` with `npm publish --dry-run --tag latest`
+- [x] stable npm publish, `npx @latest` smoke, `v0.2.0` tag, and GitHub Release
 
 **Dependencies on v0.1.0**
 

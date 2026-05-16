@@ -80,7 +80,7 @@ AI 実装
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は `ai-check-template@0.2.0` の stable CLI release prep です。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。actual publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は stable CLI package `ai-check-template@0.2.0` としてリリース済みです。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 ```bash
 # 1. リポをクローン
@@ -129,7 +129,7 @@ pnpm ai:check
 | バージョン | テーマ | 状態 |
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
-| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Stable release prep（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
+| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Released（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
 | **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。

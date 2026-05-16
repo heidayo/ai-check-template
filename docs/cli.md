@@ -1,6 +1,6 @@
 # CLI
 
-`ai-check-template` includes a CLI for v0.2.0. The stable release candidate package version is `ai-check-template@0.2.0`.
+`ai-check-template` includes a published stable CLI for v0.2.0. The current stable package is `ai-check-template@0.2.0`, available through npm's `latest` dist-tag.
 
 Use it to copy the v0.1.0 templates into an existing project with safer defaults than manual copy.
 
@@ -340,18 +340,18 @@ node --test tests/cli/package.test.mjs
 
 The package tests assert that runtime files are included, repository-only SAGE artifacts are excluded, and a tarball-installed `ai-check-template` binary can run both `--help` and `init`.
 
-The package has an alpha history at `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
+The package is published to npm as `ai-check-template@0.2.0` under the `latest` dist-tag. It also has an alpha history at `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
 
 ## Publish preflight
 
-For stable `0.2.0` release prep, the publish preflight command is:
+For future stable releases, the publish preflight command is:
 
 ```bash
 npm publish --dry-run --tag latest --json
 ```
 
-This command validates the publish payload without writing to the registry. Actual `npm publish --tag latest` still requires explicit maintainer approval and npm authentication.
+This command validates the publish payload without writing to the registry before a new version is published. Once the current package version already exists in npm, repository validation checks registry visibility instead of attempting another dry-run for the same version. `ai-check-template@0.2.0` has been published to npm and smoke-tested with `npx -y ai-check-template@latest`. Future publishes still require explicit maintainer approval and npm authentication.
 
 ## 日本語メモ
 
-この CLI は v0.2.0 の stable release candidate です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI は v0.2.0 の published stable CLI です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。

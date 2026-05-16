@@ -78,7 +78,7 @@ The repository ships templates and prompts for every step in this loop.
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). v0.2.0 is the stable CLI release prep for `ai-check-template@0.2.0`; see [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md), the alpha history in [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md), and [`docs/cli.md`](./docs/cli.md). Repository validation uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before actual publish.
+> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). v0.2.0 is released as the stable CLI package `ai-check-template@0.2.0`; see [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md), the alpha history in [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md), and [`docs/cli.md`](./docs/cli.md). Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
 
 ```bash
 # 1. Clone or browse the templates
@@ -127,7 +127,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 | Version | Theme | Status |
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
-| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Stable release prep ([notes](./docs/releases/v0.2.0.md), [alpha notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
+| **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Released ([notes](./docs/releases/v0.2.0.md), [alpha notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
 | **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
