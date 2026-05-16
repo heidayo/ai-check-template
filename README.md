@@ -21,7 +21,7 @@ A template collection for AI-driven development. It bundles:
 - A **testing philosophy** built for AI-written code (Test Pyramid, Given-When-Then, QA techniques, Formal Name Match)
 - **AI prompt templates** that force the model to declare success criteria before implementing
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
-- **GitHub Actions templates** that run the same `ai:check` on every PR, including direct and reusable workflow examples
+- **GitHub Actions templates and hosted workflow foundation** that run the same `ai:check` on every PR
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
 - A stable npm **CLI** for safer initialization
 
@@ -70,7 +70,7 @@ The repository ships templates and prompts for every step in this loop.
 | **Test design** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) maps requirements to acceptance criteria, test matrix rows, and verification commands |
 | **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
 | **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
-| **CI templates** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), and reusable workflow examples |
+| **CI integration** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), reusable workflow examples, and the hosted workflow / Composite Action guide in [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
 | **CLI** | [`docs/cli.md`](./docs/cli.md) documents the `ai-check-template@0.2.0` CLI, `init`, read-only `doctor`, and guarded `update` commands, install state (`.ai-check-template.json`), profile-aware package script migrations, profile docs migration, support script defaults, package manager detection plus Claude hook and CI workflow command rendering for `pnpm` / `npm` / `yarn` / `bun`, optional `--install-deps` npm dev dependency install, exact-managed workflow cleanup, advisory profile and missing-script diagnostics warnings, stale managed CI diagnostics, `doctor --strict`, `--profile`, `--package-manager`, `--ci`, `--claude-hooks`, `--dry-run`, and `--overwrite` |
@@ -99,6 +99,7 @@ cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
 # Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
+# For the hosted reusable workflow and Composite Action foundation, see docs/github-actions.md.
 
 # 5. Merge the scripts fragment into your package.json
 cat ai-check-template/package-templates/package.scripts.fragment.json
@@ -128,7 +129,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
 | **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Released ([notes](./docs/releases/v0.2.0.md), [alpha notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
-| **v0.3.0+** | Reusable workflow + Composite Action (GitHub Marketplace) | Planned |
+| **v0.3.0+** | Hosted reusable workflow + Composite Action ([GitHub Actions guide](./docs/github-actions.md)); GitHub Marketplace later | Foundation in progress |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
 

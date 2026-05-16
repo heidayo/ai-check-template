@@ -1,0 +1,101 @@
+name: AI Quality
+description: Run a target project's existing ai:check quality gate from a checked-out workspace.
+
+inputs:
+  package-manager:
+    description: "pnpm, npm, yarn, or bun"
+    required: false
+    default: pnpm
+  node-version:
+    description: "Node.js version for npm, pnpm, and yarn projects"
+    required: false
+    default: "22"
+  install-command:
+    description: "Optional custom install command. Empty uses the package-manager default."
+    required: false
+    default: ""
+  check-command:
+    description: "Command that runs the target project's AI quality gate"
+    required: false
+    default: "pnpm ai:check"
+  working-directory:
+    description: "Directory where install and check commands run"
+    required: false
+    default: "."
+  upload-ai-check-artifacts:
+    description: "Upload .ai-check/ after the run when present"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Validate package manager
+      shell: bash
+      run: |
+        case "${{ inputs.package-manager }}" in
+          pnpm|npm|yarn|bun) ;;
+          *) echo "Unsupported package-manager: ${{ inputs.package-manager }}" >&2; exit 1 ;;
+        esac
+
+    - uses: pnpm/action-setup@v4
+      if: ${{ inputs.package-manager == 'pnpm' }}
+      with:
+        version: 10
+
+    - uses: oven-sh/setup-bun@v2
+      if: ${{ inputs.package-manager == 'bun' }}
+
+    - uses: actions/setup-node@v5
+      if: ${{ inputs.package-manager != 'bun' }}
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+
+    - name: Enable Corepack
+      if: ${{ inputs.package-manager == 'pnpm' || inputs.package-manager == 'yarn' }}
+      shell: bash
+      run: corepack enable
+
+    - name: Install dependencies with custom command
+      if: ${{ inputs.install-command != '' }}
+      shell: bash
+      run: ${{ inputs.install-command }}
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install dependencies with pnpm
+      if: ${{ inputs.install-command == '' && inputs.package-manager == 'pnpm' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install dependencies with npm
+      if: ${{ inputs.install-command == '' && inputs.package-manager == 'npm' }}
+      shell: bash
+      run: npm ci
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install dependencies with yarn
+      if: ${{ inputs.install-command == '' && inputs.package-manager == 'yarn' }}
+      shell: bash
+      run: yarn install --immutable
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install dependencies with bun
+      if: ${{ inputs.install-command == '' && inputs.package-manager == 'bun' }}
+      shell: bash
+      run: bun install --frozen-lockfile
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Run AI quality gate
+      shell: bash
+      run: ${{ inputs.check-command }}
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Upload ai-check artifacts
+      if: ${{ always() && inputs.upload-ai-check-artifacts == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ai-check-artifacts
+        path: ${{ inputs.working-directory }}/.ai-check/
+        if-no-files-found: ignore
