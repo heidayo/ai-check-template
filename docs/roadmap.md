@@ -65,8 +65,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Optional npm dev dependency install with `--install-deps`
 - [x] Profile-aware docs migration for test design, philosophy, prompt, and selected profile guidance
 - [x] Package-manager-aware Claude hook command migration
+- [x] Package-manager-aware CI workflow command migration
 - [ ] npm publish and `npx ai-check-template init`
-- [ ] deeper non-doc profile-aware file migrations
+- [x] deeper non-doc profile-aware file migrations
 
 **Dependencies on v0.1.0**
 
