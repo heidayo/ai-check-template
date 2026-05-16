@@ -113,7 +113,7 @@ validate-structure:
 	@grep -q "workflow_call" package-templates/ci-examples/github-actions/ai-quality-reusable.yml
 	@grep -q "uses: ./.github/workflows/ai-quality-reusable.yml" package-templates/ci-examples/github-actions/ai-quality-call.yml
 	@test -f package.json
-	@grep -q '"version": "0.2.0-alpha.0"' package.json
+	@grep -q '"version": "0.2.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json
 	@grep -q '"repository"' package.json
 	@grep -q '"bugs"' package.json
@@ -153,10 +153,18 @@ validate-structure:
 	@grep -q "npm pack" README.md
 	@grep -q "npm pack" README-ja.md
 	@grep -q "npm pack" docs/roadmap.md
-	@grep -q "npm publish --dry-run --tag next" docs/cli.md
-	@grep -q "npm publish --dry-run --tag next" README.md
-	@grep -q "npm publish --dry-run --tag next" README-ja.md
-	@grep -q "npm publish --dry-run --tag next" docs/roadmap.md
+	@test -f docs/releases/v0.2.0.md
+	@grep -q "^## Highlights" docs/releases/v0.2.0.md
+	@grep -q "^## Install" docs/releases/v0.2.0.md
+	@grep -q "^## Verification" docs/releases/v0.2.0.md
+	@grep -q "^## Publish" docs/releases/v0.2.0.md
+	@grep -q "^## Limitations" docs/releases/v0.2.0.md
+	@grep -q "0.2.0" docs/releases/v0.2.0.md
+	@grep -q "v0.2.0-alpha.0" docs/releases/v0.2.0.md
+	@grep -q "npm publish --dry-run --tag latest" docs/cli.md
+	@grep -q "npm publish --dry-run --tag latest" README.md
+	@grep -q "npm publish --dry-run --tag latest" README-ja.md
+	@grep -q "npm publish --dry-run --tag latest" docs/roadmap.md
 	@echo "validate-structure: PASS"
 
 validate-cli:
@@ -171,7 +179,7 @@ validate-npm-pack:
 	@echo "validate-npm-pack: PASS"
 
 validate-npm-publish-dry-run:
-	@npm publish --dry-run --tag next --json >/dev/null
+	@npm publish --dry-run --tag latest --json >/dev/null
 	@echo "validate-npm-publish-dry-run: PASS"
 
 validate-sage:

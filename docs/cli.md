@@ -1,16 +1,16 @@
-# CLI alpha
+# CLI
 
-`ai-check-template` now includes a published alpha CLI for v0.2.0. The current npm package is `ai-check-template@0.2.0-alpha.0`, available via the `next` dist-tag.
+`ai-check-template` includes a CLI for v0.2.0. The stable release candidate package version is `ai-check-template@0.2.0`.
 
 Use it to copy the v0.1.0 templates into an existing project with safer defaults than manual copy.
 
 ## Command
 
 ```bash
-npx -y ai-check-template@next init --target ../your-project --profile react-nextjs --dry-run
-npx -y ai-check-template@next init --target ../your-project --profile react-nextjs --yes
-npx -y ai-check-template@next doctor --target ../your-project
-npx -y ai-check-template@next update --target ../your-project --dry-run
+npx -y ai-check-template init --target ../your-project --profile react-nextjs --dry-run
+npx -y ai-check-template init --target ../your-project --profile react-nextjs --yes
+npx -y ai-check-template doctor --target ../your-project
+npx -y ai-check-template update --target ../your-project --dry-run
 ```
 
 Repository-local commands are still useful when testing a checked-out clone:
@@ -88,7 +88,7 @@ Malformed or unsupported install state is reported by `doctor` as an issue. `upd
 
 ## Package manager detection
 
-The CLI alpha generates profile-aware package scripts for `pnpm`, `npm`, `yarn`, and `bun`. Detection uses:
+The CLI generates profile-aware package scripts for `pnpm`, `npm`, `yarn`, and `bun`. Detection uses:
 
 1. explicit `--package-manager`
 2. install state
@@ -137,7 +137,7 @@ Current advisory checks cover:
 - `supabase-rls`: missing RLS-related DB / integration test scripts
 - `ai:check` / `ai:check:fast`: missing referenced package scripts such as `typecheck`, `lint`, or `test:unit`
 
-Warnings remain advisory by default in this alpha. `doctor --strict` is available for stricter local or CI checks. Missing script diagnostics do not install dependencies or create scripts; profile-specific file / CI migrations remain future work.
+Warnings remain advisory by default. `doctor --strict` is available for stricter local or CI checks. Missing script diagnostics do not install dependencies or create scripts.
 
 ## CI diagnostics
 
@@ -151,7 +151,7 @@ Custom workflows with the same paths are not treated as stale managed files unle
 
 ## Profile-aware scripts
 
-The manual `package-templates/package.scripts.fragment.json` remains a generic copy-and-adapt fragment. The CLI alpha uses a profile-aware script resolver instead:
+The manual `package-templates/package.scripts.fragment.json` remains a generic copy-and-adapt fragment. The CLI uses a profile-aware script resolver instead:
 
 - `react-nextjs` adds React Doctor and dead-code checks to `ai:check`
 - `react-vanilla` keeps SPA scripts without Next.js-specific commands
@@ -325,7 +325,7 @@ node bin/ai-check-template.mjs doctor --help
 node bin/ai-check-template.mjs update --help
 node --test tests/cli/*.test.mjs
 npm pack --dry-run --json
-npm publish --dry-run --tag next --json
+npm publish --dry-run --tag latest --json
 make validate
 ```
 
@@ -340,18 +340,18 @@ node --test tests/cli/package.test.mjs
 
 The package tests assert that runtime files are included, repository-only SAGE artifacts are excluded, and a tarball-installed `ai-check-template` binary can run both `--help` and `init`.
 
-The package is also published to npm as `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
+The package has an alpha history at `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
 
 ## Publish preflight
 
-Because `0.2.0-alpha.0` is a prerelease version, npm requires an explicit dist-tag. The publish preflight command is:
+For stable `0.2.0` release prep, the publish preflight command is:
 
 ```bash
-npm publish --dry-run --tag next --json
+npm publish --dry-run --tag latest --json
 ```
 
-This command validates the publish payload without writing to the registry. `ai-check-template@0.2.0-alpha.0` has been published to npm as an alpha package and smoke-tested with `npx -y ai-check-template@next`. Future publishes still require explicit maintainer approval and npm authentication.
+This command validates the publish payload without writing to the registry. Actual `npm publish --tag latest` still requires explicit maintainer approval and npm authentication.
 
 ## 日本語メモ
 
-この CLI は v0.2.0 alpha foundation です。npm package `ai-check-template@0.2.0-alpha.0` は `next` dist-tag で公開済みですが、安定版ではありません。まず `npx -y ai-check-template@next init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI alpha は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI は v0.2.0 の stable release candidate です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
