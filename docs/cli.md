@@ -32,7 +32,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--profile <name>` | `react-nextjs` | One base profile: `react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`. Add `+supabase-rls` when needed. |
 | `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | `direct` copies `ai-check.yml` and `ai-check-fast.yml`; `reusable` copies `ai-quality-reusable.yml` and `ai-quality-call.yml`; `none` skips workflows. |
-| `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges the hook fragment into `.claude/settings.json`. |
+| `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges package-manager-aware hook commands into `.claude/settings.json`. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
@@ -58,7 +58,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--profile <name>` | install state or `react-nextjs` | Profile to refresh in install state. One base profile plus optional `+supabase-rls`. |
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Updates `direct`, `reusable`, or no workflow files. |
-| `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed hook keys in `.claude/settings.json`. |
+| `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
@@ -88,6 +88,19 @@ The CLI alpha generates profile-aware package scripts for `pnpm`, `npm`, `yarn`,
 5. `pnpm` default
 
 Package manager detection changes generated package script invocations and, when `--install-deps` is explicitly set on `init` or `update`, selects the install command. It does not change the manual `package-templates/package.scripts.fragment.json`.
+
+## Claude hook command rendering
+
+When `--claude-hooks` is set, `init` and `update` render the managed `.claude/settings.json` hook commands from the effective package manager:
+
+| Package manager | Fast hook | Full hook |
+|---|---|---|
+| `pnpm` | `pnpm ai:check:fast` | `pnpm ai:check` |
+| `npm` | `npm run ai:check:fast` | `npm run ai:check` |
+| `yarn` | `yarn ai:check:fast` | `yarn ai:check` |
+| `bun` | `bun run ai:check:fast` | `bun run ai:check` |
+
+`init` preserves existing hook groups unless `--overwrite` is passed. `update` refreshes managed hook commands to the effective package manager and preserves custom non-managed hook commands in the same group. The packaged manual hook fragment remains `pnpm`-based for copy-and-adapt users.
 
 ## Profile diagnostics
 
@@ -174,7 +187,7 @@ These defaults are intentionally conservative:
 - Copies common test design / philosophy docs and selected profile docs under `docs/ai-check-template/`
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
 - Copies GitHub Actions workflows for the selected `--ci` mode
-- Optionally copies Claude Code rules and merges hook settings when `--claude-hooks` is set
+- Optionally copies Claude Code rules and merges package-manager-aware hook settings when `--claude-hooks` is set
 - Writes `.ai-check-template.json` with install metadata
 
 It does not modify `package-templates/`, publish to npm, install dependencies without `--install-deps`, or rewrite existing project-specific tool choices.
@@ -207,7 +220,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - missing profile docs under `docs/ai-check-template/`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
-- optional Claude Code rule and managed hook settings when `--claude-hooks` is set
+- optional Claude Code rule and package-manager-aware managed hook settings when `--claude-hooks` is set
 - `.ai-check-template.json` install state
 - missing npm dev dependencies when `--install-deps` is set
 

@@ -6,6 +6,7 @@ import {
   preflightDependencyInstaller,
   runDependencyInstall,
 } from "./dependency-installer.mjs";
+import { mergeRenderedClaudeHookEntries, renderClaudeHookSettings } from "./claude-hooks.mjs";
 import {
   assertWritableInstallState,
   effectiveOptionsSummary,
@@ -415,7 +416,10 @@ async function cleanupManagedFile(targetDir, sourcePath, relativePath, options, 
 async function updateClaudeSettings(targetDir, options, operations) {
   const relativePath = ".claude/settings.json";
   const targetPath = path.join(targetDir, relativePath);
-  const fragment = await readJson(fromTemplates(".claude", "settings.hook-fragment.json"));
+  const fragment = renderClaudeHookSettings(
+    await readJson(fromTemplates(".claude", "settings.hook-fragment.json")),
+    options.packageManager,
+  );
   const settings = (await pathExists(targetPath)) ? await readJson(targetPath) : {};
   const nextSettings = { ...settings, hooks: { ...(settings.hooks ?? {}) } };
   let changed = false;
@@ -423,14 +427,15 @@ async function updateClaudeSettings(targetDir, options, operations) {
   for (const [name, hooks] of Object.entries(fragment.hooks ?? {})) {
     const current = nextSettings.hooks[name];
     const currentJson = current ? JSON.stringify(current) : "";
-    const expectedJson = JSON.stringify(hooks);
+    const expected = mergeRenderedClaudeHookEntries(current, hooks);
+    const expectedJson = JSON.stringify(expected);
 
     if (currentJson === expectedJson) {
       operations.push(operation("keep", relativePath, `Claude hook ${name}`));
       continue;
     }
 
-    nextSettings.hooks[name] = hooks;
+    nextSettings.hooks[name] = expected;
     changed = true;
     operations.push(
       operation(

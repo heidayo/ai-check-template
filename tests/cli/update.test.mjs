@@ -97,6 +97,22 @@ function readInstallState(target) {
   return JSON.parse(fs.readFileSync(path.join(target, ".ai-check-template.json"), "utf8"));
 }
 
+function readClaudeSettings(target) {
+  return JSON.parse(fs.readFileSync(path.join(target, ".claude", "settings.json"), "utf8"));
+}
+
+function writeClaudeSettings(target, settings) {
+  const settingsPath = path.join(target, ".claude", "settings.json");
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+}
+
+function claudeHookCommands(settings) {
+  return Object.values(settings.hooks ?? {}).flatMap((entries) => (
+    entries.flatMap((entry) => (entry.hooks ?? []).map((hook) => hook.command).filter(Boolean))
+  ));
+}
+
 test("prints update help", () => {
   const result = runCli(["update", "--help"]);
 
@@ -193,6 +209,91 @@ test("update repairs scripts using install state package manager", (t) => {
   const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   assert.equal(updatedPackageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run deadcode && npm run test");
   assert.equal(doctor(target).status, 0);
+});
+
+test("update migrates Claude hooks to explicit package manager and preserves custom commands", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--package-manager",
+    "pnpm",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+  const settings = readClaudeSettings(target);
+  settings.hooks.PostToolUse[0].hooks.push({ type: "command", command: "custom fast check" });
+  writeClaudeSettings(target, settings);
+
+  const result = runCli([
+    "update",
+    "--target",
+    target,
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--yes",
+    "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.packageManager, "npm");
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "update" && operation.detail === "Claude hook PostToolUse",
+  ), true);
+  assert.deepEqual(claudeHookCommands(readClaudeSettings(target)), [
+    "npm run ai:check:fast",
+    "custom fast check",
+    "npm run ai:check",
+  ]);
+});
+
+test("update dry-run reports Claude hook migration without writing", (t) => {
+  const target = createFixture(t);
+  const init = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--package-manager",
+    "pnpm",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--yes",
+  ]);
+  assert.equal(init.status, 0, init.stderr);
+  const before = readClaudeSettings(target);
+
+  const result = runCli([
+    "update",
+    "--target",
+    target,
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--dry-run",
+    "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "would-update" && operation.detail === "Claude hook PostToolUse",
+  ), true);
+  assert.deepEqual(readClaudeSettings(target), before);
 });
 
 test("update migrates generic scripts to node-cli profile scripts", (t) => {

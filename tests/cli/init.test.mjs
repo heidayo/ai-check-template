@@ -39,6 +39,16 @@ function readInstallState(dir) {
   return JSON.parse(fs.readFileSync(path.join(dir, ".ai-check-template.json"), "utf8"));
 }
 
+function readClaudeSettings(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, ".claude", "settings.json"), "utf8"));
+}
+
+function claudeHookCommands(settings) {
+  return Object.values(settings.hooks ?? {}).flatMap((entries) => (
+    entries.flatMap((entry) => (entry.hooks ?? []).map((hook) => hook.command).filter(Boolean))
+  ));
+}
+
 function snapshotDirectory(dir) {
   const snapshot = {};
   for (const filePath of listFiles(dir)) {
@@ -327,9 +337,95 @@ test("Claude hooks copy rules and merge settings", (t) => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(target, ".claude", "rules", "test-rules.md")), true);
-  const settings = JSON.parse(fs.readFileSync(path.join(target, ".claude", "settings.json"), "utf8"));
+  const settings = readClaudeSettings(target);
   assert.ok(settings.hooks.PostToolUse);
   assert.ok(settings.hooks.Stop);
+  assert.deepEqual(claudeHookCommands(settings), ["pnpm ai:check:fast", "pnpm ai:check"]);
+});
+
+test("Claude hooks render package-manager-specific commands", (t) => {
+  const cases = [
+    ["pnpm", "pnpm ai:check:fast", "pnpm ai:check"],
+    ["npm", "npm run ai:check:fast", "npm run ai:check"],
+    ["yarn", "yarn ai:check:fast", "yarn ai:check"],
+    ["bun", "bun run ai:check:fast", "bun run ai:check"],
+  ];
+
+  for (const [packageManager, fastCommand, fullCommand] of cases) {
+    const target = createFixture(t);
+    const result = runCli([
+      "init",
+      "--target",
+      target,
+      "--profile",
+      "react-nextjs",
+      "--ci",
+      "none",
+      "--claude-hooks",
+      "--package-manager",
+      packageManager,
+      "--yes",
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(claudeHookCommands(readClaudeSettings(target)), [fastCommand, fullCommand]);
+  }
+});
+
+test("Claude hooks preserve existing groups unless overwrite is requested", (t) => {
+  const target = createFixture(t);
+  const settingsPath = path.join(target, ".claude", "settings.json");
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, `${JSON.stringify({
+    hooks: {
+      PostToolUse: [
+        {
+          matcher: "Edit|Write",
+          hooks: [{ type: "command", command: "custom fast check" }],
+        },
+      ],
+      Stop: [
+        {
+          hooks: [{ type: "command", command: "custom full check" }],
+        },
+      ],
+    },
+  }, null, 2)}\n`);
+
+  const preserve = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--package-manager",
+    "npm",
+    "--yes",
+  ]);
+
+  assert.equal(preserve.status, 0, preserve.stderr);
+  assert.deepEqual(claudeHookCommands(readClaudeSettings(target)), ["custom fast check", "custom full check"]);
+
+  const overwrite = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--ci",
+    "none",
+    "--claude-hooks",
+    "--package-manager",
+    "npm",
+    "--overwrite",
+    "--yes",
+  ]);
+
+  assert.equal(overwrite.status, 0, overwrite.stderr);
+  assert.deepEqual(claudeHookCommands(readClaudeSettings(target)), ["npm run ai:check:fast", "npm run ai:check"]);
 });
 
 test("existing files and scripts are not overwritten by default", (t) => {
@@ -368,11 +464,12 @@ test("invalid profile is rejected before writes", (t) => {
 test("invalid package manager is rejected before writes", (t) => {
   const packageJson = { name: "fixture", scripts: {} };
   const target = createFixture(t, packageJson);
-  const result = runCli(["init", "--target", target, "--package-manager", "bad", "--yes"]);
+  const result = runCli(["init", "--target", target, "--package-manager", "bad", "--claude-hooks", "--yes"]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /package-manager must be one of/);
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
+  assert.equal(fs.existsSync(path.join(target, ".claude")), false);
   assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
