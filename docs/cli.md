@@ -31,7 +31,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--profile <name>` | `react-nextjs` | One base profile: `react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`. Add `+supabase-rls` when needed. |
 | `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
-| `--ci <mode>` | `direct` | `direct` copies `ai-check.yml` and `ai-check-fast.yml`; `reusable` copies `ai-quality-reusable.yml` and `ai-quality-call.yml`; `none` skips workflows. |
+| `--ci <mode>` | `direct` | `direct` writes package-manager-aware `ai-check.yml` and `ai-check-fast.yml`; `reusable` writes `ai-quality-reusable.yml` plus a package-manager-aware `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges package-manager-aware hook commands into `.claude/settings.json`. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
@@ -57,7 +57,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--profile <name>` | install state or `react-nextjs` | Profile to refresh in install state. One base profile plus optional `+supabase-rls`. |
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
-| `--ci <mode>` | `direct` | Updates `direct`, `reusable`, or no workflow files. |
+| `--ci <mode>` | `direct` | Updates package-manager-aware `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
@@ -87,7 +87,20 @@ The CLI alpha generates profile-aware package scripts for `pnpm`, `npm`, `yarn`,
 4. lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `bun.lock`, `bun.lockb`)
 5. `pnpm` default
 
-Package manager detection changes generated package script invocations and, when `--install-deps` is explicitly set on `init` or `update`, selects the install command. It does not change the manual `package-templates/package.scripts.fragment.json`.
+Package manager detection changes generated package script invocations, Claude hook commands, and CLI-written GitHub Actions workflows. When `--install-deps` is explicitly set on `init` or `update`, it also selects the install command. It does not change the manual `package-templates/package.scripts.fragment.json` or the source templates under `package-templates/`.
+
+## CI workflow rendering
+
+When `--ci direct` is set, `init` and `update` write workflow commands for the effective package manager:
+
+| Package manager | Install command | Full check | Fast check |
+|---|---|---|---|
+| `pnpm` | `pnpm install --frozen-lockfile` | `pnpm ai:check` | `pnpm ai:check:fast` |
+| `npm` | `npm ci` | `npm run ai:check` | `npm run ai:check:fast` |
+| `yarn` | `yarn install --immutable` | `yarn ai:check` | `yarn ai:check:fast` |
+| `bun` | `bun install --frozen-lockfile` | `bun run ai:check` | `bun run ai:check:fast` |
+
+When `--ci reusable` is set, `ai-quality-reusable.yml` remains the generic reusable workflow and `ai-quality-call.yml` receives package-manager-specific `package-manager` and `check-command` inputs. `doctor` compares selected workflows against the rendered content for the effective package manager. `update --ci none` cleans up inactive workflows only when their content exactly matches one of the managed rendered variants; custom workflow content is preserved.
 
 ## Claude hook command rendering
 
@@ -186,7 +199,7 @@ These defaults are intentionally conservative:
 - Optionally installs missing npm dev dependencies when `--install-deps` is set
 - Copies common test design / philosophy docs and selected profile docs under `docs/ai-check-template/`
 - Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
-- Copies GitHub Actions workflows for the selected `--ci` mode
+- Writes package-manager-aware GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges package-manager-aware hook settings when `--claude-hooks` is set
 - Writes `.ai-check-template.json` with install metadata
 
@@ -201,7 +214,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies wi
 - package-manager-aware package script invocations
 - selected profile docs under `docs/ai-check-template/`
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
-- selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
+- selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
 - install state validity when `.ai-check-template.json` exists
 - profile-specific advisory warnings based on package scripts
@@ -217,7 +230,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - profile-aware package scripts
 - package-manager-aware package script invocations
 - `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
-- selected GitHub Actions workflows for `--ci direct` or `--ci reusable`
+- selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - missing profile docs under `docs/ai-check-template/`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and package-manager-aware managed hook settings when `--claude-hooks` is set
@@ -233,7 +246,7 @@ It requires `--yes` before writing. Use `--dry-run` to preview operations. It pe
 - During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
 - During `update`, only known template-managed non-doc paths are rewritten, and `--yes` is required.
 - During `update`, existing files under `docs/ai-check-template/` are kept instead of overwritten.
-- During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates.
+- During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates or their package-manager-rendered variants.
 - `--install-deps` is the explicit opt-in for dependency install; without it, no package manager install command runs.
 - Actual `--install-deps --yes` preflights the package manager binary before target writes.
 - `--install-deps --dry-run` prints the command without requiring the package manager binary.

@@ -1,6 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  ciWorkflowFiles,
+  ciWorkflowRelativePath,
+  inactiveCiWorkflowFiles,
+  isManagedCiWorkflowContent,
+  renderedCiWorkflow,
+} from "./ci-workflows.mjs";
+import {
   effectiveOptionsSummary,
   installationSummary,
   installStateIssue,
@@ -33,9 +40,6 @@ Options:
   --claude-hooks       Check Claude rule and hook settings.
   --strict             Treat warnings as failures.
   --json               Print machine-readable JSON output.`;
-
-const DIRECT_CI_FILES = ["ai-check.yml", "ai-check-fast.yml"];
-const REUSABLE_CI_FILES = ["ai-quality-reusable.yml", "ai-quality-call.yml"];
 
 export async function runDoctor(argv, io = {}) {
   const options = parseDoctorArgs(argv, io.cwd ?? process.cwd());
@@ -220,7 +224,7 @@ async function diagnoseTarget(targetDir, options) {
   checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
-  await checkCi(targetDir, options.ci, issues);
+  await checkCi(targetDir, options.ci, options.packageManager, issues);
   const ciWarnings = await diagnoseInactiveCi(targetDir, options.ci);
 
   if (options.claudeHooks) {
@@ -254,38 +258,23 @@ function checkPackageScripts(packageJson, profile, issues, packageManager) {
   }
 }
 
-async function checkCi(targetDir, ciMode, issues) {
-  const files = ciMode === "direct"
-    ? DIRECT_CI_FILES
-    : ciMode === "reusable"
-      ? REUSABLE_CI_FILES
-      : [];
-
-  for (const fileName of files) {
-    await checkTemplateFile(
+async function checkCi(targetDir, ciMode, packageManager, issues) {
+  for (const fileName of ciWorkflowFiles(ciMode)) {
+    await checkExpectedFileContent(
       targetDir,
-      fromTemplates("ci-examples", "github-actions", fileName),
-      path.join(".github", "workflows", fileName),
+      await renderedCiWorkflow(fileName, packageManager),
+      ciWorkflowRelativePath(fileName),
       issues,
     );
   }
 }
 
 async function diagnoseInactiveCi(targetDir, ciMode) {
-  const files = ciMode === "direct"
-    ? REUSABLE_CI_FILES
-    : ciMode === "reusable"
-      ? DIRECT_CI_FILES
-      : [...DIRECT_CI_FILES, ...REUSABLE_CI_FILES];
   const warnings = [];
 
-  for (const fileName of files) {
-    const relativePath = path.join(".github", "workflows", fileName);
-    const matchesManagedTemplate = await matchesTemplateFile(
-      targetDir,
-      fromTemplates("ci-examples", "github-actions", fileName),
-      relativePath,
-    );
+  for (const fileName of inactiveCiWorkflowFiles(ciMode)) {
+    const relativePath = ciWorkflowRelativePath(fileName);
+    const matchesManagedTemplate = await matchesManagedCiWorkflow(targetDir, fileName, relativePath);
 
     if (matchesManagedTemplate) {
       warnings.push(
@@ -299,6 +288,21 @@ async function diagnoseInactiveCi(targetDir, ciMode) {
   }
 
   return warnings;
+}
+
+async function checkExpectedFileContent(targetDir, expected, relativePath, issues) {
+  const targetPath = path.join(targetDir, relativePath);
+
+  if (!(await pathExists(targetPath))) {
+    issues.push(issue("missing-file", normalizeRelative(relativePath), "Expected template file is missing"));
+    return;
+  }
+
+  const actual = await fs.readFile(targetPath, "utf8");
+
+  if (actual !== expected) {
+    issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
+  }
 }
 
 async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) {
@@ -319,19 +323,14 @@ async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) 
   }
 }
 
-async function matchesTemplateFile(targetDir, expectedPath, relativePath) {
+async function matchesManagedCiWorkflow(targetDir, fileName, relativePath) {
   const targetPath = path.join(targetDir, relativePath);
 
   if (!(await pathExists(targetPath))) {
     return false;
   }
 
-  const [actual, expected] = await Promise.all([
-    fs.readFile(targetPath, "utf8"),
-    fs.readFile(expectedPath, "utf8"),
-  ]);
-
-  return actual === expected;
+  return isManagedCiWorkflowContent(fileName, await fs.readFile(targetPath, "utf8"));
 }
 
 async function checkClaudeSettings(targetDir, issues) {

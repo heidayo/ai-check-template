@@ -97,6 +97,10 @@ function readInstallState(target) {
   return JSON.parse(fs.readFileSync(path.join(target, ".ai-check-template.json"), "utf8"));
 }
 
+function readWorkflow(target, name) {
+  return fs.readFileSync(path.join(target, ".github", "workflows", name), "utf8");
+}
+
 function readClaudeSettings(target) {
   return JSON.parse(fs.readFileSync(path.join(target, ".claude", "settings.json"), "utf8"));
 }
@@ -209,6 +213,32 @@ test("update repairs scripts using install state package manager", (t) => {
   const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   assert.equal(updatedPackageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run deadcode && npm run test");
   assert.equal(doctor(target).status, 0);
+});
+
+test("update migrates managed direct CI workflows to explicit package manager", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--package-manager", "pnpm", "--ci", "direct"]);
+
+  const result = runCli([
+    "update",
+    "--target",
+    target,
+    "--package-manager",
+    "npm",
+    "--ci",
+    "direct",
+    "--yes",
+    "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "update" && operation.path === ".github/workflows/ai-check.yml",
+  ), true);
+  assert.match(readWorkflow(target, "ai-check.yml"), /run: npm ci$/m);
+  assert.match(readWorkflow(target, "ai-check.yml"), /run: npm run ai:check$/m);
+  assert.match(readWorkflow(target, "ai-check-fast.yml"), /run: npm run ai:check:fast$/m);
 });
 
 test("update migrates Claude hooks to explicit package manager and preserves custom commands", (t) => {
@@ -448,6 +478,25 @@ test("update removes inactive managed CI workflows for ci none", (t) => {
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
   addStrictSupportScripts(target);
   assert.equal(doctor(target, ["--ci", "none", "--strict"]).status, 0);
+});
+
+test("update removes inactive managed CI workflows rendered for non-pnpm package manager", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--package-manager", "npm", "--ci", "direct"]);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(
+    output.operations
+      .filter((operation) => operation.action === "delete")
+      .map((operation) => operation.path)
+      .sort(),
+    [".github/workflows/ai-check-fast.yml", ".github/workflows/ai-check.yml"],
+  );
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check.yml")), false);
+  assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), false);
 });
 
 test("update switches managed direct CI workflows to reusable workflows", (t) => {

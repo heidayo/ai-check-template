@@ -39,6 +39,10 @@ function readInstallState(dir) {
   return JSON.parse(fs.readFileSync(path.join(dir, ".ai-check-template.json"), "utf8"));
 }
 
+function readWorkflow(dir, name) {
+  return fs.readFileSync(path.join(dir, ".github", "workflows", name), "utf8");
+}
+
 function readClaudeSettings(dir) {
   return JSON.parse(fs.readFileSync(path.join(dir, ".claude", "settings.json"), "utf8"));
 }
@@ -320,6 +324,8 @@ test("direct CI mode copies direct workflow files", (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check.yml")), true);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-check-fast.yml")), true);
+  assert.match(readWorkflow(target, "ai-check.yml"), /run: pnpm ai:check$/m);
+  assert.match(readWorkflow(target, "ai-check-fast.yml"), /run: pnpm ai:check:fast$/m);
 });
 
 test("reusable CI mode copies reusable workflow files", (t) => {
@@ -329,6 +335,64 @@ test("reusable CI mode copies reusable workflow files", (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-reusable.yml")), true);
   assert.equal(fs.existsSync(path.join(target, ".github", "workflows", "ai-quality-call.yml")), true);
+});
+
+test("direct CI workflows render package-manager-specific commands", (t) => {
+  const cases = [
+    ["pnpm", "pnpm install --frozen-lockfile", "pnpm ai:check", "pnpm ai:check:fast"],
+    ["npm", "npm ci", "npm run ai:check", "npm run ai:check:fast"],
+    ["yarn", "yarn install --immutable", "yarn ai:check", "yarn ai:check:fast"],
+    ["bun", "bun install --frozen-lockfile", "bun run ai:check", "bun run ai:check:fast"],
+  ];
+
+  for (const [packageManager, installCommand, fullCommand, fastCommand] of cases) {
+    const target = createFixture(t);
+    const result = runCli([
+      "init",
+      "--target",
+      target,
+      "--profile",
+      "react-nextjs",
+      "--ci",
+      "direct",
+      "--package-manager",
+      packageManager,
+      "--yes",
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    const fullWorkflow = readWorkflow(target, "ai-check.yml");
+    const fastWorkflow = readWorkflow(target, "ai-check-fast.yml");
+    assert.match(fullWorkflow, new RegExp(`run: ${escapeRegExp(installCommand)}$`, "m"));
+    assert.match(fullWorkflow, new RegExp(`run: ${escapeRegExp(fullCommand)}$`, "m"));
+    assert.match(fastWorkflow, new RegExp(`run: ${escapeRegExp(fastCommand)}$`, "m"));
+
+    if (packageManager !== "pnpm") {
+      assert.doesNotMatch(fullWorkflow, /run: pnpm (install|ai:check)/);
+      assert.doesNotMatch(fastWorkflow, /run: pnpm (install|ai:check)/);
+    }
+  }
+});
+
+test("reusable caller workflow renders package-manager-specific inputs", (t) => {
+  const target = createFixture(t);
+  const result = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--ci",
+    "reusable",
+    "--package-manager",
+    "npm",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const caller = readWorkflow(target, "ai-quality-call.yml");
+  assert.match(caller, /package-manager: npm/);
+  assert.match(caller, /check-command: npm run ai:check/);
 });
 
 test("Claude hooks copy rules and merge settings", (t) => {
@@ -471,5 +535,10 @@ test("invalid package manager is rejected before writes", (t) => {
   assert.deepEqual(readPackageJson(target), packageJson);
   assert.equal(fs.existsSync(path.join(target, "scripts")), false);
   assert.equal(fs.existsSync(path.join(target, ".claude")), false);
+  assert.equal(fs.existsSync(path.join(target, ".github")), false);
   assert.equal(fs.existsSync(path.join(target, ".ai-check-template.json")), false);
 });
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

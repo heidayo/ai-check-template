@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { ciWorkflowFiles, ciWorkflowRelativePath, renderedCiWorkflow } from "./ci-workflows.mjs";
 import {
   dependencyInstallOperation,
   planDependencyInstall,
@@ -38,9 +39,6 @@ Options:
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --overwrite          Replace conflicting files/scripts.`;
-
-const DIRECT_CI_FILES = ["ai-check.yml", "ai-check-fast.yml"];
-const REUSABLE_CI_FILES = ["ai-quality-reusable.yml", "ai-quality-call.yml"];
 
 export async function runInit(argv, io = {}) {
   const options = parseInitArgs(argv, io.cwd ?? process.cwd());
@@ -290,21 +288,34 @@ async function copyScripts(targetDir, options, operations) {
 }
 
 async function copyCiFiles(targetDir, options, operations) {
-  const files = options.ci === "direct"
-    ? DIRECT_CI_FILES
-    : options.ci === "reusable"
-      ? REUSABLE_CI_FILES
-      : [];
-
-  for (const fileName of files) {
-    operations.push(
-      await copyFileSafe(
-        fromTemplates("ci-examples", "github-actions", fileName),
-        path.join(targetDir, ".github", "workflows", fileName),
-        options,
-      ),
-    );
+  for (const fileName of ciWorkflowFiles(options.ci)) {
+    const relativePath = ciWorkflowRelativePath(fileName);
+    operations.push(await copyTextFileSafe(
+      await renderedCiWorkflow(fileName, options.packageManager),
+      path.join(targetDir, relativePath),
+      options,
+    ));
   }
+}
+
+async function copyTextFileSafe(content, targetPath, options = {}) {
+  const { dryRun = false, overwrite = false } = options;
+  const exists = await pathExists(targetPath);
+
+  if (exists && !overwrite) {
+    return { action: "skip", reason: "exists", targetPath };
+  }
+
+  if (!dryRun) {
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, content);
+  }
+
+  if (exists && overwrite) {
+    return { action: dryRun ? "would-overwrite" : "overwrite", targetPath };
+  }
+
+  return { action: dryRun ? "would-copy" : "copy", targetPath };
 }
 
 async function copyProfileDocs(targetDir, profile, options, operations) {

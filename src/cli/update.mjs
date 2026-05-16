@@ -1,6 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  ciWorkflowFiles,
+  ciWorkflowRelativePath,
+  inactiveCiWorkflowFiles,
+  isManagedCiWorkflowContent,
+  renderedCiWorkflow,
+} from "./ci-workflows.mjs";
+import {
   dependencyInstallOperation,
   planDependencyInstall,
   preflightDependencyInstaller,
@@ -45,9 +52,6 @@ Options:
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --json               Print machine-readable JSON output.`;
-
-const DIRECT_CI_FILES = ["ai-check.yml", "ai-check-fast.yml"];
-const REUSABLE_CI_FILES = ["ai-quality-reusable.yml", "ai-quality-call.yml"];
 
 export async function runUpdate(argv, io = {}) {
   const options = parseUpdateArgs(argv, io.cwd ?? process.cwd());
@@ -354,17 +358,11 @@ async function createMissingTemplateFile(targetDir, sourcePath, relativePath, op
 }
 
 async function updateCi(targetDir, options, operations) {
-  const files = options.ci === "direct"
-    ? DIRECT_CI_FILES
-    : options.ci === "reusable"
-      ? REUSABLE_CI_FILES
-      : [];
-
-  for (const fileName of files) {
-    await updateTemplateFile(
+  for (const fileName of ciWorkflowFiles(options.ci)) {
+    await updateRenderedTemplateFile(
       targetDir,
-      fromTemplates("ci-examples", "github-actions", fileName),
-      path.join(".github", "workflows", fileName),
+      await renderedCiWorkflow(fileName, options.packageManager),
+      ciWorkflowRelativePath(fileName),
       options,
       operations,
     );
@@ -372,36 +370,51 @@ async function updateCi(targetDir, options, operations) {
 }
 
 async function cleanupInactiveCi(targetDir, options, operations) {
-  const files = options.ci === "direct"
-    ? REUSABLE_CI_FILES
-    : options.ci === "reusable"
-      ? DIRECT_CI_FILES
-      : [...DIRECT_CI_FILES, ...REUSABLE_CI_FILES];
-
-  for (const fileName of files) {
+  for (const fileName of inactiveCiWorkflowFiles(options.ci)) {
     await cleanupManagedFile(
       targetDir,
-      fromTemplates("ci-examples", "github-actions", fileName),
-      path.join(".github", "workflows", fileName),
+      fileName,
+      ciWorkflowRelativePath(fileName),
       options,
       operations,
     );
   }
 }
 
-async function cleanupManagedFile(targetDir, sourcePath, relativePath, options, operations) {
+async function updateRenderedTemplateFile(targetDir, expected, relativePath, options, operations) {
+  const targetPath = path.join(targetDir, relativePath);
+  const exists = await pathExists(targetPath);
+
+  if (exists) {
+    const actual = await fs.readFile(targetPath, "utf8");
+    if (actual === expected) {
+      operations.push(operation("keep", relativePath));
+      return;
+    }
+  }
+
+  operations.push(
+    operation(
+      exists ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
+      relativePath,
+    ),
+  );
+
+  if (!options.dryRun) {
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, expected);
+  }
+}
+
+async function cleanupManagedFile(targetDir, fileName, relativePath, options, operations) {
   const targetPath = path.join(targetDir, relativePath);
 
   if (!(await pathExists(targetPath))) {
     return;
   }
 
-  const [actual, expected] = await Promise.all([
-    fs.readFile(targetPath, "utf8"),
-    fs.readFile(sourcePath, "utf8"),
-  ]);
-
-  if (actual !== expected) {
+  const actual = await fs.readFile(targetPath, "utf8");
+  if (!(await isManagedCiWorkflowContent(fileName, actual))) {
     operations.push(operation("keep", relativePath, "custom workflow"));
     return;
   }

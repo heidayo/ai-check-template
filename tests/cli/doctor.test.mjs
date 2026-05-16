@@ -31,6 +31,10 @@ function initFixture(target, args = []) {
   assert.equal(result.status, 0, result.stderr);
 }
 
+function readWorkflow(target, name) {
+  return fs.readFileSync(path.join(target, ".github", "workflows", name), "utf8");
+}
+
 function mergePackageScripts(dir, scripts) {
   const packageJsonPath = path.join(dir, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
@@ -104,6 +108,50 @@ test("doctor passes for direct CI, reusable CI, and Claude hooks", (t) => {
   const claudeTarget = createFixture(t);
   initFixture(claudeTarget, ["--ci", "none", "--claude-hooks"]);
   assert.equal(runCli(["doctor", "--target", claudeTarget, "--ci", "none", "--claude-hooks"]).status, 0);
+});
+
+test("doctor uses package-manager-rendered direct CI workflows", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--package-manager", "npm", "--ci", "direct"]);
+  assert.match(readWorkflow(target, "ai-check.yml"), /run: npm run ai:check$/m);
+
+  const pass = runCli(["doctor", "--target", target, "--ci", "direct", "--package-manager", "npm", "--json"]);
+  assert.equal(pass.status, 0, pass.stderr);
+
+  const drift = runCli(["doctor", "--target", target, "--ci", "direct", "--package-manager", "pnpm", "--json"]);
+  assert.notEqual(drift.status, 0);
+  const output = JSON.parse(drift.stdout);
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "drift" && issue.path === ".github/workflows/ai-check.yml",
+  ), true);
+});
+
+test("doctor warns on inactive managed CI workflows rendered for non-pnpm package manager", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--package-manager", "npm", "--profile", "node-cli", "--ci", "direct"]);
+
+  const result = runCli([
+    "doctor",
+    "--target",
+    target,
+    "--profile",
+    "node-cli",
+    "--package-manager",
+    "npm",
+    "--ci",
+    "none",
+    "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(
+    output.warnings
+      .filter((warning) => warning.code === "ci-advice")
+      .map((warning) => warning.path)
+      .sort(),
+    [".github/workflows/ai-check-fast.yml", ".github/workflows/ai-check.yml"],
+  );
 });
 
 test("doctor warns on inactive managed CI workflows", (t) => {
