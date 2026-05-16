@@ -31,15 +31,15 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 ## v0.2.0 — CLI scaffolding
 
-**Status**: Alpha published on npm as `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. See [`./releases/v0.2.0-alpha.0.md`](./releases/v0.2.0-alpha.0.md) and [`./cli.md`](./cli.md).
+**Status**: Stable release prep for `ai-check-template@0.2.0`. See [`./releases/v0.2.0.md`](./releases/v0.2.0.md), alpha history in [`./releases/v0.2.0-alpha.0.md`](./releases/v0.2.0-alpha.0.md), and [`./cli.md`](./cli.md).
 
 **Theme**: Reduce friction from manual copy to one command.
 
-**Goal**: `npx -y ai-check-template@next init --profile react-nextjs+supabase-rls` produces an alpha working setup in an existing project, with safe merging into `package.json`, `.claude/settings.json`, and `.github/workflows/`.
+**Goal**: `npx -y ai-check-template init --profile react-nextjs+supabase-rls` produces a working setup in an existing project, with safe merging into `package.json`, `.claude/settings.json`, and `.github/workflows/`.
 
 **Planned commands**
 
-- `init` — flag-driven alpha setup that picks profiles, copies templates, and safely merges fragments
+- `init` — flag-driven setup that picks profiles, copies templates, and safely merges fragments
 - `update` — bring known template-managed files, profile docs, package scripts, CI workflows, and Claude hook commands in an existing setup up to the current package version
 - `doctor` — diagnose drift between the installed templates and the current upstream version, including package scripts, files, CI workflows, Claude hooks, profile warnings, and strict warning mode
 
@@ -68,6 +68,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - [x] Package-manager-aware CI workflow command migration
 - [x] npm publish and `npx ai-check-template init`
 - [x] deeper non-doc profile-aware file migrations
+- [x] stable release prep for `0.2.0` with `npm publish --dry-run --tag latest`
 
 **Dependencies on v0.1.0**
 

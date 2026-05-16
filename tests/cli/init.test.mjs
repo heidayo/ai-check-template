@@ -205,7 +205,7 @@ test("init writes deterministic install state", (t) => {
   assert.deepEqual(state, {
     schemaVersion: 1,
     packageName: "ai-check-template",
-    packageVersion: "0.2.0-alpha.0",
+    packageVersion: "0.2.0",
     profile: {
       base: "react-nextjs",
       addons: ["supabase-rls"],

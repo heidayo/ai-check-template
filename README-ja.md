@@ -25,7 +25,7 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
 - 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレ**（direct workflow / reusable workflow example）
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
-- 安全な初期導入のための alpha **CLI foundation**
+- 安全な初期導入のための stable npm **CLI**
 
 必要な部分をコピーして自プロジェクトに合わせ、検証可能なループを得る。特定の LLM・フレームワーク・ベンダーに依存しない設計。
 
@@ -75,22 +75,22 @@ AI 実装
 | **CI テンプレ** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI alpha** | [`docs/cli.md`](./docs/cli.md) は published `ai-check-template@0.2.0-alpha.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
+| **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
 | **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 alpha CLI は `ai-check-template@0.2.0-alpha.0` として `next` dist-tag で npm 公開済みです。詳細は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md) と [`docs/cli.md`](./docs/cli.md) を参照。これは alpha であり、stable v0.2.0 release ではありません。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag next` preflight を実行します。
+> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は `ai-check-template@0.2.0` の stable CLI release prep です。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。actual publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 ```bash
 # 1. リポをクローン
 git clone https://github.com/heidayo/ai-check-template.git
 
-# 2. npm から alpha CLI init を dry-run
-npx -y ai-check-template@next init --target . --profile react-nextjs --dry-run
-npx -y ai-check-template@next init --target . --profile node-cli --package-manager npm --ci none --dry-run
-npx -y ai-check-template@next doctor --target . --ci none
-npx -y ai-check-template@next update --target . --dry-run
+# 2. npm から stable CLI init を dry-run
+npx -y ai-check-template init --target . --profile react-nextjs --dry-run
+npx -y ai-check-template init --target . --profile node-cli --package-manager npm --ci none --dry-run
+npx -y ai-check-template doctor --target . --ci none
+npx -y ai-check-template update --target . --dry-run
 
 # 3. スタックに合う profile を確認
 cat ai-check-template/package-templates/profiles/react-nextjs/README.md
@@ -129,7 +129,7 @@ pnpm ai:check
 | バージョン | テーマ | 状態 |
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
-| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Published alpha（[notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
+| **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Stable release prep（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
 | **v0.3.0+** | Reusable workflow + Composite Action（GitHub Marketplace） | 計画中 |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
