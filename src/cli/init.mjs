@@ -6,6 +6,7 @@ import {
   preflightDependencyInstaller,
   runDependencyInstall,
 } from "./dependency-installer.mjs";
+import { renderClaudeHookSettings } from "./claude-hooks.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { getProfileDocFiles } from "./profile-docs.mjs";
@@ -334,7 +335,10 @@ async function copyClaudeHooks(targetDir, options, operations) {
 
 async function mergeClaudeSettings(targetDir, options, operations) {
   const targetPath = path.join(targetDir, ".claude", "settings.json");
-  const fragment = await readJson(fromTemplates(".claude", "settings.hook-fragment.json"));
+  const fragment = renderClaudeHookSettings(
+    await readJson(fromTemplates(".claude", "settings.hook-fragment.json")),
+    options.packageManager,
+  );
   const settings = (await pathExists(targetPath)) ? await readJson(targetPath) : {};
   const nextSettings = { ...settings, hooks: { ...(settings.hooks ?? {}) } };
   let changed = false;
