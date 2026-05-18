@@ -43,7 +43,7 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
    - 条件組み合わせ → decision-table.md
    - 状態遷移 → state-transition.md
    - 入力バリデーション → boundary-value.md
-   - 権限制御 → rls-permission.md
+   - 権限制御 / RLS → rls-permission.md + ../supabase/README.md
    - 主要導線 E2E → e2e-test-creation.md
    ↓
 3. 補強した成功基準を SPEC / Plan に登録
@@ -92,9 +92,10 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 3. `state-transition.md` で決済ステータス遷移
 4. `decision-table.md` で割引条件組み合わせ
 5. `rls-permission.md` で組織別の権限
-6. `e2e-test-creation.md` で決済完了までの smoke test を設計
-7. `diagnostic-repair.md` で `ai:check` 失敗後の修復
-8. `tradeoff-analysis.md` と `review-training.md` で PR 前の Review gate を補強
+6. Supabase を使う場合は `../supabase/README.md` の pgTAP / integration templates に落とす
+7. `e2e-test-creation.md` で決済完了までの smoke test を設計
+8. `diagnostic-repair.md` で `ai:check` 失敗後の修復
+9. `tradeoff-analysis.md` と `review-training.md` で PR 前の Review gate を補強
 
 ## 隣接する思想
 
