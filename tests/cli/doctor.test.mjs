@@ -82,6 +82,7 @@ test("prints doctor help", () => {
   assert.match(result.stdout, /--json/);
   assert.match(result.stdout, /--strict/);
   assert.match(result.stdout, /--package-manager/);
+  assert.match(result.stdout, /--review-templates/);
 });
 
 test("doctor passes for a healthy target with scripts only", (t) => {
@@ -232,6 +233,7 @@ test("doctor uses install state defaults and reports JSON context", (t) => {
     "--ci",
     "reusable",
     "--claude-hooks",
+    "--review-templates",
     "--yes",
   ]);
   assert.equal(init.status, 0, init.stderr);
@@ -246,7 +248,43 @@ test("doctor uses install state defaults and reports JSON context", (t) => {
   assert.equal(output.effectiveOptions.packageManager, "pnpm");
   assert.equal(output.effectiveOptions.ci, "reusable");
   assert.equal(output.effectiveOptions.claudeHooks, true);
+  assert.equal(output.effectiveOptions.reviewTemplates, true);
   assert.equal(Array.isArray(output.warnings), true);
+});
+
+test("doctor checks reviewability templates when explicitly requested", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["doctor", "--target", target, "--ci", "none", "--review-templates", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.reviewTemplates, true);
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "missing-file" && issue.path === ".github/PULL_REQUEST_TEMPLATE.md",
+  ), true);
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "missing-file" && issue.path === "worksheet/ai-code-understanding.md",
+  ), true);
+  assert.deepEqual(after, before);
+});
+
+test("doctor uses install state default for reviewability template drift", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none", "--review-templates"]);
+  fs.writeFileSync(path.join(target, "worksheet", "ai-code-understanding.md"), "changed\n");
+
+  const result = runCli(["doctor", "--target", target, "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.reviewTemplates, true);
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "drift" && issue.path === "worksheet/ai-code-understanding.md",
+  ), true);
 });
 
 test("doctor uses install state package manager for script drift", (t) => {
@@ -280,6 +318,7 @@ test("doctor accepts old install state without package manager", (t) => {
   const statePath = path.join(target, ".ai-check-template.json");
   const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
   delete state.packageManager;
+  delete state.reviewTemplates;
   fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
 
   const result = runCli(["doctor", "--target", target, "--json"]);
@@ -287,6 +326,7 @@ test("doctor accepts old install state without package manager", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.effectiveOptions.packageManager, "pnpm");
+  assert.equal(output.effectiveOptions.reviewTemplates, false);
 });
 
 test("profile warnings do not fail doctor", (t) => {

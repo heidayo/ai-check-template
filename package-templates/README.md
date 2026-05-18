@@ -72,4 +72,4 @@ package-templates/
 - [`worksheet/ai-code-understanding.md`](./worksheet/ai-code-understanding.md): AI が生成したコードを人間が説明・批評・再実装できるか確認するワークシート。
 - [`prompts/design-explanation.md`](./prompts/design-explanation.md), [`prompts/tradeoff-analysis.md`](./prompts/tradeoff-analysis.md), [`prompts/self-understanding-check.md`](./prompts/self-understanding-check.md), [`prompts/review-training.md`](./prompts/review-training.md): Review gate 前に設計説明、トレードオフ、理解度、レビュー観点を AI に整理させるプロンプト。
 
-これらは manual-copy templates であり、現時点の CLI `init` / `update` が自動配置する対象ではない。
+CLI を使う場合は `--review-templates` を指定すると、PR template と worksheet を `init` / `update` / `doctor` の管理対象にできる。既存の配置や文面を細かく調整したい場合は、manual-copy templates としてコピーして使う。

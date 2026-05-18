@@ -78,14 +78,14 @@ AI 実装
 | **CI 統合** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples、hosted workflow / Composite Action guide の [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
+| **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / review template / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--review-templates`、`--dry-run`、`--overwrite` を説明 |
 | **プロジェクト docs** | [`docs/usage-model.md`](./docs/usage-model.md)、[`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Where This Fits / どこに効くか
 
 `ai-check-template` は post-implementation verification stack です。AI にコードを書かせるためのものではなく、AI が生成したコードを実装後に検証・修正・安全に受け入れるための基盤です。
 
-使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テスト・理解度を人間が受け入れる **Review gate**。Review gate には [`package-templates/.github/`](./package-templates/.github/) と [`package-templates/worksheet/`](./package-templates/worksheet/) の manual-copy templates を使えます。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
+使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テスト・理解度を人間が受け入れる **Review gate**。Review gate は CLI の `--review-templates` で導入するか、[`package-templates/.github/`](./package-templates/.github/) と [`package-templates/worksheet/`](./package-templates/worksheet/) から手動コピーできます。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
 
 Security check は意図的に分離しています。`ai:check` は機能品質、`ai:check:secure` は Semgrep ベースの security evidence として扱います。
 
@@ -114,6 +114,7 @@ cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.
 # 任意: Review gate 用 manual-copy templates
 cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
 cp -r ai-check-template/package-templates/worksheet ./worksheet
+# clone 済み source CLI で導入する場合: node ai-check-template/bin/ai-check-template.mjs init --target . --review-templates --yes
 # reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
 # hosted reusable workflow / Composite Action は docs/github-actions.md を参照
 

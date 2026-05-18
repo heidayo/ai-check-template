@@ -197,6 +197,11 @@ validate-structure:
 	@grep -q -- "--overwrite" docs/cli.md
 	@grep -q -- "--ci" docs/cli.md
 	@grep -q -- "--claude-hooks" docs/cli.md
+	@grep -q -- "--review-templates" docs/cli.md
+	@grep -q "reviewTemplates" src/cli/install-state.mjs
+	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/init.mjs
+	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/update.mjs
+	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/doctor.mjs
 	@grep -q "docs/cli.md" README.md
 	@grep -q "docs/cli.md" README-ja.md
 	@test -f docs/usage-model.md
@@ -264,10 +269,13 @@ validate-structure:
 	@grep -q "review-training.md" package-templates/prompts/README.md
 	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README.md
 	@grep -q "package-templates/worksheet/ai-code-understanding.md" README.md
+	@grep -q -- "--review-templates" README.md
 	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README-ja.md
 	@grep -q "package-templates/worksheet/ai-code-understanding.md" README-ja.md
+	@grep -q -- "--review-templates" README-ja.md
 	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" docs/usage-model.md
 	@grep -q "package-templates/worksheet/ai-code-understanding.md" docs/usage-model.md
+	@grep -q -- "--review-templates" docs/usage-model.md
 	@grep -q ".github/PULL_REQUEST_TEMPLATE.md" package-templates/README.md
 	@grep -q "worksheet/ai-code-understanding.md" package-templates/README.md
 	@grep -q "ai-code-understanding.md" docs/roadmap.md

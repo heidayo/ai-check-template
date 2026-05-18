@@ -17,6 +17,7 @@ Repository-local commands are still useful when testing a checked-out clone:
 
 ```bash
 node bin/ai-check-template.mjs init --target ../your-project --profile react-nextjs --yes
+node bin/ai-check-template.mjs init --target ../your-project --profile react-nextjs --review-templates --yes
 node bin/ai-check-template.mjs doctor --target ../your-project
 node bin/ai-check-template.mjs update --target ../your-project --dry-run
 ```
@@ -42,6 +43,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | `direct` writes package-manager-aware `ai-check.yml` and `ai-check-fast.yml`; `reusable` writes `ai-quality-reusable.yml` plus a package-manager-aware `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges package-manager-aware hook commands into `.claude/settings.json`. |
+| `--review-templates` | off | Copies `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` for the human Review gate. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
@@ -56,6 +58,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when checking package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
+| `--review-templates` | install state or off | Checks `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` against packaged reviewability templates. |
 | `--strict` | off | Treats profile diagnostics warnings as a failing result while keeping them in `warnings`. |
 | `--json` | off | Prints `{ status, target, strict, installation, effectiveOptions, warnings, issues }` for automation. |
 
@@ -68,6 +71,7 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Updates package-manager-aware `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
+| `--review-templates` | install state or off | Updates `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` from packaged reviewability templates. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
@@ -75,14 +79,14 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 
 ## Install state
 
-`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version, package version, selected profile, package manager, CI mode, and whether Claude hooks were enabled. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
+`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version, package version, selected profile, package manager, CI mode, whether Claude hooks were enabled, and whether reviewability templates were enabled. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
 
 `doctor` and `update` read this file when it exists. Explicit flags still win:
 
-1. CLI flags such as `--profile`, `--package-manager`, `--ci`, and `--claude-hooks`
+1. CLI flags such as `--profile`, `--package-manager`, `--ci`, `--claude-hooks`, and `--review-templates`
 2. `.ai-check-template.json`
 3. target detection for package manager (`packageManager` field, then lockfiles)
-4. legacy defaults (`react-nextjs`, `pnpm`, `direct`, no Claude hooks)
+4. legacy defaults (`react-nextjs`, `pnpm`, `direct`, no Claude hooks, no reviewability templates)
 
 Malformed or unsupported install state is reported by `doctor` as an issue. `update` rejects malformed install state before writing any target files.
 
@@ -214,6 +218,7 @@ These defaults are intentionally conservative:
 - Copies `package-templates/scripts/ai-check.sh`, `ai-check-fast.sh`, and `ai-check-secure.sh`
 - Writes package-manager-aware GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges package-manager-aware hook settings when `--claude-hooks` is set
+- Optionally copies the Review gate PR template and AI code understanding worksheet when `--review-templates` is set
 - Writes `.ai-check-template.json` with install metadata
 
 It does not modify `package-templates/`, publish to npm, install dependencies without `--install-deps`, or rewrite existing project-specific tool choices.
@@ -229,6 +234,7 @@ It does not modify `package-templates/`, publish to npm, install dependencies wi
 - `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, and `scripts/ai-check-secure.sh`
 - selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
+- optional Review gate PR template and AI code understanding worksheet when `--review-templates` is set or install state enabled it
 - install state validity when `.ai-check-template.json` exists
 - profile-specific advisory warnings based on package scripts
 - missing referenced package script warnings from `ai:check` / `ai:check:fast` / `ai:check:secure`
@@ -247,6 +253,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - missing profile docs under `docs/ai-check-template/`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and package-manager-aware managed hook settings when `--claude-hooks` is set
+- optional Review gate PR template and AI code understanding worksheet when `--review-templates` is set or install state enabled it
 - `.ai-check-template.json` install state
 - missing npm dev dependencies when `--install-deps` is set
 
@@ -256,6 +263,7 @@ It requires `--yes` before writing. Use `--dry-run` to preview operations. It pe
 
 - During `init`, existing target files are not overwritten by default.
 - During `init`, existing target scripts are not overwritten by default.
+- During `init --review-templates`, existing PR templates and worksheets are not overwritten unless `--overwrite` is set.
 - During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
 - During `update`, only known template-managed non-doc paths are rewritten, and `--yes` is required.
 - During `update`, existing files under `docs/ai-check-template/` are kept instead of overwritten.
@@ -296,6 +304,13 @@ Apply reusable workflow examples and Claude hooks:
 node bin/ai-check-template.mjs init --target ../app --profile react-nextjs+supabase-rls --ci reusable --claude-hooks --yes
 ```
 
+Apply the Review gate templates:
+
+```bash
+node bin/ai-check-template.mjs init --target ../app --profile react-nextjs --ci none --review-templates --yes
+node bin/ai-check-template.mjs doctor --target ../app --ci none --review-templates --json
+```
+
 Overwrite known conflicts:
 
 ```bash
@@ -306,7 +321,7 @@ Check an installed setup:
 
 ```bash
 node bin/ai-check-template.mjs doctor --target ../app
-node bin/ai-check-template.mjs doctor --target ../app --ci reusable --claude-hooks --json
+node bin/ai-check-template.mjs doctor --target ../app --ci reusable --claude-hooks --review-templates --json
 node bin/ai-check-template.mjs doctor --target ../app --strict --json
 ```
 
@@ -315,7 +330,7 @@ Preview and apply an update:
 ```bash
 node bin/ai-check-template.mjs update --target ../app --dry-run
 node bin/ai-check-template.mjs update --target ../app --yes
-node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --json --yes
+node bin/ai-check-template.mjs update --target ../app --ci reusable --claude-hooks --review-templates --json --yes
 node bin/ai-check-template.mjs update --target ../app --ci none --dry-run --json
 node bin/ai-check-template.mjs update --target ../app --package-manager yarn --dry-run --json
 node bin/ai-check-template.mjs update --target ../app --install-deps --dry-run --json

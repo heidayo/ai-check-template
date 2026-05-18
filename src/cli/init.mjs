@@ -35,6 +35,7 @@ Options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to target detection.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
+  --review-templates   Copy PR template and AI code understanding worksheet.
   --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
@@ -83,6 +84,10 @@ export async function runInit(argv, io = {}) {
     await copyClaudeHooks(targetDir, writeOptions, operations);
   }
 
+  if (writeOptions.reviewTemplates) {
+    await copyReviewTemplates(targetDir, writeOptions, operations);
+  }
+
   await writeInitInstallState(targetDir, profile, writeOptions, operations);
   await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
@@ -105,6 +110,7 @@ function parseInitArgs(argv, cwd) {
     packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
+    reviewTemplates: false,
     installDeps: false,
     dryRun: false,
     yes: false,
@@ -125,6 +131,11 @@ function parseInitArgs(argv, cwd) {
 
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--review-templates") {
+      options.reviewTemplates = true;
       continue;
     }
 
@@ -344,6 +355,27 @@ async function copyClaudeHooks(targetDir, options, operations) {
   await mergeClaudeSettings(targetDir, options, operations);
 }
 
+async function copyReviewTemplates(targetDir, options, operations) {
+  for (const file of [
+    {
+      sourcePath: fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
+      targetPath: path.join(targetDir, ".github", "PULL_REQUEST_TEMPLATE.md"),
+      reason: "review PR template",
+    },
+    {
+      sourcePath: fromTemplates("worksheet", "ai-code-understanding.md"),
+      targetPath: path.join(targetDir, "worksheet", "ai-code-understanding.md"),
+      reason: "review worksheet",
+    },
+  ]) {
+    const operation = await copyFileSafe(file.sourcePath, file.targetPath, options);
+    operations.push({
+      ...operation,
+      reason: operation.reason === "exists" ? `${file.reason} exists` : file.reason,
+    });
+  }
+}
+
 async function mergeClaudeSettings(targetDir, options, operations) {
   const targetPath = path.join(targetDir, ".claude", "settings.json");
   const fragment = renderClaudeHookSettings(
@@ -402,6 +434,7 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
       packageManager: options.packageManager,
       ci: options.ci,
       claudeHooks: options.claudeHooks,
+      reviewTemplates: options.reviewTemplates,
     },
     { dryRun: options.dryRun },
   );

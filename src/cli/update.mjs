@@ -48,6 +48,7 @@ Options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
+  --review-templates   Update PR template and AI code understanding worksheet.
   --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
@@ -84,6 +85,7 @@ export async function runUpdate(argv, io = {}) {
     packageManager: effectiveOptions.packageManager,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
+    reviewTemplates: effectiveOptions.reviewTemplates,
   };
   const dependencyInstallPlan = writeOptions.installDeps
     ? await planDependencyInstall(packageJsonPath, writeOptions.profile, writeOptions.packageManager)
@@ -114,6 +116,10 @@ export async function runUpdate(argv, io = {}) {
     await updateClaudeSettings(targetDir, writeOptions, operations);
   }
 
+  if (writeOptions.reviewTemplates) {
+    await updateReviewTemplates(targetDir, writeOptions, operations);
+  }
+
   await updateInstallState(targetDir, effectiveOptions, writeOptions, operations);
   await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
@@ -139,6 +145,7 @@ function parseUpdateArgs(argv, cwd) {
     packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
+    reviewTemplates: false,
     installDeps: false,
     dryRun: false,
     yes: false,
@@ -149,6 +156,7 @@ function parseUpdateArgs(argv, cwd) {
       packageManager: false,
       ci: false,
       claudeHooks: false,
+      reviewTemplates: false,
     },
   };
 
@@ -163,6 +171,12 @@ function parseUpdateArgs(argv, cwd) {
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
       options.explicit.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--review-templates") {
+      options.reviewTemplates = true;
+      options.explicit.reviewTemplates = true;
       continue;
     }
 
@@ -465,6 +479,23 @@ async function updateClaudeSettings(targetDir, options, operations) {
   }
 }
 
+async function updateReviewTemplates(targetDir, options, operations) {
+  await updateTemplateFile(
+    targetDir,
+    fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    options,
+    operations,
+  );
+  await updateTemplateFile(
+    targetDir,
+    fromTemplates("worksheet", "ai-code-understanding.md"),
+    "worksheet/ai-code-understanding.md",
+    options,
+    operations,
+  );
+}
+
 async function updateInstallState(targetDir, effectiveOptions, options, operations) {
   const relativePath = ".ai-check-template.json";
   const targetPath = installStatePath(targetDir);
@@ -485,6 +516,7 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
       packageManager: effectiveOptions.packageManager,
       ci: effectiveOptions.ci,
       claudeHooks: effectiveOptions.claudeHooks,
+      reviewTemplates: effectiveOptions.reviewTemplates,
     },
     { dryRun: options.dryRun },
   );
@@ -527,6 +559,7 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
+  writeLine(stream, `review-templates: ${output.effectiveOptions.reviewTemplates}`);
   writeLine(stream, `operations: ${output.operations.length}`);
 
   for (const currentOperation of output.operations) {

@@ -146,7 +146,9 @@ agent should be able to explain:
 This matters because AI can produce code that works locally while still being
 hard to maintain, unsafe at trust boundaries, or poorly understood by the team.
 
-The package now includes manual-copy templates for this gate:
+The package includes templates for this gate. Use `init --review-templates` to
+install them with the CLI, let `doctor` / `update` track them through install
+state, or copy them manually when you need custom placement:
 
 - [`package-templates/.github/PULL_REQUEST_TEMPLATE.md`](../package-templates/.github/PULL_REQUEST_TEMPLATE.md)
 - [`package-templates/worksheet/ai-code-understanding.md`](../package-templates/worksheet/ai-code-understanding.md)
@@ -166,7 +168,7 @@ Start small:
 2. Add `ai:check:fast` and `ai:check` to the target project.
 3. Add one critical Playwright smoke test.
 4. Run the GitHub Actions quality gate on pull requests.
-5. Copy the reviewability PR template or worksheet and require authors to record design, risks, and added tests.
+5. Enable `--review-templates` or copy the reviewability PR template / worksheet, then require authors to record design, risks, and added tests.
 
 Do not start with a perfect QA platform. Start with one important flow and make
 the verification loop repeatable.
@@ -178,7 +180,7 @@ These are planned directions, not all shipped behavior in the current package:
 | Track | Purpose |
 |---|---|
 | Security automation | Add richer security reporting or dedicated CI examples on top of `ai:check:secure` |
-| Reviewability automation | Add CLI install / update support for reviewability templates |
+| Reviewability automation | Shipped optional CLI install / update / doctor support for reviewability templates |
 | Playwright stabilization | Shipped manual-copy config examples, locator rules, artifact guidance, and E2E creation prompt |
 | Profile corrections | Revisit profile assumptions as external tools evolve |
 | Marketplace / major alias | Promote GitHub Actions integration after more dogfooding |
