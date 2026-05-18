@@ -91,6 +91,7 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "package-templates/playwright/playwright.config.ts",
     "package-templates/playwright/tests/smoke.spec.ts",
     "package-templates/prompts/e2e-test-creation.md",
+    "package-templates/prompts/security-scan.md",
     "package-templates/supabase/README.md",
     "package-templates/supabase/tests/database/rls_policy.test.sql",
     "package-templates/supabase/tests/rls/rls.integration.test.ts",

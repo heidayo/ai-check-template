@@ -217,6 +217,7 @@ validate-structure:
 	@test -f package-templates/playwright/playwright.config.ts
 	@test -f package-templates/playwright/tests/smoke.spec.ts
 	@test -f package-templates/prompts/e2e-test-creation.md
+	@test -f package-templates/prompts/security-scan.md
 	@test -f package-templates/supabase/README.md
 	@test -f package-templates/supabase/tests/database/rls_policy.test.sql
 	@test -f package-templates/supabase/tests/rls/rls.integration.test.ts
@@ -225,6 +226,11 @@ validate-structure:
 	@grep -q "getByRole" package-templates/playwright/tests/smoke.spec.ts
 	@grep -q "@smoke" package-templates/playwright/tests/smoke.spec.ts
 	@grep -q "getByRole > getByLabel > getByText > getByTestId > CSS/XPath" package-templates/prompts/e2e-test-creation.md
+	@grep -q "ai:check:secure" package-templates/prompts/security-scan.md
+	@grep -q "semgrep scan --config auto" package-templates/prompts/security-scan.md
+	@grep -q "Suppression Policy" package-templates/prompts/security-scan.md
+	@grep -q "security-scan.md" package-templates/prompts/README.md
+	@grep -q "security-scan.md" docs/usage-model.md
 	@grep -q "supabase test db" package-templates/supabase/README.md
 	@grep -q "service_role" package-templates/supabase/README.md
 	@grep -q "pgtap" package-templates/supabase/tests/database/rls_policy.test.sql
