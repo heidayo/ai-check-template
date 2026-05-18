@@ -446,6 +446,17 @@ test("doctor passes node-cli profile scripts", (t) => {
   assert.match(result.stdout, /doctor pass/);
 });
 
+test("doctor allows React Doctor in expo-rn profile", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--profile", "expo-rn", "--ci", "none"]);
+  const result = runCli(["doctor", "--target", target, "--profile", "expo-rn", "--ci", "none", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.warnings.some((warning) => warning.message.includes("does not support React Doctor")), false);
+});
+
 test("doctor detects generic script drift for node-cli profile", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--profile", "node-cli", "--ci", "none"]);

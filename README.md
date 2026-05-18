@@ -134,7 +134,7 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 |---|---|---|
 | [`react-nextjs`](./package-templates/profiles/react-nextjs/) | Next.js App Router + TypeScript | Full toolchain (RD / Knip / Playwright / Semgrep) |
 | [`react-vanilla`](./package-templates/profiles/react-vanilla/) | Plain React + TypeScript (Vite / CRA) | Next.js-specific RD checks skipped |
-| [`expo-rn`](./package-templates/profiles/expo-rn/) | Expo / React Native | React Doctor not supported; use Maestro / Detox for E2E |
+| [`expo-rn`](./package-templates/profiles/expo-rn/) | Expo / React Native | React Doctor supported for RN diagnostics; use Maestro / Detox for E2E |
 | [`node-cli`](./package-templates/profiles/node-cli/) | Node CLI / library | No UI / E2E; Static + Unit focus |
 | [`supabase-rls`](./package-templates/profiles/supabase-rls/) | Supabase + RLS (addon) | Combine with any of the above (e.g. `react-nextjs+supabase-rls`) |
 

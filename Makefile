@@ -67,6 +67,10 @@ validate-structure:
 	@grep -q "ai:check:secure" docs/usage-model.md
 	@grep -q "ai-check-secure.sh" README.md
 	@grep -q "ai-check-secure.sh" README-ja.md
+	@grep -q "React Doctor supported for RN diagnostics" README.md
+	@grep -q "React Doctor は RN 診断に対応" README-ja.md
+	@grep -q "React Doctor.*React Native" package-templates/profiles/expo-rn/README.md
+	@grep -q "React Doctor official README" package-templates/profiles/expo-rn/README.md
 	@grep -q "^## Requirement" package-templates/docs/test-design-template.md
 	@grep -q "^## Acceptance Criteria" package-templates/docs/test-design-template.md
 	@grep -q "^## Test Matrix" package-templates/docs/test-design-template.md

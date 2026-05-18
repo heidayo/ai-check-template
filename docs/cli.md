@@ -132,7 +132,7 @@ Current advisory checks cover:
 
 - `react-nextjs`: React Doctor and Playwright smoke E2E recommendations
 - `react-vanilla`: Next.js-specific script mismatch
-- `expo-rn`: Playwright / React Doctor mismatch for mobile projects
+- `expo-rn`: Playwright mismatch for mobile projects; React Doctor is supported for React Native diagnostics
 - `node-cli`: UI E2E mismatch for CLI or library projects
 - `supabase-rls`: missing RLS-related DB / integration test scripts
 - `ai:check` / `ai:check:fast` / `ai:check:secure`: missing referenced package scripts such as `typecheck`, `lint`, or `test:unit`
@@ -155,7 +155,7 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 
 - `react-nextjs` adds React Doctor and dead-code checks to `ai:check`
 - `react-vanilla` keeps SPA scripts without Next.js-specific commands
-- `expo-rn` keeps mobile-oriented smoke E2E defaults
+- `expo-rn` adds React Doctor diagnostics and keeps mobile-oriented smoke E2E defaults
 - `node-cli` excludes UI E2E from `ai:check`
 - `supabase-rls` adds `test:db` and `test:integration:rls`
 - all profiles add `ai:check:secure` as a separate Semgrep security gate (`semgrep scan --config auto`)
