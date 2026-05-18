@@ -125,6 +125,18 @@ agent should be able to explain:
 This matters because AI can produce code that works locally while still being
 hard to maintain, unsafe at trust boundaries, or poorly understood by the team.
 
+The package now includes manual-copy templates for this gate:
+
+- [`package-templates/.github/PULL_REQUEST_TEMPLATE.md`](../package-templates/.github/PULL_REQUEST_TEMPLATE.md)
+- [`package-templates/worksheet/ai-code-understanding.md`](../package-templates/worksheet/ai-code-understanding.md)
+- [`design-explanation.md`](../package-templates/prompts/design-explanation.md)
+- [`tradeoff-analysis.md`](../package-templates/prompts/tradeoff-analysis.md)
+- [`self-understanding-check.md`](../package-templates/prompts/self-understanding-check.md)
+- [`review-training.md`](../package-templates/prompts/review-training.md)
+
+These templates do not replace reviewer judgment. They make the author's design
+claim, evidence, and uncertainty visible enough for a human to challenge.
+
 ## What To Use First
 
 Start small:
@@ -133,7 +145,7 @@ Start small:
 2. Add `ai:check:fast` and `ai:check` to the target project.
 3. Add one critical Playwright smoke test.
 4. Run the GitHub Actions quality gate on pull requests.
-5. Require PR authors to record design, risks, and added tests.
+5. Copy the reviewability PR template or worksheet and require authors to record design, risks, and added tests.
 
 Do not start with a perfect QA platform. Start with one important flow and make
 the verification loop repeatable.
@@ -145,7 +157,7 @@ These are planned directions, not all shipped behavior in the current package:
 | Track | Purpose |
 |---|---|
 | Security split | Separate functional quality from `ai:check:secure` security checks |
-| Reviewability templates | Add PR and worksheet templates for human understanding |
+| Reviewability automation | Add CLI install / update support for reviewability templates |
 | Playwright stabilization | Add config examples, locator rules, and E2E creation prompts |
 | Profile corrections | Revisit profile assumptions as external tools evolve |
 | Marketplace / major alias | Promote GitHub Actions integration after more dogfooding |

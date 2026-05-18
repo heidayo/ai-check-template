@@ -112,6 +112,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 Candidates, not commitments:
 
 - Adoption-focused usage model: [`./usage-model.md`](./usage-model.md) explains the Local loop, Repair loop, E2E loop, CI gate, and Review gate that make the package useful after installation.
+- Reviewability template foundation: [`../package-templates/.github/PULL_REQUEST_TEMPLATE.md`](../package-templates/.github/PULL_REQUEST_TEMPLATE.md), [`../package-templates/worksheet/ai-code-understanding.md`](../package-templates/worksheet/ai-code-understanding.md), and review prompts make AI-generated code explainable before human acceptance.
 - GitLab CI / CircleCI / Bitbucket Pipelines templates
 - Project-specific dashboards that aggregate `ai:check` results across PRs
 - Per-language extensions (Python, Go, Rust) once the Node-first design has matured

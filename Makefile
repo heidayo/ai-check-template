@@ -190,6 +190,41 @@ validate-structure:
 	@grep -q "Review gate" docs/usage-model.md
 	@grep -q "post-implementation verification stack" docs/usage-model.md
 	@grep -q "does not make AI write code" docs/usage-model.md
+	@test -f package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@test -f package-templates/worksheet/ai-code-understanding.md
+	@test -f package-templates/prompts/design-explanation.md
+	@test -f package-templates/prompts/tradeoff-analysis.md
+	@test -f package-templates/prompts/self-understanding-check.md
+	@test -f package-templates/prompts/review-training.md
+	@grep -q "AI-Generated Code Review" package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@grep -q "Adopted design" package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@grep -q "Alternatives considered" package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@grep -q "Risks and tradeoffs" package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@grep -q "Tests added or updated" package-templates/.github/PULL_REQUEST_TEMPLATE.md
+	@grep -q "AI Request" package-templates/worksheet/ai-code-understanding.md
+	@grep -q "Adopted Design" package-templates/worksheet/ai-code-understanding.md
+	@grep -q "Alternatives Considered" package-templates/worksheet/ai-code-understanding.md
+	@grep -q "Fragile Areas" package-templates/worksheet/ai-code-understanding.md
+	@grep -q "Reimplementation Check" package-templates/worksheet/ai-code-understanding.md
+	@for file in package-templates/prompts/design-explanation.md package-templates/prompts/tradeoff-analysis.md package-templates/prompts/self-understanding-check.md package-templates/prompts/review-training.md; do \
+		grep -q "^## Purpose" "$$file"; \
+		grep -q "^## Prompt" "$$file"; \
+		grep -q "^## Usage" "$$file"; \
+		grep -q "^## Review Output" "$$file"; \
+	done
+	@grep -q "design-explanation.md" package-templates/prompts/README.md
+	@grep -q "tradeoff-analysis.md" package-templates/prompts/README.md
+	@grep -q "self-understanding-check.md" package-templates/prompts/README.md
+	@grep -q "review-training.md" package-templates/prompts/README.md
+	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README.md
+	@grep -q "package-templates/worksheet/ai-code-understanding.md" README.md
+	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README-ja.md
+	@grep -q "package-templates/worksheet/ai-code-understanding.md" README-ja.md
+	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" docs/usage-model.md
+	@grep -q "package-templates/worksheet/ai-code-understanding.md" docs/usage-model.md
+	@grep -q ".github/PULL_REQUEST_TEMPLATE.md" package-templates/README.md
+	@grep -q "worksheet/ai-code-understanding.md" package-templates/README.md
+	@grep -q "ai-code-understanding.md" docs/roadmap.md
 	@grep -q "docs/usage-model.md" README.md
 	@grep -q "docs/usage-model.md" README-ja.md
 	@grep -q "./usage-model.md" docs/roadmap.md

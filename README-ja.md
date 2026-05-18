@@ -24,6 +24,7 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - 実装前に成功基準を AI に宣言させる **AI プロンプト雛形**
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
 - 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレと hosted workflow foundation**
+- PR 証跡、設計説明、トレードオフ分析、人間の理解度確認のための **Reviewability テンプレート**
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
 - 安全な初期導入のための stable npm **CLI**
 
@@ -71,6 +72,7 @@ AI 実装
 | **思想ドキュメント** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md)（形名参同）、[`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md)（責務分割）、[`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md)（GWT）、[`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md)（QA 技法） |
 | **テスト設計** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) は要件を AC / Test Matrix / 検証コマンドへ落とすテンプレート |
 | **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
+| **Reviewability** | [PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md)、[AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md)、[design explanation](./package-templates/prompts/design-explanation.md)、[tradeoff analysis](./package-templates/prompts/tradeoff-analysis.md)、[self-understanding check](./package-templates/prompts/self-understanding-check.md)、[review training](./package-templates/prompts/review-training.md) |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
 | **CI 統合** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples、hosted workflow / Composite Action guide の [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
@@ -82,7 +84,7 @@ AI 実装
 
 `ai-check-template` は post-implementation verification stack です。AI にコードを書かせるためのものではなく、AI が生成したコードを実装後に検証・修正・安全に受け入れるための基盤です。
 
-使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テストを人間が受け入れる **Review gate**。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
+使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テスト・理解度を人間が受け入れる **Review gate**。Review gate には [`package-templates/.github/`](./package-templates/.github/) と [`package-templates/worksheet/`](./package-templates/worksheet/) の manual-copy templates を使えます。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
 
 ## Quick start / 最短手順
 
@@ -106,6 +108,9 @@ cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+# 任意: Review gate 用 manual-copy templates
+cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
+cp -r ai-check-template/package-templates/worksheet ./worksheet
 # reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
 # hosted reusable workflow / Composite Action は docs/github-actions.md を参照
 
@@ -117,7 +122,7 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 pnpm ai:check
 ```
 
-実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。自分のタスクを実装前に整理する場合は [`test-design-template.md`](./package-templates/docs/test-design-template.md) から始め、`ai:check` や CI の diagnostic が失敗したら [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) を使います。
+実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。自分のタスクを実装前に整理する場合は [`test-design-template.md`](./package-templates/docs/test-design-template.md) から始め、`ai:check` や CI の diagnostic が失敗したら [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) を使います。人間の受け入れ前には [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) と [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md) を使います。
 
 詳細は [`docs/roadmap.md`](./docs/roadmap.md) と各 profile の README（[`package-templates/profiles/`](./package-templates/profiles/)）を参照。
 
