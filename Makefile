@@ -213,6 +213,19 @@ validate-structure:
 	@test -f package-templates/prompts/tradeoff-analysis.md
 	@test -f package-templates/prompts/self-understanding-check.md
 	@test -f package-templates/prompts/review-training.md
+	@test -f package-templates/playwright/README.md
+	@test -f package-templates/playwright/playwright.config.ts
+	@test -f package-templates/playwright/tests/smoke.spec.ts
+	@test -f package-templates/prompts/e2e-test-creation.md
+	@grep -q "trace: \"on-first-retry\"" package-templates/playwright/playwright.config.ts
+	@grep -q "getByRole" package-templates/playwright/tests/smoke.spec.ts
+	@grep -q "@smoke" package-templates/playwright/tests/smoke.spec.ts
+	@grep -q "getByRole > getByLabel > getByText > getByTestId > CSS/XPath" package-templates/prompts/e2e-test-creation.md
+	@grep -q "Upload Playwright artifacts" package-templates/ci-examples/github-actions/ai-check.yml
+	@grep -q "playwright-artifacts" package-templates/ci-examples/github-actions/ai-check.yml
+	@grep -q "package-templates/playwright/README.md" docs/usage-model.md
+	@grep -q "e2e-test-creation.md" package-templates/prompts/README.md
+	@grep -q "e2e-test-creation.md" package-templates/profiles/react-nextjs/README.md
 	@grep -q "AI-Generated Code Review" package-templates/.github/PULL_REQUEST_TEMPLATE.md
 	@grep -q "Adopted design" package-templates/.github/PULL_REQUEST_TEMPLATE.md
 	@grep -q "Alternatives considered" package-templates/.github/PULL_REQUEST_TEMPLATE.md

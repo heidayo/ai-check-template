@@ -13,6 +13,7 @@ AI 駆動開発で利用する**プロンプト雛形ライブラリ**。`docs/p
 | [`state-transition.md`](./state-transition.md) | 状態遷移の許可・禁止両方をテスト | QA 技法 | qa-techniques §4 |
 | [`boundary-value.md`](./boundary-value.md) | 同値分割 + 境界値で入力空間網羅 | QA 技法 | qa-techniques §1, §2 |
 | [`rls-permission.md`](./rls-permission.md) | RLS / 権限境界の機械検証 | QA 技法 + DB-RLS 層 | test-pyramid §5 |
+| [`e2e-test-creation.md`](./e2e-test-creation.md) | 自然言語の主要導線から安定した Playwright E2E を作る | E2E | test-pyramid §4 |
 | [`diagnostic-repair.md`](./diagnostic-repair.md) | `ai:check` / CI 失敗後に diagnostic output から修復計画・patch・再検証へ進める | 修復 | formal-name-match §Repair / Re-check |
 | [`design-explanation.md`](./design-explanation.md) | AI 生成コードの設計意図・責務・データフローを reviewer 向けに説明させる | Review gate | formal-name-match §Human Acceptance |
 | [`tradeoff-analysis.md`](./tradeoff-analysis.md) | 採用設計と代替案を比較し、短期最適化が将来リスクにならないか確認する | Review gate | formal-name-match §Human Acceptance |
@@ -43,18 +44,21 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
    - 状態遷移 → state-transition.md
    - 入力バリデーション → boundary-value.md
    - 権限制御 → rls-permission.md
+   - 主要導線 E2E → e2e-test-creation.md
    ↓
 3. 補強した成功基準を SPEC / Plan に登録
    ↓
 4. ../docs/test-design-template.md で AC と Test Matrix を固定
    ↓
-5. 実装
+5. 必要な主要導線だけ e2e-test-creation.md で Playwright smoke test を設計
    ↓
-6. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
+6. 実装
    ↓
-7. 失敗時は diagnostic-repair.md に redacted diagnostic output を渡して修復し、同じ command を再実行
+7. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
    ↓
-8. PR 前に Review gate prompts で設計・代替案・リスク・理解度を整理
+8. 失敗時は diagnostic-repair.md に redacted diagnostic output を渡して修復し、同じ command を再実行
+   ↓
+9. PR 前に Review gate prompts で設計・代替案・リスク・理解度を整理
    - 設計説明 → design-explanation.md
    - 代替案とトレードオフ → tradeoff-analysis.md
    - author の理解度 → self-understanding-check.md
@@ -88,8 +92,9 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 3. `state-transition.md` で決済ステータス遷移
 4. `decision-table.md` で割引条件組み合わせ
 5. `rls-permission.md` で組織別の権限
-6. `diagnostic-repair.md` で `ai:check` 失敗後の修復
-7. `tradeoff-analysis.md` と `review-training.md` で PR 前の Review gate を補強
+6. `e2e-test-creation.md` で決済完了までの smoke test を設計
+7. `diagnostic-repair.md` で `ai:check` 失敗後の修復
+8. `tradeoff-analysis.md` と `review-training.md` で PR 前の Review gate を補強
 
 ## 隣接する思想
 

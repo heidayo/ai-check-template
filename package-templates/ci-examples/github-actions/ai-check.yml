@@ -44,10 +44,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # ai:check が Playwright を実行する場合は browser install を有効化する。
+      # Playwright 未導入の profile ではこの step を削除またはコメントアウトする。
+      # - name: Install Playwright browsers
+      #   run: pnpm exec playwright install --with-deps chromium
+
       # ai:check は package.scripts.fragment.json に定義する統合スクリプト
       # 例: "ai:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke"
       - name: Run ai:check
         run: pnpm ai:check
+
+      # Playwright の失敗証跡。trace / screenshot / video に private value が
+      # 含まれる可能性がある場合は retention や upload 条件を調整する。
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
       # 形名照合の結果を artifact として保存する場合（オプション）:
       # - name: Upload diagnostic logs

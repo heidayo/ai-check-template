@@ -52,6 +52,17 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 - `test:e2e:smoke`: `playwright test --grep smoke`
 - `ai:check:secure`: Semgrep による security gate。`ai:check` には混ぜず、PR / CI の別 step で実行。
 
+## Playwright 安定化
+
+主要導線 E2E はまず manual-copy templates から始める。
+
+- [`../../playwright/README.md`](../../playwright/README.md): config / smoke / trace artifact の導入手順
+- [`../../playwright/playwright.config.ts`](../../playwright/playwright.config.ts): Next.js / React 向け安定化 config 例
+- [`../../playwright/tests/smoke.spec.ts`](../../playwright/tests/smoke.spec.ts): `@smoke` の最小例
+- [`../../prompts/e2e-test-creation.md`](../../prompts/e2e-test-creation.md): 自然言語仕様から Playwright test を作る prompt
+
+Locator は `getByRole > getByLabel > getByText > getByTestId > CSS/XPath` の順に優先する。MCP / UI Mode は探索に使い、CI と `ai:check` では Playwright CLI を使う。
+
 ## .claude / scripts カスタマイズ案
 
 - `.claude/settings.hook-fragment.json`: そのまま使える（hook command が `pnpm ai:check` / `pnpm ai:check:fast`）
@@ -62,7 +73,7 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 
 - **Pages Router の場合**: App Router 前提の React Doctor 診断項目が一部対象外。`--ignore-pages` 等の調整を検討
 - **monorepo**: workspace の場合、`pnpm -r ai:check` のような root レベルスクリプトを別途用意
-- **Playwright のフレーキー**: 主要導線のみに絞り、retry 1 回まで許容
+- **Playwright のフレーキー**: 主要導線のみに絞り、trace / screenshot / video を failure artifact として確認する
 - **Server Actions**: 認可は client 側だけでなく server action 内でも検証（参照: [`../../docs/philosophy/test-pyramid.md`](../../docs/philosophy/test-pyramid.md) §3 Integration）
 
 ## 隣接 profile
@@ -82,3 +93,4 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 
 - Notion ページ: `c3e549660ca44005a20c4f6fdb54c8d5` — 無料で作る AI エージェント開発診断フロー（参照日 2026-05-13）
 - Next.js Testing Guide（公式）
+- Playwright Best Practices / Locators / Trace Viewer（公式）

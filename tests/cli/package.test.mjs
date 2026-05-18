@@ -87,6 +87,10 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "package-templates/scripts/ai-check.sh",
     "package-templates/ci-examples/github-actions/ai-check.yml",
     "package-templates/.claude/settings.hook-fragment.json",
+    "package-templates/playwright/README.md",
+    "package-templates/playwright/playwright.config.ts",
+    "package-templates/playwright/tests/smoke.spec.ts",
+    "package-templates/prompts/e2e-test-creation.md",
   ];
 
   for (const filePath of requiredFiles) {
