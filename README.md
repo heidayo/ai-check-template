@@ -22,6 +22,7 @@ A template collection for AI-driven development. It bundles:
 - **AI prompt templates** that force the model to declare success criteria before implementing
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
 - **GitHub Actions templates and hosted workflow foundation** that run the same `ai:check` on every PR
+- **Reviewability templates** for PR evidence, design explanation, tradeoff analysis, and human understanding checks
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
 - A stable npm **CLI** for safer initialization
 
@@ -69,6 +70,7 @@ The repository ships templates and prompts for every step in this loop.
 | **Philosophy** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md), [`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md), [`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md), [`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md) |
 | **Test design** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) maps requirements to acceptance criteria, test matrix rows, and verification commands |
 | **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
+| **Reviewability** | [PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md), [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md), and prompts for [design explanation](./package-templates/prompts/design-explanation.md), [tradeoff analysis](./package-templates/prompts/tradeoff-analysis.md), [self-understanding checks](./package-templates/prompts/self-understanding-check.md), and [review training](./package-templates/prompts/review-training.md) |
 | **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
 | **CI integration** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), reusable workflow examples, and the hosted workflow / Composite Action guide in [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
@@ -80,7 +82,7 @@ The repository ships templates and prompts for every step in this loop.
 
 `ai-check-template` is a post-implementation verification stack. It does not make AI write code; it helps teams verify, repair, and safely accept AI-generated code after implementation.
 
-Use it through five loops: **Local loop** for fast checks after AI edits, **Repair loop** for diagnostic-driven fixes, **E2E loop** for critical Playwright journeys, **CI gate** for shared pull-request enforcement, and **Review gate** for human acceptance with design, risks, and test evidence. See [`docs/usage-model.md`](./docs/usage-model.md).
+Use it through five loops: **Local loop** for fast checks after AI edits, **Repair loop** for diagnostic-driven fixes, **E2E loop** for critical Playwright journeys, **CI gate** for shared pull-request enforcement, and **Review gate** for human acceptance with design, risks, tests, and understanding evidence. The Review gate has manual-copy templates under [`package-templates/.github/`](./package-templates/.github/) and [`package-templates/worksheet/`](./package-templates/worksheet/). See [`docs/usage-model.md`](./docs/usage-model.md).
 
 ## Quick start
 
@@ -104,6 +106,9 @@ cp -r ai-check-template/package-templates/scripts ./scripts
 cp -r ai-check-template/package-templates/.claude ./.claude
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
 cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+# Optional manual-copy Review gate templates:
+cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
+cp -r ai-check-template/package-templates/worksheet ./worksheet
 # Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
 # For the hosted reusable workflow and Composite Action, see docs/github-actions.md.
 
@@ -115,7 +120,7 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 pnpm ai:check
 ```
 
-To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/). To prepare your own task before implementation, start from [`test-design-template.md`](./package-templates/docs/test-design-template.md), then use [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) when `ai:check` or CI returns a failing diagnostic.
+To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/). To prepare your own task before implementation, start from [`test-design-template.md`](./package-templates/docs/test-design-template.md), then use [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) when `ai:check` or CI returns a failing diagnostic. Before human acceptance, use the [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) and [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md).
 
 Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-profile README under [`package-templates/profiles/`](./package-templates/profiles/).
 

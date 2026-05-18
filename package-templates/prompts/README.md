@@ -14,6 +14,10 @@ AI 駆動開発で利用する**プロンプト雛形ライブラリ**。`docs/p
 | [`boundary-value.md`](./boundary-value.md) | 同値分割 + 境界値で入力空間網羅 | QA 技法 | qa-techniques §1, §2 |
 | [`rls-permission.md`](./rls-permission.md) | RLS / 権限境界の機械検証 | QA 技法 + DB-RLS 層 | test-pyramid §5 |
 | [`diagnostic-repair.md`](./diagnostic-repair.md) | `ai:check` / CI 失敗後に diagnostic output から修復計画・patch・再検証へ進める | 修復 | formal-name-match §Repair / Re-check |
+| [`design-explanation.md`](./design-explanation.md) | AI 生成コードの設計意図・責務・データフローを reviewer 向けに説明させる | Review gate | formal-name-match §Human Acceptance |
+| [`tradeoff-analysis.md`](./tradeoff-analysis.md) | 採用設計と代替案を比較し、短期最適化が将来リスクにならないか確認する | Review gate | formal-name-match §Human Acceptance |
+| [`self-understanding-check.md`](./self-understanding-check.md) | author が AI 生成コードを説明・再実装できるか質問で確認する | Review gate | formal-name-match §Human Acceptance |
+| [`review-training.md`](./review-training.md) | senior reviewer 観点で scope drift / dead code / trust boundary / test quality を確認する | Review gate | formal-name-match §Human Acceptance |
 
 ## 使い方
 
@@ -49,6 +53,12 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 6. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
    ↓
 7. 失敗時は diagnostic-repair.md に redacted diagnostic output を渡して修復し、同じ command を再実行
+   ↓
+8. PR 前に Review gate prompts で設計・代替案・リスク・理解度を整理
+   - 設計説明 → design-explanation.md
+   - 代替案とトレードオフ → tradeoff-analysis.md
+   - author の理解度 → self-understanding-check.md
+   - reviewer 観点の訓練 → review-training.md
 ```
 
 ## 思想
@@ -79,6 +89,7 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 4. `decision-table.md` で割引条件組み合わせ
 5. `rls-permission.md` で組織別の権限
 6. `diagnostic-repair.md` で `ai:check` 失敗後の修復
+7. `tradeoff-analysis.md` と `review-training.md` で PR 前の Review gate を補強
 
 ## 隣接する思想
 
@@ -92,3 +103,4 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 - Notion ページ: `dc8774cd03c8490688b066c2b0179cac` — AI 駆動開発時代に押さえる QA 技法（参照日 2026-05-13）
 - Notion ページ: `c3e549660ca44005a20c4f6fdb54c8d5` — 無料で作る AI エージェント開発診断フロー
 - Notion ページ: `35b68c677f4380bfa1ffeab248264e92` — テストフロー再設計
+- Notion ページ: `3d2bad0369104a57ae6f7b1ec1c06c6b` — AI にコードを書かせ続けて気づいた、エンジニアの「分かったつもり」の怖さ
