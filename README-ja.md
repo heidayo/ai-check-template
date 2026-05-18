@@ -76,7 +76,13 @@ AI 実装
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
 | **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--dry-run`、`--overwrite` を説明 |
-| **プロジェクト docs** | [`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
+| **プロジェクト docs** | [`docs/usage-model.md`](./docs/usage-model.md)、[`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
+
+## Where This Fits / どこに効くか
+
+`ai-check-template` は post-implementation verification stack です。AI にコードを書かせるためのものではなく、AI が生成したコードを実装後に検証・修正・安全に受け入れるための基盤です。
+
+使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テストを人間が受け入れる **Review gate**。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
 
 ## Quick start / 最短手順
 
