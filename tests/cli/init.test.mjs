@@ -89,6 +89,7 @@ test("prints help", () => {
   assert.match(result.stdout, /init/);
   assert.match(result.stdout, /--package-manager/);
   assert.match(result.stdout, /--install-deps/);
+  assert.match(result.stdout, /--review-templates/);
 });
 
 test("init merges package scripts and copies shell scripts", (t) => {
@@ -231,8 +232,77 @@ test("init writes deterministic install state", (t) => {
     packageManager: "pnpm",
     ci: "reusable",
     claudeHooks: true,
+    reviewTemplates: false,
     managedBy: "ai-check-template",
   });
+});
+
+test("init copies reviewability templates when requested", (t) => {
+  const target = createFixture(t);
+  const result = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--ci",
+    "none",
+    "--review-templates",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "worksheet", "ai-code-understanding.md")), true);
+  assert.match(
+    fs.readFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "utf8"),
+    /AI-Generated Code Review/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(target, "worksheet", "ai-code-understanding.md"), "utf8"),
+    /Reimplementation Check/,
+  );
+  assert.equal(readInstallState(target).reviewTemplates, true);
+  assert.match(result.stdout, /copy: \.github\/PULL_REQUEST_TEMPLATE\.md \(review PR template\)/);
+  assert.match(result.stdout, /copy: worksheet\/ai-code-understanding\.md \(review worksheet\)/);
+});
+
+test("init does not copy reviewability templates unless requested", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md")), false);
+  assert.equal(fs.existsSync(path.join(target, "worksheet", "ai-code-understanding.md")), false);
+  assert.equal(readInstallState(target).reviewTemplates, false);
+});
+
+test("reviewability templates preserve existing files without overwrite", (t) => {
+  const target = createFixture(t);
+  const prTemplatePath = path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md");
+  const worksheetPath = path.join(target, "worksheet", "ai-code-understanding.md");
+  fs.mkdirSync(path.dirname(prTemplatePath), { recursive: true });
+  fs.mkdirSync(path.dirname(worksheetPath), { recursive: true });
+  fs.writeFileSync(prTemplatePath, "custom pr template\n");
+  fs.writeFileSync(worksheetPath, "custom worksheet\n");
+
+  const result = runCli([
+    "init",
+    "--target",
+    target,
+    "--profile",
+    "react-nextjs",
+    "--ci",
+    "none",
+    "--review-templates",
+    "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(prTemplatePath, "utf8"), "custom pr template\n");
+  assert.equal(fs.readFileSync(worksheetPath, "utf8"), "custom worksheet\n");
+  assert.match(result.stdout, /skip: \.github\/PULL_REQUEST_TEMPLATE\.md \(review PR template exists\)/);
+  assert.match(result.stdout, /skip: worksheet\/ai-code-understanding\.md \(review worksheet exists\)/);
 });
 
 test("dry-run writes nothing", (t) => {

@@ -19,7 +19,13 @@ export function installStatePath(targetDir) {
   return path.join(targetDir, INSTALL_STATE_FILE);
 }
 
-export async function buildInstallState({ profile, ci, claudeHooks, packageManager = DEFAULT_PACKAGE_MANAGER }) {
+export async function buildInstallState({
+  profile,
+  ci,
+  claudeHooks,
+  reviewTemplates,
+  packageManager = DEFAULT_PACKAGE_MANAGER,
+}) {
   const packageJson = await readJson(path.join(repoRoot, "package.json"));
   const parsedProfile = normalizeProfile(profile);
   const normalizedPackageManager = validatePackageManager(packageManager);
@@ -32,6 +38,7 @@ export async function buildInstallState({ profile, ci, claudeHooks, packageManag
     packageManager: normalizedPackageManager,
     ci,
     claudeHooks: Boolean(claudeHooks),
+    reviewTemplates: Boolean(reviewTemplates),
     managedBy: PACKAGE_NAME,
   };
 }
@@ -76,6 +83,9 @@ export function resolveEffectiveOptions(options, installState) {
     claudeHooks: options.explicit.claudeHooks
       ? options.claudeHooks
       : state?.claudeHooks ?? options.claudeHooks,
+    reviewTemplates: options.explicit.reviewTemplates
+      ? options.reviewTemplates
+      : state?.reviewTemplates ?? options.reviewTemplates,
   };
 }
 
@@ -106,6 +116,7 @@ export function installationSummary(installState) {
       packageManager: installState.state.packageManager,
       ci: installState.state.ci,
       claudeHooks: installState.state.claudeHooks,
+      reviewTemplates: installState.state.reviewTemplates,
     };
   }
 
@@ -126,6 +137,7 @@ export function effectiveOptionsSummary(effectiveOptions) {
     packageManager: effectiveOptions.packageManager,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
+    reviewTemplates: effectiveOptions.reviewTemplates,
   };
 }
 
@@ -185,6 +197,11 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state claudeHooks must be a boolean");
   }
 
+  const reviewTemplates = state.reviewTemplates === undefined ? false : state.reviewTemplates;
+  if (typeof reviewTemplates !== "boolean") {
+    return invalidState("invalid-install-state", "Install state reviewTemplates must be a boolean");
+  }
+
   return {
     source: "state",
     state: {
@@ -195,6 +212,7 @@ function validateInstallState(state) {
       packageManager,
       ci: state.ci,
       claudeHooks: state.claudeHooks,
+      reviewTemplates,
       managedBy: state.managedBy,
     },
     error: null,

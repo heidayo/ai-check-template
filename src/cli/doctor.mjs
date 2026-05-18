@@ -38,6 +38,7 @@ Options:
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
+  --review-templates   Check PR template and AI code understanding worksheet.
   --strict             Treat warnings as failures.
   --json               Print machine-readable JSON output.`;
 
@@ -90,6 +91,7 @@ function parseDoctorArgs(argv, cwd) {
     packageManager: DEFAULT_PACKAGE_MANAGER,
     ci: "direct",
     claudeHooks: false,
+    reviewTemplates: false,
     strict: false,
     json: false,
     help: false,
@@ -98,6 +100,7 @@ function parseDoctorArgs(argv, cwd) {
       packageManager: false,
       ci: false,
       claudeHooks: false,
+      reviewTemplates: false,
     },
   };
 
@@ -112,6 +115,12 @@ function parseDoctorArgs(argv, cwd) {
     if (arg === "--claude-hooks") {
       options.claudeHooks = true;
       options.explicit.claudeHooks = true;
+      continue;
+    }
+
+    if (arg === "--review-templates") {
+      options.reviewTemplates = true;
+      options.explicit.reviewTemplates = true;
       continue;
     }
 
@@ -236,6 +245,21 @@ async function diagnoseTarget(targetDir, options) {
       issues,
     );
     await checkClaudeSettings(targetDir, issues);
+  }
+
+  if (options.reviewTemplates) {
+    await checkTemplateFile(
+      targetDir,
+      fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      issues,
+    );
+    await checkTemplateFile(
+      targetDir,
+      fromTemplates("worksheet", "ai-code-understanding.md"),
+      "worksheet/ai-code-understanding.md",
+      issues,
+    );
   }
 
   warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...ciWarnings];
@@ -379,6 +403,7 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
+  writeLine(stream, `review-templates: ${output.effectiveOptions.reviewTemplates}`);
   writeLine(stream, `strict: ${output.strict}`);
 
   writeLine(stream, `issues: ${output.issues.length}`);

@@ -125,6 +125,7 @@ test("prints update help", () => {
   assert.match(result.stdout, /--dry-run/);
   assert.match(result.stdout, /--package-manager/);
   assert.match(result.stdout, /--install-deps/);
+  assert.match(result.stdout, /--review-templates/);
 });
 
 test("update repairs package scripts and shell scripts then doctor passes", (t) => {
@@ -168,21 +169,25 @@ test("update uses install state defaults and refreshes state", (t) => {
     "--ci",
     "reusable",
     "--claude-hooks",
+    "--review-templates",
     "--yes",
   ]);
   assert.equal(init.status, 0, init.stderr);
   fs.writeFileSync(path.join(target, ".github", "workflows", "ai-quality-call.yml"), "changed\n");
+  fs.writeFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "changed\n");
 
   const update = runCli(["update", "--target", target, "--yes"]);
 
   assert.equal(update.status, 0, update.stderr);
   assert.equal(doctor(target).status, 0);
+  assert.match(fs.readFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "utf8"), /AI-Generated Code Review/);
   const state = readInstallState(target);
   assert.equal(state.profile.base, "react-nextjs");
   assert.deepEqual(state.profile.addons, ["supabase-rls"]);
   assert.equal(state.packageManager, "pnpm");
   assert.equal(state.ci, "reusable");
   assert.equal(state.claudeHooks, true);
+  assert.equal(state.reviewTemplates, true);
 });
 
 test("update repairs scripts using install state package manager", (t) => {
@@ -391,6 +396,45 @@ test("update creates missing profile docs without overwriting existing docs", (t
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "react-nextjs", "README.md")), false);
 });
 
+test("update creates reviewability templates when requested", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["update", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--review-templates", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.reviewTemplates, true);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "create" && operation.path === ".github/PULL_REQUEST_TEMPLATE.md",
+  ), true);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "create" && operation.path === "worksheet/ai-code-understanding.md",
+  ), true);
+  assert.match(fs.readFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "utf8"), /AI-Generated Code Review/);
+  assert.match(fs.readFileSync(path.join(target, "worksheet", "ai-code-understanding.md"), "utf8"), /Reimplementation Check/);
+  assert.equal(readInstallState(target).reviewTemplates, true);
+  assert.equal(doctor(target, ["--ci", "none", "--review-templates"]).status, 0);
+});
+
+test("update dry-run reports reviewability templates without writing", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--review-templates", "--dry-run", "--json"]);
+  const after = snapshotDirectory(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.effectiveOptions.reviewTemplates, true);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "would-create" && operation.path === ".github/PULL_REQUEST_TEMPLATE.md",
+  ), true);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "would-create" && operation.path === "worksheet/ai-code-understanding.md",
+  ), true);
+  assert.deepEqual(after, before);
+});
+
 test("update install deps invokes fake package manager and emits json operation", (t) => {
   const target = createFixture(t);
   const fakeNpm = createFakePackageManager(t, "npm");
@@ -571,6 +615,7 @@ test("json output is parseable", (t) => {
   assert.equal(output.effectiveOptions.profile, "react-nextjs");
   assert.equal(output.effectiveOptions.packageManager, "pnpm");
   assert.equal(output.effectiveOptions.ci, "none");
+  assert.equal(output.effectiveOptions.reviewTemplates, false);
   assert.equal(output.operations.some((operation) => operation.action === "would-update"), true);
 });
 
@@ -586,6 +631,7 @@ test("explicit update flags override install state", (t) => {
     "--ci",
     "reusable",
     "--claude-hooks",
+    "--review-templates",
     "--yes",
   ]);
 
@@ -596,6 +642,7 @@ test("explicit update flags override install state", (t) => {
   assert.equal(state.packageManager, "pnpm");
   assert.equal(state.ci, "reusable");
   assert.equal(state.claudeHooks, true);
+  assert.equal(state.reviewTemplates, true);
 });
 
 test("update without yes is rejected and does not write", (t) => {
