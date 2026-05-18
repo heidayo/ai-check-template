@@ -136,7 +136,7 @@ pnpm ai:check:secure
 |---|---|---|
 | [`react-nextjs`](./package-templates/profiles/react-nextjs/) | Next.js App Router + TypeScript | フル toolchain（RD / Knip / Playwright / Semgrep） |
 | [`react-vanilla`](./package-templates/profiles/react-vanilla/) | 純 React + TypeScript（Vite / CRA） | Next.js 固有の React Doctor 診断は対象外 |
-| [`expo-rn`](./package-templates/profiles/expo-rn/) | Expo / React Native | React Doctor 非対応。E2E は Maestro / Detox |
+| [`expo-rn`](./package-templates/profiles/expo-rn/) | Expo / React Native | React Doctor は RN 診断に対応。E2E は Maestro / Detox |
 | [`node-cli`](./package-templates/profiles/node-cli/) | Node CLI / Library | UI / E2E なし、Static + Unit 中心 |
 | [`supabase-rls`](./package-templates/profiles/supabase-rls/) | Supabase + RLS（addon） | 他 profile と組み合わせ（例: `react-nextjs+supabase-rls`） |
 

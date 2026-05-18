@@ -165,6 +165,18 @@ test("node-cli profile scripts exclude UI E2E", (t) => {
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "react-nextjs", "README.md")), false);
 });
 
+test("expo-rn profile scripts include React Doctor and Maestro smoke", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "expo-rn", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const packageJson = readPackageJson(target);
+  assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
+  assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
+  assert.equal(packageJson.scripts["test:e2e:smoke"], "maestro test .maestro/smoke.yaml");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+});
+
 test("supabase addon profile scripts add RLS checks", (t) => {
   const target = createFixture(t);
   const result = runCli(["init", "--target", target, "--profile", "react-nextjs+supabase-rls", "--ci", "none", "--yes"]);

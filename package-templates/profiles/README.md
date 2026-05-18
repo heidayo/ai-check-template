@@ -10,7 +10,7 @@
 |---|---|---|---|
 | [`react-nextjs/`](./react-nextjs/README.md) | Next.js App Router + TS | フル toolchain | 推奨スタート地点 |
 | [`react-vanilla/`](./react-vanilla/README.md) | 純 React + TS（Vite / CRA） | Next.js なし | SSR なしのため SEO 別途 |
-| [`expo-rn/`](./expo-rn/README.md) | Expo / React Native | モバイル特化 | **React Doctor 非対応**、Maestro / Detox 使用 |
+| [`expo-rn/`](./expo-rn/README.md) | Expo / React Native | モバイル特化 | React Doctor は RN 診断に対応、E2E は Maestro / Detox 使用 |
 | [`node-cli/`](./node-cli/README.md) | Node CLI / Library | UI なし、Static + Unit 中心 | Playwright 不要 |
 | [`supabase-rls/`](./supabase-rls/README.md)（addon） | Supabase + RLS | 上記 profile に追加適用 | 単独 profile ではない、組み合わせ前提 |
 

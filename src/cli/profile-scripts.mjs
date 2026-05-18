@@ -18,9 +18,10 @@ const BASE_PROFILE_SCRIPTS = {
     deadcode: "knip",
   },
   "expo-rn": {
-    "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
+    "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "ai:check:secure": SECURITY_CHECK_SCRIPT,
+    doctor: "npx -y react-doctor@latest . --fail-on warning",
     deadcode: "knip",
     "test:e2e:smoke": "maestro test .maestro/smoke.yaml",
   },

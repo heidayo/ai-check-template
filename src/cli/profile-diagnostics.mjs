@@ -55,9 +55,6 @@ export function diagnoseProfileScripts(profile, packageJson) {
     if (hasCommandToken(scripts, "playwright")) {
       warnings.push(profileWarning("Expo React Native profile recommends Maestro or Detox instead of Playwright."));
     }
-    if (hasCommandToken(scripts, "react-doctor")) {
-      warnings.push(profileWarning("Expo React Native profile does not support React Doctor as a merge gate."));
-    }
   }
 
   if (base === "node-cli") {

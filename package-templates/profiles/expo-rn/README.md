@@ -4,7 +4,7 @@
 
 ## 目的
 
-Expo / React Native 環境の typical stack 向け profile。モバイル特有の制約（Native 連携、E2E ツールの違い、React Doctor の非対応）を考慮した品質ループを構築する。
+Expo / React Native 環境の typical stack 向け profile。モバイル特有の制約（Native 連携、E2E ツールの違い、React Doctor の React Native rules）を考慮した品質ループを構築する。
 
 ## 対象スタック
 
@@ -24,7 +24,7 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
 |---|---|---|---|
 | TypeScript | 必須 | 型チェック | |
 | ESLint / oxlint | 必須 | lint | |
-| **React Doctor** | **非対応** | — | React Doctor は **モバイル非対応**。代替なし（純 React コンポーネントのみ別途部分検査可） |
+| React Doctor | 推奨 | React Native 品質診断 | 公式 README は React Native 対応を明記。RN rules は project config で調整 |
 | Knip | 推奨 | 未使用検出 | |
 | Jest / Vitest | 必須 | Unit / Integration | Jest が React Native コミュニティでは主流 |
 | **Maestro** | 推奨 | E2E（モバイル UI） | Playwright の代替。YAML ベースで AI 出力と相性◯ |
@@ -36,7 +36,7 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
 ```json
 {
   "scripts": {
-    "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
+    "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "ai:check:secure": "semgrep scan --config auto"
   }
@@ -44,7 +44,7 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
 ```
 
 - `test:e2e:smoke`: Maestro で `maestro test .maestro/smoke.yaml` 等
-- React Doctor 関連の script は **入れない**
+- `doctor`: `npx -y react-doctor@latest . --fail-on warning`
 - Security gate は `ai:check:secure` として分離し、Semgrep は JavaScript / TypeScript 側の安全性確認に使う。
 
 ## .claude / scripts カスタマイズ案
@@ -56,7 +56,7 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
 
 ## 注意事項
 
-- **React Doctor 非対応**: 本 profile の最大の特徴。診断スコアによる判定は使えない。代替として静的解析 + 手動レビューに依存
+- **React Doctor の調整**: React Native rules は使えるが、project-specific component や generated files は `react-doctor.config.json` で必要最小限に調整
 - **Native module の test 困難**: モック化必須。test:unit でカバーできない範囲は Maestro / 手動確認
 - **iOS / Android 差異**: 両 OS で動かして確認。CI で両 OS を sharding するコストを考慮
 - **Expo Go 制限**: 一部 Native 機能は Expo Go では動かないため、開発ビルド / プロダクションビルドでのテストが必要
@@ -71,12 +71,13 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
 ## 隣接思想
 
 - [`../../docs/philosophy/test-pyramid.md`](../../docs/philosophy/test-pyramid.md) — モバイルでは E2E 層のコスト構造が異なる
-- [`../../docs/philosophy/formal-name-match.md`](../../docs/philosophy/formal-name-match.md) — 形名参同（React Doctor を使わない場合は他の「形」で代替）
+- [`../../docs/philosophy/formal-name-match.md`](../../docs/philosophy/formal-name-match.md) — 形名参同（React Doctor は RN code quality の「形」として利用）
 - [`../../docs/philosophy/qa-techniques.md`](../../docs/philosophy/qa-techniques.md) — QA 技法
 - [`../../docs/philosophy/given-when-then.md`](../../docs/philosophy/given-when-then.md) — GWT（Maestro / Detox にそのまま使える）
 
 ## 出典
 
 - Notion ページ: `c3e549660ca44005a20c4f6fdb54c8d5` — 無料で作る AI エージェント開発診断フロー（参照日 2026-05-13）
+- React Doctor official README: https://github.com/millionco/react-doctor（Works with React Native / RN rules、参照日 2026-05-18）
 - Maestro 公式 docs
 - Detox 公式 docs
