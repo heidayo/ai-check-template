@@ -39,7 +39,12 @@ validate-shell:
 
 validate-structure:
 	@test -f README.md
+	@test -f README-en.md
 	@test -f README-ja.md
+	@grep -q "README-en.md" README.md
+	@grep -q "README.md" README-en.md
+	@grep -q "README.md" README-ja.md
+	@grep -q "README-en.md" README-ja.md
 	@test -f examples/nextjs-basic/package.json
 	@test -f examples/nextjs-basic/tsconfig.json
 	@test -f examples/nextjs-basic/app/page.tsx
@@ -66,9 +71,9 @@ validate-structure:
 	@grep -q "semgrep scan --config auto" docs/cli.md
 	@grep -q "ai:check:secure" docs/usage-model.md
 	@grep -q "ai-check-secure.sh" README.md
-	@grep -q "ai-check-secure.sh" README-ja.md
-	@grep -q "React Doctor supported for RN diagnostics" README.md
-	@grep -q "React Doctor は RN 診断に対応" README-ja.md
+	@grep -q "ai-check-secure.sh" README-en.md
+	@grep -q "React Doctor は RN 診断に対応" README.md
+	@grep -q "React Doctor supported for RN diagnostics" README-en.md
 	@grep -q "React Doctor.*React Native" package-templates/profiles/expo-rn/README.md
 	@grep -q "React Doctor official README" package-templates/profiles/expo-rn/README.md
 	@grep -q "^## Requirement" package-templates/docs/test-design-template.md
@@ -85,8 +90,8 @@ validate-structure:
 	@grep -q "test-design-template.md" package-templates/README.md
 	@grep -q "test-design-template.md" README.md
 	@grep -q "diagnostic-repair.md" README.md
-	@grep -q "test-design-template.md" README-ja.md
-	@grep -q "diagnostic-repair.md" README-ja.md
+	@grep -q "test-design-template.md" README-en.md
+	@grep -q "diagnostic-repair.md" README-en.md
 	@grep -q "test-design-template.md" docs/roadmap.md
 	@grep -q "diagnostic-repair.md" docs/roadmap.md
 	@lines=$$(wc -l < package-templates/docs/test-design-template.md); test "$$lines" -ge 120 -a "$$lines" -le 350
@@ -105,7 +110,7 @@ validate-structure:
 	@grep -q "not external production project data" docs/phase-1-initial-dogfooding-report.md
 	@grep -q "not Phase 2 graduation evidence" docs/phase-1-initial-dogfooding-report.md
 	@grep -q "phase-1-initial-dogfooding-report.md" README.md
-	@grep -q "phase-1-initial-dogfooding-report.md" README-ja.md
+	@grep -q "phase-1-initial-dogfooding-report.md" README-en.md
 	@grep -q "phase-1-initial-dogfooding-report.md" docs/roadmap.md
 	@grep -q "phase-1-initial-dogfooding-report.md" docs/phase-1-dogfooding-protocol.md
 	@lines=$$(wc -l < docs/phase-1-initial-dogfooding-report.md); test "$$lines" -ge 90 -a "$$lines" -le 260
@@ -118,7 +123,7 @@ validate-structure:
 	@grep -q "^## Next" docs/releases/v0.1.0.md
 	@grep -q "v0.2.0" docs/releases/v0.1.0.md
 	@grep -q "docs/releases/v0.1.0.md" README.md
-	@grep -q "docs/releases/v0.1.0.md" README-ja.md
+	@grep -q "docs/releases/v0.1.0.md" README-en.md
 	@grep -q "releases/v0.1.0.md" docs/roadmap.md
 	@grep -q "Released" docs/roadmap.md
 	@grep -q "v0.1.0.*Released" package-templates/README.md
@@ -147,7 +152,7 @@ validate-structure:
 	@grep -q "copy examples" docs/github-actions.md
 	@grep -q "Marketplace" docs/github-actions.md
 	@grep -q "docs/github-actions.md" README.md
-	@grep -q "docs/github-actions.md" README-ja.md
+	@grep -q "docs/github-actions.md" README-en.md
 	@grep -q "./github-actions.md" docs/roadmap.md
 	@grep -q "hosted reusable workflow" package-templates/ci-examples/README.md
 	@grep -q "Composite Action" package-templates/ci-examples/README.md
@@ -160,10 +165,10 @@ validate-structure:
 	@grep -q "GitHub Actions integration" docs/releases/v0.3.0.md
 	@grep -q "not an npm package release" docs/releases/v0.3.0.md
 	@grep -q "v0.3.0.*Released" README.md
-	@grep -q "v0.3.0.*Released" README-ja.md
+	@grep -q "v0.3.0.*Released" README-en.md
 	@grep -q "Released on 2026-05-16" docs/roadmap.md
 	@grep -q "docs/releases/v0.3.0.md" README.md
-	@grep -q "docs/releases/v0.3.0.md" README-ja.md
+	@grep -q "docs/releases/v0.3.0.md" README-en.md
 	@grep -q "releases/v0.3.0.md" docs/roadmap.md
 	@grep -q "@v0.3.0" docs/github-actions.md
 	@grep -q "future @v1" docs/github-actions.md
@@ -203,7 +208,7 @@ validate-structure:
 	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/update.mjs
 	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/doctor.mjs
 	@grep -q "docs/cli.md" README.md
-	@grep -q "docs/cli.md" README-ja.md
+	@grep -q "docs/cli.md" README-en.md
 	@test -f docs/usage-model.md
 	@grep -q "Local loop" docs/usage-model.md
 	@grep -q "Repair loop" docs/usage-model.md
@@ -270,9 +275,9 @@ validate-structure:
 	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README.md
 	@grep -q "package-templates/worksheet/ai-code-understanding.md" README.md
 	@grep -q -- "--review-templates" README.md
-	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README-ja.md
-	@grep -q "package-templates/worksheet/ai-code-understanding.md" README-ja.md
-	@grep -q -- "--review-templates" README-ja.md
+	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" README-en.md
+	@grep -q "package-templates/worksheet/ai-code-understanding.md" README-en.md
+	@grep -q -- "--review-templates" README-en.md
 	@grep -q "package-templates/.github/PULL_REQUEST_TEMPLATE.md" docs/usage-model.md
 	@grep -q "package-templates/worksheet/ai-code-understanding.md" docs/usage-model.md
 	@grep -q -- "--review-templates" docs/usage-model.md
@@ -280,18 +285,18 @@ validate-structure:
 	@grep -q "worksheet/ai-code-understanding.md" package-templates/README.md
 	@grep -q "ai-code-understanding.md" docs/roadmap.md
 	@grep -q "docs/usage-model.md" README.md
-	@grep -q "docs/usage-model.md" README-ja.md
+	@grep -q "docs/usage-model.md" README-en.md
 	@grep -q "./usage-model.md" docs/roadmap.md
 	@grep -q "doctor" README.md
-	@grep -q "doctor" README-ja.md
+	@grep -q "doctor" README-en.md
 	@grep -q "doctor" docs/roadmap.md
 	@grep -q "update" README.md
-	@grep -q "update" README-ja.md
+	@grep -q "update" README-en.md
 	@grep -q "update" docs/roadmap.md
 	@grep -q "./cli.md" docs/roadmap.md
 	@grep -q "npm pack" docs/cli.md
 	@grep -q "npm pack" README.md
-	@grep -q "npm pack" README-ja.md
+	@grep -q "npm pack" README-en.md
 	@grep -q "npm pack" docs/roadmap.md
 	@test -f docs/releases/v0.2.0.md
 	@grep -q "^## Highlights" docs/releases/v0.2.0.md
@@ -302,14 +307,14 @@ validate-structure:
 	@grep -q "0.2.0" docs/releases/v0.2.0.md
 	@grep -q "v0.2.0-alpha.0" docs/releases/v0.2.0.md
 	@grep -q "v0.2.0.*Released" README.md
-	@grep -q "v0.2.0.*Released" README-ja.md
+	@grep -q "v0.2.0.*Released" README-en.md
 	@grep -q "Released on 2026-05-16" docs/roadmap.md
 	@grep -q "v0.2.0.*Released" package-templates/README.md
 	@grep -q "npx -y ai-check-template@latest" docs/releases/v0.2.0.md
 	@grep -q "GitHub Release" docs/releases/v0.2.0.md
 	@grep -q "npm publish --dry-run --tag latest" docs/cli.md
 	@grep -q "npm publish --dry-run --tag latest" README.md
-	@grep -q "npm publish --dry-run --tag latest" README-ja.md
+	@grep -q "npm publish --dry-run --tag latest" README-en.md
 	@grep -q "npm publish --dry-run --tag latest" docs/roadmap.md
 	@echo "validate-structure: PASS"
 
