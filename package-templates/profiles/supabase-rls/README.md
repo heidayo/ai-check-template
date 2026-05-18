@@ -68,6 +68,17 @@ base profile の `ai:check` に **追加** で:
 - 操作マトリクス（read / create / update / delete）
 - multi-tenant 境界（organization_id / tenant_id）
 
+## Manual-copy templates
+
+RLS testing を実装する場合は、まず以下の templates を target project にコピーして placeholder を置換する。
+
+- [`../../supabase/README.md`](../../supabase/README.md): pgTAP / integration / Magic Link E2E の導入手順
+- [`../../supabase/tests/database/rls_policy.test.sql`](../../supabase/tests/database/rls_policy.test.sql): DB policy level の許可 / 拒否テスト
+- [`../../supabase/tests/rls/rls.integration.test.ts`](../../supabase/tests/rls/rls.integration.test.ts): 実ユーザー session での API integration test
+- [`../../supabase/tests/e2e/magic-link.spec.ts`](../../supabase/tests/e2e/magic-link.spec.ts): local mail capture を使う Magic Link smoke
+
+`rls-permission.md` で権限マトリクスを作り、OK / NG の各セルを pgTAP または integration test に落とす。`service_role` は RLS を bypass し得るため、RLS correctness の検証では使わない。
+
 ## 隣接 profile（組み合わせ先）
 
 - [`../react-nextjs/README.md`](../react-nextjs/README.md) — Next.js + Supabase の典型
@@ -88,4 +99,5 @@ base profile の `ai:check` に **追加** で:
 - Notion ページ: `7c531b165bab4b7ea2dce1782469ac52` — Supabase Testing 戦略（参照日 2026-05-13）
 - Notion ページ: `35b68c677f4380bfa1ffeab248264e92` — テストフロー再設計（Supabase / RLS 観点）
 - Supabase Testing Overview（公式）
+- Supabase CLI testing and linting（公式）
 - pgTAP 公式 docs

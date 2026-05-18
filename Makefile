@@ -217,10 +217,20 @@ validate-structure:
 	@test -f package-templates/playwright/playwright.config.ts
 	@test -f package-templates/playwright/tests/smoke.spec.ts
 	@test -f package-templates/prompts/e2e-test-creation.md
+	@test -f package-templates/supabase/README.md
+	@test -f package-templates/supabase/tests/database/rls_policy.test.sql
+	@test -f package-templates/supabase/tests/rls/rls.integration.test.ts
+	@test -f package-templates/supabase/tests/e2e/magic-link.spec.ts
 	@grep -q "trace: \"on-first-retry\"" package-templates/playwright/playwright.config.ts
 	@grep -q "getByRole" package-templates/playwright/tests/smoke.spec.ts
 	@grep -q "@smoke" package-templates/playwright/tests/smoke.spec.ts
 	@grep -q "getByRole > getByLabel > getByText > getByTestId > CSS/XPath" package-templates/prompts/e2e-test-creation.md
+	@grep -q "supabase test db" package-templates/supabase/README.md
+	@grep -q "service_role" package-templates/supabase/README.md
+	@grep -q "pgtap" package-templates/supabase/tests/database/rls_policy.test.sql
+	@grep -q "service-role bypass warning" package-templates/supabase/tests/rls/rls.integration.test.ts
+	@grep -q "SUPABASE_LOCAL_MAIL_API_URL" package-templates/supabase/tests/e2e/magic-link.spec.ts
+	@grep -q "../../supabase/README.md" package-templates/profiles/supabase-rls/README.md
 	@grep -q "Upload Playwright artifacts" package-templates/ci-examples/github-actions/ai-check.yml
 	@grep -q "playwright-artifacts" package-templates/ci-examples/github-actions/ai-check.yml
 	@grep -q "package-templates/playwright/README.md" docs/usage-model.md
