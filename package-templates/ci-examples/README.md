@@ -120,7 +120,18 @@ jobs:
 - `ai-check-fast.yml`: default 10 分。fast の意義を保つため上げない（上げる場合はそもそも fast でない）
 - `ai-quality-reusable.yml`: caller 側の `timeout-minutes` input で調整
 
-### 6. third-party action の version pin
+### 6. Playwright artifact
+
+`ai:check` が Playwright を実行する場合は、CI で browser install と artifact upload を有効化する。
+
+- browser install: `pnpm exec playwright install --with-deps chromium`
+- artifacts: `playwright-report/`、`test-results/`、`trace.zip`
+- prompt: [`../prompts/e2e-test-creation.md`](../prompts/e2e-test-creation.md)
+- templates: [`../playwright/README.md`](../playwright/README.md)
+
+trace / screenshot / video に private value が入る可能性がある場合は、retention days や upload 条件を project policy に合わせて調整する。
+
+### 7. third-party action の version pin
 
 セキュリティ要件が厳しい組織では、major version pin（`@v5`）ではなく SHA pin（`@<commit-sha>`）に変更する。Dependabot 等で自動更新する運用が必要。
 

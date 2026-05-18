@@ -92,6 +92,13 @@ Use it for flows where a unit test is not enough:
 Stable E2E tests need rules. Prefer user-facing locators such as role and label
 selectors, keep setup deterministic, and preserve trace artifacts when CI fails.
 
+The package includes manual-copy templates for this loop:
+
+- [`package-templates/playwright/README.md`](../package-templates/playwright/README.md)
+- [`package-templates/playwright/playwright.config.ts`](../package-templates/playwright/playwright.config.ts)
+- [`package-templates/playwright/tests/smoke.spec.ts`](../package-templates/playwright/tests/smoke.spec.ts)
+- [`e2e-test-creation.md`](../package-templates/prompts/e2e-test-creation.md)
+
 This loop is also where AI can help generate tests from natural-language flows,
 but generated tests still need review for selector quality and flaky behavior.
 
@@ -165,7 +172,7 @@ These are planned directions, not all shipped behavior in the current package:
 |---|---|
 | Security automation | Add richer security reporting or dedicated CI examples on top of `ai:check:secure` |
 | Reviewability automation | Add CLI install / update support for reviewability templates |
-| Playwright stabilization | Add config examples, locator rules, and E2E creation prompts |
+| Playwright stabilization | Shipped manual-copy config examples, locator rules, artifact guidance, and E2E creation prompt |
 | Profile corrections | Revisit profile assumptions as external tools evolve |
 | Marketplace / major alias | Promote GitHub Actions integration after more dogfooding |
 
