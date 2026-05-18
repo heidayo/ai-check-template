@@ -134,4 +134,5 @@ If a candidate is not on this roadmap, that does not mean it is rejected — it 
 - [`./usage-model.md`](./usage-model.md) — how the package helps after AI implementation
 - [`./github-actions.md`](./github-actions.md) — hosted workflow, Composite Action, and copy examples
 - [`../README.md`](../README.md) — the external-facing entry point
+- [`../README-en.md`](../README-en.md) — English version of the external-facing entry point
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — how to participate

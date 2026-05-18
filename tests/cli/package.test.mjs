@@ -65,6 +65,7 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
   const requiredFiles = [
     "LICENSE",
     "README.md",
+    "README-en.md",
     "README-ja.md",
     "package.json",
     "bin/ai-check-template.mjs",

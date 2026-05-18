@@ -38,6 +38,7 @@
     "package-templates/",
     "docs/cli.md",
     "README.md",
+    "README-en.md",
     "README-ja.md",
     "LICENSE"
   ],
