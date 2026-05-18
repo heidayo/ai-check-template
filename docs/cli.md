@@ -109,7 +109,7 @@ When `--ci direct` is set, `init` and `update` write workflow commands for the e
 | `yarn` | `yarn install --immutable` | `yarn ai:check` | `yarn ai:check:fast` |
 | `bun` | `bun install --frozen-lockfile` | `bun run ai:check` | `bun run ai:check:fast` |
 
-When `--ci reusable` is set, `ai-quality-reusable.yml` remains the generic reusable workflow and `ai-quality-call.yml` receives package-manager-specific `package-manager` and `check-command` inputs. `doctor` compares selected workflows against the rendered content for the effective package manager. `update --ci none` cleans up inactive workflows only when their content exactly matches one of the managed rendered variants; custom workflow content is preserved.
+When `--ci reusable` is set, `ai-quality-reusable.yml` remains the generic reusable workflow and `ai-quality-call.yml` receives package-manager-specific `package-manager` and `check-command` inputs. The same hosted workflow can run the security gate by setting `check-command: pnpm ai:check:secure`. `doctor` compares selected workflows against the rendered content for the effective package manager. `update --ci none` cleans up inactive workflows only when their content exactly matches one of the managed rendered variants; custom workflow content is preserved.
 
 ## Claude hook command rendering
 
@@ -135,7 +135,7 @@ Current advisory checks cover:
 - `expo-rn`: Playwright / React Doctor mismatch for mobile projects
 - `node-cli`: UI E2E mismatch for CLI or library projects
 - `supabase-rls`: missing RLS-related DB / integration test scripts
-- `ai:check` / `ai:check:fast`: missing referenced package scripts such as `typecheck`, `lint`, or `test:unit`
+- `ai:check` / `ai:check:fast` / `ai:check:secure`: missing referenced package scripts such as `typecheck`, `lint`, or `test:unit`
 
 Warnings remain advisory by default. `doctor --strict` is available for stricter local or CI checks. Missing script diagnostics do not install dependencies or create scripts.
 
@@ -158,8 +158,11 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 - `expo-rn` keeps mobile-oriented smoke E2E defaults
 - `node-cli` excludes UI E2E from `ai:check`
 - `supabase-rls` adds `test:db` and `test:integration:rls`
+- all profiles add `ai:check:secure` as a separate Semgrep security gate (`semgrep scan --config auto`)
 
 `init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` and `--package-manager` taking precedence over install state.
+
+`ai:check` and `ai:check:secure` are intentionally separate. Use `ai:check` for functional quality evidence and `ai:check:secure` for security-oriented evidence. The CLI does not install Semgrep; target projects own the Semgrep binary and rule tuning.
 
 ## Profile document migrations
 
@@ -178,7 +181,7 @@ The target layout preserves the package-template-like `docs/`, `prompts/`, and `
 
 ## Support script defaults
 
-`init` and `update` also add missing support package scripts referenced by `ai:check` / `ai:check:fast`, such as `typecheck`, `lint`, `test`, `test:unit`, and for `react-nextjs`, `test:e2e:smoke`.
+`init` and `update` also add missing support package scripts referenced by `ai:check` / `ai:check:fast` / `ai:check:secure`, such as `typecheck`, `lint`, `test`, `test:unit`, and for `react-nextjs`, `test:e2e:smoke`.
 
 These defaults are intentionally conservative:
 
@@ -196,7 +199,7 @@ These defaults are intentionally conservative:
 - Already declared packages in `dependencies`, `devDependencies`, `peerDependencies`, or `optionalDependencies` are skipped.
 - Supported commands are `pnpm add -D`, `npm install --save-dev`, `yarn add --dev`, and `bun add --dev`.
 - The allowlist covers npm dev dependencies for generated defaults: `typescript`, `eslint`, `vitest`, `knip`, and `@playwright/test` for `react-nextjs`.
-- External tools such as Supabase CLI, Maestro, and React Doctor are not installed by this flag. React Doctor remains invoked through the generated `npx -y react-doctor@latest` script.
+- External tools such as Supabase CLI, Maestro, React Doctor, and Semgrep are not installed by this flag. React Doctor remains invoked through the generated `npx -y react-doctor@latest` script; Semgrep remains the target project's security tool responsibility.
 
 ## What init changes
 
@@ -205,9 +208,10 @@ These defaults are intentionally conservative:
 - Merges profile-aware package scripts for the selected `--profile`
 - Adds missing support package scripts while preserving existing user scripts
 - Uses the selected or detected package manager for generated package script invocations
+- Adds `ai:check:secure` as a separate `semgrep scan --config auto` security script
 - Optionally installs missing npm dev dependencies when `--install-deps` is set
 - Copies common test design / philosophy docs and selected profile docs under `docs/ai-check-template/`
-- Copies `package-templates/scripts/ai-check.sh` and `ai-check-fast.sh`
+- Copies `package-templates/scripts/ai-check.sh`, `ai-check-fast.sh`, and `ai-check-secure.sh`
 - Writes package-manager-aware GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges package-manager-aware hook settings when `--claude-hooks` is set
 - Writes `.ai-check-template.json` with install metadata
@@ -219,15 +223,15 @@ It does not modify `package-templates/`, publish to npm, install dependencies wi
 `doctor` is read-only. It checks the target project for the files and fragments installed by `init`:
 
 - profile-aware package scripts
-- missing support package scripts referenced by `ai:check` / `ai:check:fast`
+- missing support package scripts referenced by `ai:check` / `ai:check:fast` / `ai:check:secure`
 - package-manager-aware package script invocations
 - selected profile docs under `docs/ai-check-template/`
-- `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
+- `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, and `scripts/ai-check-secure.sh`
 - selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - optional Claude Code rule and hook settings when `--claude-hooks` is set
 - install state validity when `.ai-check-template.json` exists
 - profile-specific advisory warnings based on package scripts
-- missing referenced package script warnings from `ai:check` / `ai:check:fast`
+- missing referenced package script warnings from `ai:check` / `ai:check:fast` / `ai:check:secure`
 - stale managed CI workflow warnings for inactive `--ci` modes
 
 It exits with code `0` when no issues are found and code `1` when files are missing, drifted, or the install state is malformed. It does not repair files; use the reported paths to decide whether to run `update --dry-run` and then `update --yes`.
@@ -238,7 +242,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 
 - profile-aware package scripts
 - package-manager-aware package script invocations
-- `scripts/ai-check.sh` and `scripts/ai-check-fast.sh`
+- `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, and `scripts/ai-check-secure.sh`
 - selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
 - missing profile docs under `docs/ai-check-template/`
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
@@ -354,4 +358,4 @@ This command validates the publish payload without writing to the registry befor
 
 ## 日本語メモ
 
-この CLI は v0.2.0 の published stable CLI です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI は v0.2.0 の published stable CLI です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`ai:check` は機能品質、`ai:check:secure` は `semgrep scan --config auto` の security gate として分離します。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor、Semgrep などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。

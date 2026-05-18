@@ -98,6 +98,7 @@ export async function runUpdate(argv, io = {}) {
   await updatePackageScripts(targetDir, packageJsonPath, writeOptions, operations);
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", writeOptions, operations);
   await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", writeOptions, operations);
+  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-secure.sh"), "scripts/ai-check-secure.sh", writeOptions, operations);
   await createMissingProfileDocs(targetDir, writeOptions, operations);
   await updateCi(targetDir, writeOptions, operations);
   await cleanupInactiveCi(targetDir, writeOptions, operations);

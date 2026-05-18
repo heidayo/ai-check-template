@@ -54,6 +54,19 @@ validate-structure:
 	@grep -q '"strict": true' examples/nextjs-basic/tsconfig.json
 	@test -f package-templates/docs/test-design-template.md
 	@test -f package-templates/prompts/diagnostic-repair.md
+	@test -f package-templates/scripts/ai-check-secure.sh
+	@grep -q '"ai:check:secure"' package-templates/package.scripts.fragment.json
+	@grep -q "semgrep scan --config auto" package-templates/package.scripts.fragment.json
+	@grep -q "ai-check-secure.sh" package-templates/scripts/README.md
+	@grep -q "ai:check:secure" src/cli/profile-scripts.mjs
+	@grep -q "ai-check-secure.sh" src/cli/init.mjs
+	@grep -q "ai-check-secure.sh" src/cli/doctor.mjs
+	@grep -q "ai-check-secure.sh" src/cli/update.mjs
+	@grep -q "ai:check:secure" docs/cli.md
+	@grep -q "semgrep scan --config auto" docs/cli.md
+	@grep -q "ai:check:secure" docs/usage-model.md
+	@grep -q "ai-check-secure.sh" README.md
+	@grep -q "ai-check-secure.sh" README-ja.md
 	@grep -q "^## Requirement" package-templates/docs/test-design-template.md
 	@grep -q "^## Acceptance Criteria" package-templates/docs/test-design-template.md
 	@grep -q "^## Test Matrix" package-templates/docs/test-design-template.md

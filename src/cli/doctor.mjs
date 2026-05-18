@@ -224,6 +224,7 @@ async function diagnoseTarget(targetDir, options) {
   checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
   await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
+  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-secure.sh"), "scripts/ai-check-secure.sh", issues);
   await checkCi(targetDir, options.ci, options.packageManager, issues);
   const ciWarnings = await diagnoseInactiveCi(targetDir, options.ci);
 

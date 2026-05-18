@@ -21,6 +21,7 @@ A template collection for AI-driven development. It bundles:
 - A **testing philosophy** built for AI-written code (Test Pyramid, Given-When-Then, QA techniques, Formal Name Match)
 - **AI prompt templates** that force the model to declare success criteria before implementing
 - An **`ai:check` execution stack** (npm scripts, Claude Code hooks, shell entry points)
+- A separate **`ai:check:secure` security gate** for Semgrep-based scans
 - **GitHub Actions templates and hosted workflow foundation** that run the same `ai:check` on every PR
 - **Reviewability templates** for PR evidence, design explanation, tradeoff analysis, and human understanding checks
 - **Profiles** for common stacks (Next.js, vanilla React, Expo, Node CLI, Supabase + RLS)
@@ -71,7 +72,7 @@ The repository ships templates and prompts for every step in this loop.
 | **Test design** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) maps requirements to acceptance criteria, test matrix rows, and verification commands |
 | **Prompts** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
 | **Reviewability** | [PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md), [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md), and prompts for [design explanation](./package-templates/prompts/design-explanation.md), [tradeoff analysis](./package-templates/prompts/tradeoff-analysis.md), [self-understanding checks](./package-templates/prompts/self-understanding-check.md), and [review training](./package-templates/prompts/review-training.md) |
-| **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
+| **Execution stack** | `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, `scripts/ai-check-secure.sh`, `.claude/settings.hook-fragment.json`, `.claude/rules/test-rules.md`, `package.scripts.fragment.json` |
 | **CI integration** | GitHub Actions `ai-check.yml` (full), `ai-check-fast.yml` (PR-only fast loop), reusable workflow examples, and the hosted workflow / Composite Action guide in [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
@@ -83,6 +84,8 @@ The repository ships templates and prompts for every step in this loop.
 `ai-check-template` is a post-implementation verification stack. It does not make AI write code; it helps teams verify, repair, and safely accept AI-generated code after implementation.
 
 Use it through five loops: **Local loop** for fast checks after AI edits, **Repair loop** for diagnostic-driven fixes, **E2E loop** for critical Playwright journeys, **CI gate** for shared pull-request enforcement, and **Review gate** for human acceptance with design, risks, tests, and understanding evidence. The Review gate has manual-copy templates under [`package-templates/.github/`](./package-templates/.github/) and [`package-templates/worksheet/`](./package-templates/worksheet/). See [`docs/usage-model.md`](./docs/usage-model.md).
+
+Security checks are intentionally split: keep `ai:check` for functional quality, and run `ai:check:secure` for Semgrep-based security evidence.
 
 ## Quick start
 
@@ -118,6 +121,7 @@ cat ai-check-template/package-templates/package.scripts.fragment.json
 
 # 6. Run the loop
 pnpm ai:check
+pnpm ai:check:secure
 ```
 
 To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/). To prepare your own task before implementation, start from [`test-design-template.md`](./package-templates/docs/test-design-template.md), then use [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) when `ai:check` or CI returns a failing diagnostic. Before human acceptance, use the [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) and [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md).

@@ -65,7 +65,7 @@ Phase 2 の CLI 実装で `--profile react-nextjs+supabase-rls` 形式を予定�
 | 目的 | 誰向け・何を解決するか |
 | 対象スタック | フレームワーク・ライブラリ・バージョン |
 | 推奨ツール | 必須 / 推奨 / 任意のテーブル |
-| ai:check カスタマイズ案 | `package.scripts.fragment.json` の差分 |
+| ai:check カスタマイズ案 | `package.scripts.fragment.json` の差分。security gate は `ai:check:secure` として分離 |
 | .claude / scripts カスタマイズ案 | hook / scripts の差分 |
 | 注意事項 | profile 固有の落とし穴 |
 | 隣接 profile | 他 profile への参照 |

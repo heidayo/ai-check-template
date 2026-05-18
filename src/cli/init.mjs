@@ -276,7 +276,7 @@ async function mergePackageScripts(packageJsonPath, profile, options, operations
 }
 
 async function copyScripts(targetDir, options, operations) {
-  for (const fileName of ["ai-check.sh", "ai-check-fast.sh"]) {
+  for (const fileName of ["ai-check.sh", "ai-check-fast.sh", "ai-check-secure.sh"]) {
     operations.push(
       await copyFileSafe(
         fromTemplates("scripts", fileName),

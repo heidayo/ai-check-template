@@ -122,6 +122,8 @@ test("packed tarball can init a fixture project", (t) => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"));
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
+  assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-secure.sh")), true);
 });

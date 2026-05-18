@@ -20,7 +20,8 @@ package-templates/
 │       └── qa-techniques.md
 ├── scripts/
 │   ├── ai-check.sh
-│   └── ai-check-fast.sh
+│   ├── ai-check-fast.sh
+│   └── ai-check-secure.sh
 ├── .claude/
 │   ├── rules/
 │   │   └── test-rules.md
@@ -63,6 +64,7 @@ package-templates/
 
 - [`docs/test-design-template.md`](./docs/test-design-template.md): Requirement / Acceptance Criteria / Test Matrix / Verification Commands を実装前に固定するテンプレート。
 - [`prompts/diagnostic-repair.md`](./prompts/diagnostic-repair.md): `ai:check` や CI の失敗後、redacted diagnostic output から修復計画・patch・再検証へ進めるプロンプト。
+- [`scripts/ai-check-secure.sh`](./scripts/ai-check-secure.sh): `ai:check` と分離して `ai:check:secure`（default: `semgrep scan --config auto`）を実行する security gate entry point。
 
 ## Review gate
 

@@ -35,12 +35,14 @@
 {
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
-    "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit"
+    "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": "semgrep scan --config auto"
   }
 }
 ```
 
 Playwright を使う場合は `ai:check` に `pnpm test:e2e:smoke` を追加。
+Security gate は `ai:check:secure` として分離し、Semgrep の導入・設定は利用プロジェクト側で行う。
 
 ## .claude / scripts カスタマイズ案
 

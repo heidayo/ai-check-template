@@ -212,6 +212,7 @@ test("update repairs scripts using install state package manager", (t) => {
   assert.equal(output.effectiveOptions.packageManager, "npm");
   const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   assert.equal(updatedPackageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run deadcode && npm run test");
+  assert.equal(updatedPackageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(doctor(target).status, 0);
 });
 
@@ -334,6 +335,7 @@ test("update migrates generic scripts to node-cli profile scripts", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const packageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"));
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(packageJson.scripts["ai:check"].includes("test:e2e:smoke"), false);
   assert.equal(doctor(target, ["--profile", "node-cli", "--ci", "none"]).status, 0);
 });
