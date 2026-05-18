@@ -74,7 +74,13 @@ The repository ships templates and prompts for every step in this loop.
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) shows a Before / After of AI-generated code under `ai-check-template` |
 | **Profiles** | `react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`, `supabase-rls` |
 | **CLI** | [`docs/cli.md`](./docs/cli.md) documents the `ai-check-template@0.2.0` CLI, `init`, read-only `doctor`, and guarded `update` commands, install state (`.ai-check-template.json`), profile-aware package script migrations, profile docs migration, support script defaults, package manager detection plus Claude hook and CI workflow command rendering for `pnpm` / `npm` / `yarn` / `bun`, optional `--install-deps` npm dev dependency install, exact-managed workflow cleanup, advisory profile and missing-script diagnostics warnings, stale managed CI diagnostics, `doctor --strict`, `--profile`, `--package-manager`, `--ci`, `--claude-hooks`, `--dry-run`, and `--overwrite` |
-| **Project docs** | [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
+| **Project docs** | [`docs/usage-model.md`](./docs/usage-model.md), [`docs/vision.md`](./docs/vision.md), [`docs/roadmap.md`](./docs/roadmap.md), Phase 1 dogfooding protocol, [`initial dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
+
+## Where This Fits
+
+`ai-check-template` is a post-implementation verification stack. It does not make AI write code; it helps teams verify, repair, and safely accept AI-generated code after implementation.
+
+Use it through five loops: **Local loop** for fast checks after AI edits, **Repair loop** for diagnostic-driven fixes, **E2E loop** for critical Playwright journeys, **CI gate** for shared pull-request enforcement, and **Review gate** for human acceptance with design, risks, and test evidence. See [`docs/usage-model.md`](./docs/usage-model.md).
 
 ## Quick start
 

@@ -111,6 +111,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 
 Candidates, not commitments:
 
+- Adoption-focused usage model: [`./usage-model.md`](./usage-model.md) explains the Local loop, Repair loop, E2E loop, CI gate, and Review gate that make the package useful after installation.
 - GitLab CI / CircleCI / Bitbucket Pipelines templates
 - Project-specific dashboards that aggregate `ai:check` results across PRs
 - Per-language extensions (Python, Go, Rust) once the Node-first design has matured
@@ -128,6 +129,7 @@ If a candidate is not on this roadmap, that does not mean it is rejected — it 
 ## References
 
 - [`./vision.md`](./vision.md) — the philosophical motivation
+- [`./usage-model.md`](./usage-model.md) — how the package helps after AI implementation
 - [`./github-actions.md`](./github-actions.md) — hosted workflow, Composite Action, and copy examples
 - [`../README.md`](../README.md) — the external-facing entry point
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — how to participate

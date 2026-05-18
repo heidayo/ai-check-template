@@ -182,6 +182,17 @@ validate-structure:
 	@grep -q -- "--claude-hooks" docs/cli.md
 	@grep -q "docs/cli.md" README.md
 	@grep -q "docs/cli.md" README-ja.md
+	@test -f docs/usage-model.md
+	@grep -q "Local loop" docs/usage-model.md
+	@grep -q "Repair loop" docs/usage-model.md
+	@grep -q "E2E loop" docs/usage-model.md
+	@grep -q "CI gate" docs/usage-model.md
+	@grep -q "Review gate" docs/usage-model.md
+	@grep -q "post-implementation verification stack" docs/usage-model.md
+	@grep -q "does not make AI write code" docs/usage-model.md
+	@grep -q "docs/usage-model.md" README.md
+	@grep -q "docs/usage-model.md" README-ja.md
+	@grep -q "./usage-model.md" docs/roadmap.md
 	@grep -q "doctor" README.md
 	@grep -q "doctor" README-ja.md
 	@grep -q "doctor" docs/roadmap.md
