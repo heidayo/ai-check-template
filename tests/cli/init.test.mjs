@@ -99,6 +99,7 @@ test("init merges package scripts and copies shell scripts", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
   assert.equal(packageJson.scripts.deadcode, "knip");
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
@@ -107,6 +108,7 @@ test("init merges package scripts and copies shell scripts", (t) => {
   assert.equal(packageJson.scripts["test:e2e:smoke"], "playwright test --grep smoke");
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
+  assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-secure.sh")), true);
 });
 
 test("init uses explicit npm package manager scripts", (t) => {
@@ -128,6 +130,7 @@ test("init uses explicit npm package manager scripts", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run doctor && npm run deadcode && npm run test && npm run test:e2e:smoke && npm run test:db && npm run test:integration:rls");
   assert.equal(packageJson.scripts["ai:check:fast"], "npm run typecheck && npm run lint && npm run test:unit");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(readInstallState(target).packageManager, "npm");
 });
 
@@ -140,6 +143,7 @@ test("init detects yarn from lockfile", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "yarn typecheck && yarn lint && yarn deadcode && yarn test");
   assert.equal(packageJson.scripts["ai:check:fast"], "yarn typecheck && yarn lint && yarn test:unit");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(readInstallState(target).packageManager, "yarn");
 });
 
@@ -150,6 +154,7 @@ test("node-cli profile scripts exclude UI E2E", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
+  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
   assert.equal(packageJson.scripts.lint, "eslint .");
   assert.equal(packageJson.scripts.test, "node --test");
@@ -497,6 +502,7 @@ test("existing files and scripts are not overwritten by default", (t) => {
     name: "fixture",
     scripts: {
       "ai:check": "custom check",
+      "ai:check:secure": "custom secure check",
       lint: "custom lint",
     },
   });
@@ -509,6 +515,7 @@ test("existing files and scripts are not overwritten by default", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "custom check");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
+  assert.equal(packageJson.scripts["ai:check:secure"], "custom secure check");
   assert.equal(packageJson.scripts.lint, "custom lint");
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
   assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "custom script\n");

@@ -1,4 +1,4 @@
-const CHECK_SCRIPT_NAMES = ["ai:check", "ai:check:fast"];
+const CHECK_SCRIPT_NAMES = ["ai:check", "ai:check:fast", "ai:check:secure"];
 
 const SCRIPT_REFERENCE_PATTERNS = [
   /\b(?:pnpm|yarn)\s+([A-Za-z0-9:_-]+)/g,

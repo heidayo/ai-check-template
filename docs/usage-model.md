@@ -41,10 +41,13 @@ Typical commands:
 ```sh
 pnpm ai:check:fast
 pnpm ai:check
+pnpm ai:check:secure
 ```
 
 Use `ai:check:fast` for frequent feedback. It should stay cheap enough to run
 after small edits. Use `ai:check` before opening or updating a pull request.
+Use `ai:check:secure` when security evidence is needed; it is intentionally
+separate from the functional quality gate.
 
 This loop catches:
 
@@ -53,6 +56,10 @@ This loop catches:
 - missing or failing tests
 - dead exports and unused dependencies
 - obvious React / UI diagnostic issues when the selected profile supports them
+
+Security findings should be collected through the separate `ai:check:secure`
+gate. The default command is `semgrep scan --config auto`; installing Semgrep
+and tuning project-specific rules remain the target project's responsibility.
 
 ## Repair Loop
 
@@ -156,7 +163,7 @@ These are planned directions, not all shipped behavior in the current package:
 
 | Track | Purpose |
 |---|---|
-| Security split | Separate functional quality from `ai:check:secure` security checks |
+| Security automation | Add richer security reporting or dedicated CI examples on top of `ai:check:secure` |
 | Reviewability automation | Add CLI install / update support for reviewability templates |
 | Playwright stabilization | Add config examples, locator rules, and E2E creation prompts |
 | Profile corrections | Revisit profile assumptions as external tools evolve |

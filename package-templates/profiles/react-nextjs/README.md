@@ -36,7 +36,8 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 {
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
-    "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit"
+    "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": "semgrep scan --config auto"
   }
 }
 ```
@@ -49,12 +50,13 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 - `test`: `vitest run`
 - `test:unit`: `vitest run --dir tests/unit`
 - `test:e2e:smoke`: `playwright test --grep smoke`
+- `ai:check:secure`: Semgrep による security gate。`ai:check` には混ぜず、PR / CI の別 step で実行。
 
 ## .claude / scripts カスタマイズ案
 
 - `.claude/settings.hook-fragment.json`: そのまま使える（hook command が `pnpm ai:check` / `pnpm ai:check:fast`）
 - `.claude/rules/test-rules.md`: Playwright Locator 優先順位を遵守
-- `scripts/ai-check.sh` / `ai-check-fast.sh`: そのまま
+- `scripts/ai-check.sh` / `ai-check-fast.sh` / `ai-check-secure.sh`: そのまま
 
 ## 注意事項
 

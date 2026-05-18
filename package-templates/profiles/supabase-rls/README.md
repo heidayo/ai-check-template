@@ -35,13 +35,15 @@ base profile の `ai:check` に **追加** で:
   "scripts": {
     "test:db": "supabase test db",
     "test:integration:rls": "vitest run --dir tests/rls",
-    "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test && pnpm test:db && pnpm test:integration:rls && pnpm test:e2e:smoke"
+    "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test && pnpm test:db && pnpm test:integration:rls && pnpm test:e2e:smoke",
+    "ai:check:secure": "semgrep scan --config auto"
   }
 }
 ```
 
 - `pnpm test:db`: pgTAP の SQL テスト実行
 - `pnpm test:integration:rls`: 実ユーザートークンで他人データへのアクセス不可を検証
+- `pnpm ai:check:secure`: Semgrep で trust boundary / unsafe input handling を確認。RLS correctness は `test:db` / `test:integration:rls` が主担当。
 
 ## .claude / scripts カスタマイズ案（addon）
 

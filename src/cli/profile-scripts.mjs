@@ -1,27 +1,33 @@
 import { parseProfiles } from "./profile.mjs";
 import { DEFAULT_PACKAGE_MANAGER, scriptCommand } from "./package-manager.mjs";
 
+const SECURITY_CHECK_SCRIPT = "semgrep scan --config auto";
+
 const BASE_PROFILE_SCRIPTS = {
   "react-nextjs": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": SECURITY_CHECK_SCRIPT,
     doctor: "npx -y react-doctor@latest . --fail-on warning",
     deadcode: "knip",
   },
   "react-vanilla": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": SECURITY_CHECK_SCRIPT,
     deadcode: "knip",
   },
   "expo-rn": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": SECURITY_CHECK_SCRIPT,
     deadcode: "knip",
     "test:e2e:smoke": "maestro test .maestro/smoke.yaml",
   },
   "node-cli": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
+    "ai:check:secure": SECURITY_CHECK_SCRIPT,
     deadcode: "knip",
   },
 };

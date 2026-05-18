@@ -8,15 +8,16 @@
 
 ```
 scripts/
-├── ai-check.sh         # full check（Static + Unit + Integration + Diagnostic + E2E）
-└── ai-check-fast.sh    # fast check（Static + Unit のみ、AI 内部ループ用）
+├── ai-check.sh          # full check（Static + Unit + Integration + Diagnostic + E2E）
+├── ai-check-fast.sh     # fast check（Static + Unit のみ、AI 内部ループ用）
+└── ai-check-secure.sh   # security check（Semgrep 等）
 ```
 
 ## 思想
 
 形名参同（[`../docs/philosophy/formal-name-match.md`](../docs/philosophy/formal-name-match.md)）の「形」を取得する実体。
 
-- 「名」（成功基準）は `package.json` の `ai:check` / `ai:check:fast` スクリプトに定義
+- 「名」（成功基準）は `package.json` の `ai:check` / `ai:check:fast` / `ai:check:secure` スクリプトに定義
 - 「形」（実測値）はそれらを実行した出力
 - 本スクリプトは PM 抽象化と最小ロギングのみ担当し、ロジックは npm scripts に委譲する
 
@@ -26,6 +27,7 @@ scripts/
 ```bash
 bash scripts/ai-check.sh
 bash scripts/ai-check-fast.sh
+bash scripts/ai-check-secure.sh
 ```
 
 ### PM 切り替え
@@ -41,27 +43,31 @@ PM=bun  bash scripts/ai-check.sh
 ```bash
 pnpm ai:check
 pnpm ai:check:fast
+pnpm ai:check:secure
 ```
 
 シェルスクリプトの利点:
 - PM 非依存（環境変数で切り替え）
 - 非 Node プロジェクトでも entry point として配置可能
-- 統一 logging プレフィックス（`[ai-check]` / `[ai-check-fast]`）
+- 統一 logging プレフィックス（`[ai-check]` / `[ai-check-fast]` / `[ai-check-secure]`）
 
 ## package.scripts.fragment.json との関係
 
-`ai:check` / `ai:check:fast` の中身は `../package.scripts.fragment.json` に定義される。
+`ai:check` / `ai:check:fast` / `ai:check:secure` の中身は `../package.scripts.fragment.json` に定義される。
 利用者は自プロジェクトの `package.json` に scripts エントリをマージする。
 
 ```
 scripts/ai-check.sh → ${PM} ai:check → package.json scripts.ai:check
                                        (typecheck → lint → test → e2e:smoke 等を連鎖)
+scripts/ai-check-secure.sh → ${PM} ai:check:secure → package.json scripts.ai:check:secure
+                                                     (semgrep scan --config auto)
 ```
 
 ## CI 統合との関係
 
 [`../ci-examples/github-actions/ai-check.yml`](../ci-examples/github-actions/ai-check.yml) でも同じ `${PM} ai:check` を呼ぶ。
 ローカル（シェル）と CI（GitHub Actions）で**同じコマンド**が走る設計。
+Security gate を CI で分ける場合は、hosted workflow / Composite Action の `check-command` に `pnpm ai:check:secure` を渡す。
 
 ## Claude Code Hook との関係
 
