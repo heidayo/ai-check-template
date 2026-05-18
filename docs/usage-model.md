@@ -77,6 +77,13 @@ The [`diagnostic-repair.md`](../package-templates/prompts/diagnostic-repair.md)
 prompt exists for this step. The goal is to keep the agent grounded in evidence
 instead of allowing it to self-report success.
 
+Security findings use a separate prompt:
+[`security-scan.md`](../package-templates/prompts/security-scan.md). Run
+`ai:check:secure` separately from `ai:check`, redact scanner output, and ask the
+agent to classify each finding as fix, false positive, suppression, accepted
+risk, or human review. This keeps security decisions out of the normal feature
+repair loop.
+
 ## E2E Loop
 
 The E2E loop protects critical user journeys with Playwright.
