@@ -1,6 +1,6 @@
 # CLI
 
-`ai-check-template` includes a published stable CLI for v0.2.0. The current stable package is `ai-check-template@0.2.0`, available through npm's `latest` dist-tag.
+`ai-check-template` includes a published stable CLI for v0.2.0. The current stable package is `ai-check-template@0.2.0`, available through npm's `latest` dist-tag. This document also tracks repository-current CLI additions that are validated by `npm pack` before the next npm publish.
 
 Use it to copy the v0.1.0 templates into an existing project with safer defaults than manual copy.
 
@@ -36,6 +36,8 @@ node ../ai-check-template/bin/ai-check-template.mjs init --target . --profile no
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --json
 node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --strict --json
 node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
+node ../ai-check-template/bin/ai-check-template.mjs run --target . --script ai:check --output .ai-check/ai-check-result.json --json
+node ../ai-check-template/bin/ai-check-template.mjs expect --file docs/ai-check-template/docs/ac-test-matrix.example.yaml --json
 ```
 
 ## Init options
@@ -80,6 +82,39 @@ node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
 | `--json` | off | Prints `{ status, target, installation, effectiveOptions, operations }` for automation. |
+
+## Run options
+
+`run` executes one target `package.json` script and emits structured evidence.
+It is useful when a repair prompt needs exact command output without trusting an
+AI self-report.
+
+| Option | Default | Description |
+|---|---|---|
+| `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
+| `--script <name>` | `ai:check` | Package script to execute. The command is split on explicit `&&` steps. |
+| `--json` | off | Prints `{ status, script, command, startedAt, durationMs, steps }`. |
+| `--output <file>` | none | Writes the same JSON result to a file, creating parent directories as needed. |
+
+Step status is one of `PASS`, `FAIL`, or `SKIPPED`. After the first failing
+step, remaining steps are recorded as `SKIPPED` to preserve `&&` semantics.
+Captured stdout/stderr is redacted for common token, secret, password,
+credential, API key, AWS key, GitHub token, and JWT patterns.
+
+## Expect options
+
+`expect` validates the structured AC / Test Matrix JSON or template-subset YAML
+distributed under `package-templates/docs/`.
+
+| Option | Default | Description |
+|---|---|---|
+| `--file <path>` | required | JSON, YAML, or YML file to validate. |
+| `--json` | off | Prints `{ status, file, summary, issues }`. |
+
+The validator checks that requirement metadata exists, AC IDs are unique, every
+AC has a command, every test row references a known AC, and every AC is covered
+by at least one test row. YAML support is intentionally limited to the packaged
+template shape; use JSON for richer metadata.
 
 ## Install state
 
@@ -166,11 +201,13 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 - `expo-rn` adds React Doctor diagnostics and keeps mobile-oriented smoke E2E defaults
 - `node-cli` excludes UI E2E from `ai:check`
 - `supabase-rls` adds `test:db` and `test:integration:rls`
-- all profiles add `ai:check:secure` as a separate Semgrep security gate (`semgrep scan --config auto`)
+- all profiles add `ai:check:secure` as a separate security evidence gate:
+  `security:secrets`, `security:deps`, `security:supply-chain`, and
+  `security:sast` (`semgrep scan --config auto`)
 
 `init` merges the selected profile scripts. `doctor` checks the effective profile scripts. `update` migrates known managed package scripts to the effective profile, with explicit `--profile` and `--package-manager` taking precedence over install state.
 
-`ai:check` and `ai:check:secure` are intentionally separate. Use `ai:check` for functional quality evidence and `ai:check:secure` for security-oriented evidence. The CLI does not install Semgrep; target projects own the Semgrep binary and rule tuning.
+`ai:check` and `ai:check:secure` are intentionally separate. Use `ai:check` for functional quality evidence and `ai:check:secure` for security-oriented evidence. The CLI does not install Semgrep, Secretlint, or organization-specific security tools; target projects own scanner availability and rule tuning.
 
 ## Profile document migrations
 
@@ -179,6 +216,9 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 The copied set includes:
 
 - `docs/test-design-template.md`
+- `docs/ac-test-matrix.schema.json`
+- `docs/ac-test-matrix.example.json`
+- `docs/ac-test-matrix.example.yaml`
 - `docs/philosophy/*.md`
 - `prompts/diagnostic-repair.md`
 - `profiles/README.md`
@@ -216,7 +256,7 @@ These defaults are intentionally conservative:
 - Merges profile-aware package scripts for the selected `--profile`
 - Adds missing support package scripts while preserving existing user scripts
 - Uses the selected or detected package manager for generated package script invocations
-- Adds `ai:check:secure` as a separate `semgrep scan --config auto` security script
+- Adds `ai:check:secure` as a separate security script chain for secret scan, dependency audit, supply-chain check, and Semgrep SAST
 - Optionally installs missing npm dev dependencies when `--install-deps` is set
 - Copies common test design / philosophy docs and selected profile docs under `docs/ai-check-template/`
 - Copies `package-templates/scripts/ai-check.sh`, `ai-check-fast.sh`, and `ai-check-secure.sh`
@@ -377,4 +417,4 @@ This command validates the publish payload without writing to the registry befor
 
 ## 日本語メモ
 
-この CLI は v0.2.0 の published stable CLI です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`ai:check` は機能品質、`ai:check:secure` は `semgrep scan --config auto` の security gate として分離します。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor、Semgrep などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI の published stable package は `ai-check-template@0.2.0` です。この docs は次回 npm publish 前の repository-current CLI 追加も含みます。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`run` は `ai:check` の各 step を PASS / FAIL / SKIPPED、duration、redacted output 付き JSON にし、`expect` は AC / Test Matrix の JSON / YAML を検証します。`ai:check` は機能品質、`ai:check:secure` は secret scan / dependency audit / supply-chain check / Semgrep SAST の security gate として分離します。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor、Semgrep、Secretlint などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。

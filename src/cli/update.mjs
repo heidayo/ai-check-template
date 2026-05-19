@@ -278,7 +278,7 @@ async function updatePackageScripts(targetDir, packageJsonPath, options, operati
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
   const expectedScripts = getProfileScripts(options.profile, { packageManager: options.packageManager });
-  const supportScripts = getProfileSupportScripts(options.profile);
+  const supportScripts = getProfileSupportScripts(options.profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 

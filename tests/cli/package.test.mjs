@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const PNPM_SECURE_SCRIPT = "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast";
 
 function run(command, args, options = {}) {
   return spawnSync(command, args, {
@@ -72,7 +73,9 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "src/cli/ci-workflows.mjs",
     "src/cli/claude-hooks.mjs",
     "src/cli/dependency-installer.mjs",
+    "src/cli/expect.mjs",
     "src/cli/profile-docs.mjs",
+    "src/cli/run.mjs",
     "src/cli/index.mjs",
     "src/cli/doctor.mjs",
     "src/cli/install-state.mjs",
@@ -85,6 +88,9 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "src/cli/utils.mjs",
     "docs/cli.md",
     "package-templates/package.scripts.fragment.json",
+    "package-templates/docs/ac-test-matrix.schema.json",
+    "package-templates/docs/ac-test-matrix.example.json",
+    "package-templates/docs/ac-test-matrix.example.yaml",
     "package-templates/scripts/ai-check.sh",
     "package-templates/ci-examples/github-actions/ai-check.yml",
     "package-templates/.claude/settings.hook-fragment.json",
@@ -132,7 +138,7 @@ test("packed tarball can init a fixture project", (t) => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8"));
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], PNPM_SECURE_SCRIPT);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-fast.sh")), true);
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check-secure.sh")), true);

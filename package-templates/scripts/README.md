@@ -10,7 +10,7 @@
 scripts/
 ├── ai-check.sh          # full check（Static + Unit + Integration + Diagnostic + E2E）
 ├── ai-check-fast.sh     # fast check（Static + Unit のみ、AI 内部ループ用）
-└── ai-check-secure.sh   # security check（Semgrep 等）
+└── ai-check-secure.sh   # security check（secret / dependency / supply-chain / SAST）
 ```
 
 ## 思想
@@ -73,8 +73,10 @@ pnpm ai:check:secure
 scripts/ai-check.sh → ${PM} ai:check → package.json scripts.ai:check
                                        (typecheck → lint → test → e2e:smoke 等を連鎖)
 scripts/ai-check-secure.sh → ${PM} ai:check:secure → package.json scripts.ai:check:secure
-                                                     (semgrep scan --config auto)
+                                                     (security:secrets → security:deps → security:supply-chain → security:sast)
 ```
+
+`security:sast` の既定値は `semgrep scan --config auto`。他の step は secret scan、dependency audit、supply-chain check の入口で、利用プロジェクト側の scanner availability と rule tuning に合わせて調整する。
 
 ## CI 統合との関係
 

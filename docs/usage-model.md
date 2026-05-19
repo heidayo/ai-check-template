@@ -24,6 +24,27 @@ Requirement / SPEC
   -> Human acceptance
 ```
 
+First-look map:
+
+```mermaid
+flowchart TD
+  R["Requirement / SPEC"] --> P["plan-first.md"]
+  P --> Q["QA prompts: boundary-value.md / decision-table.md / state-transition.md / rls-permission.md"]
+  Q --> M["test-design-template.md + ac-test-matrix JSON/YAML"]
+  M --> I["AI implementation"]
+  I --> L["Local loop: ai:check:fast / ai-check-template run"]
+  L -->|failure| D["diagnostic-repair.md"]
+  L --> E["E2E loop: e2e-test-creation.md"]
+  E --> C["CI gate: ai:check / ai:check:secure"]
+  C -->|security finding| S["security-scan.md"]
+  C --> V["Review gate: design-explanation.md / tradeoff-analysis.md / self-understanding-check.md / review-training.md"]
+  D --> L
+  S --> C
+  V --> H["Human acceptance"]
+```
+
+The prompt catalog in [`../package-templates/prompts/README.md`](../package-templates/prompts/README.md) uses the same loop names.
+
 ## What This Solves
 
 AI coding tools can produce implementation quickly. The slow part is proving
@@ -49,6 +70,8 @@ Typical commands:
 pnpm ai:check:fast
 pnpm ai:check
 pnpm ai:check:secure
+npx -y ai-check-template run --target . --script ai:check --json
+npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
 ```
 
 Use `ai:check:fast` for frequent feedback. It should stay cheap enough to run
@@ -65,8 +88,10 @@ This loop catches:
 - obvious React / UI diagnostic issues when the selected profile supports them
 
 Security findings should be collected through the separate `ai:check:secure`
-gate. The default command is `semgrep scan --config auto`; installing Semgrep
-and tuning project-specific rules remain the target project's responsibility.
+gate. The generated default chain covers `security:secrets`, `security:deps`,
+`security:supply-chain`, and `security:sast` (`semgrep scan --config auto`).
+Installing scanners and tuning project-specific rules remain the target
+project's responsibility.
 
 ## Repair Loop
 
@@ -83,6 +108,10 @@ Instead of saying "fix the bug", the workflow should provide:
 The [`diagnostic-repair.md`](../package-templates/prompts/diagnostic-repair.md)
 prompt exists for this step. The goal is to keep the agent grounded in evidence
 instead of allowing it to self-report success.
+
+For command evidence, prefer `ai-check-template run --json --output .ai-check/ai-check-result.json`.
+It records each command step with `PASS`, `FAIL`, or `SKIPPED`, duration, and
+redacted stdout/stderr so the repair prompt can receive precise evidence.
 
 Security findings use a separate prompt:
 [`security-scan.md`](../package-templates/prompts/security-scan.md). Run
@@ -186,7 +215,7 @@ These are planned directions, not all shipped behavior in the current package:
 
 | Track | Purpose |
 |---|---|
-| Security automation | Add richer security reporting or dedicated CI examples on top of `ai:check:secure` |
+| Security automation | Shipped split scripts for secret scan, dependency audit, supply-chain, and Semgrep SAST under `ai:check:secure` |
 | Reviewability automation | Shipped optional CLI install / update / doctor support for reviewability templates |
 | Playwright stabilization | Shipped manual-copy config examples, locator rules, artifact guidance, and E2E creation prompt |
 | Profile corrections | Revisit profile assumptions as external tools evolve |

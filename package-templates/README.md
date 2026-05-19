@@ -13,6 +13,9 @@ package-templates/
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── docs/
 │   ├── test-design-template.md
+│   ├── ac-test-matrix.schema.json
+│   ├── ac-test-matrix.example.json
+│   ├── ac-test-matrix.example.yaml
 │   └── philosophy/
 │       ├── formal-name-match.md
 │       ├── test-pyramid.md
@@ -63,8 +66,9 @@ package-templates/
 ## テスト設計と修復
 
 - [`docs/test-design-template.md`](./docs/test-design-template.md): Requirement / Acceptance Criteria / Test Matrix / Verification Commands を実装前に固定するテンプレート。
+- [`docs/ac-test-matrix.schema.json`](./docs/ac-test-matrix.schema.json)、[`docs/ac-test-matrix.example.json`](./docs/ac-test-matrix.example.json)、[`docs/ac-test-matrix.example.yaml`](./docs/ac-test-matrix.example.yaml): AC / Test Matrix を機械可読な JSON / YAML として固定し、`ai-check-template expect --file ... --json` で検証するテンプレート。
 - [`prompts/diagnostic-repair.md`](./prompts/diagnostic-repair.md): `ai:check` や CI の失敗後、redacted diagnostic output から修復計画・patch・再検証へ進めるプロンプト。
-- [`scripts/ai-check-secure.sh`](./scripts/ai-check-secure.sh): `ai:check` と分離して `ai:check:secure`（default: `semgrep scan --config auto`）を実行する security gate entry point。
+- [`scripts/ai-check-secure.sh`](./scripts/ai-check-secure.sh): `ai:check` と分離して `ai:check:secure`（secret scan / dependency audit / supply-chain check / `semgrep scan --config auto`）を実行する security gate entry point。
 
 ## Review gate
 

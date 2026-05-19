@@ -25,7 +25,9 @@ AI 駆動開発のためのテンプレート集。以下を提供:
 - AI 生成コード向けの**テスト設計思想**（Test Pyramid / Given-When-Then / QA 技法 / 形名参同）
 - 実装前に成功基準を AI に宣言させる **AI プロンプト雛形**
 - `ai:check` **実行スタック**（npm scripts / Claude Code hooks / シェルエントリポイント）
-- Semgrep ベースの診断を分離する **`ai:check:secure` security gate**
+- `ai-check-template run` による **PASS / FAIL / SKIPPED + timing + redacted output** の構造化 evidence
+- AC / Test Matrix を JSON / YAML で固定する **structured test design template**
+- secret scan / dependency audit / supply-chain / Semgrep を分離する **`ai:check:secure` security gate**
 - 同じ `ai:check` を PR で走らせる **GitHub Actions テンプレと hosted workflow foundation**
 - PR 証跡、設計説明、トレードオフ分析、人間の理解度確認のための **Reviewability テンプレート**
 - 主要スタック向け**プロファイル**（Next.js / vanilla React / Expo / Node CLI / Supabase + RLS）
@@ -73,23 +75,23 @@ AI 実装
 | レイヤ | 内容 |
 |---|---|
 | **思想ドキュメント** | [`formal-name-match.md`](./package-templates/docs/philosophy/formal-name-match.md)（形名参同）、[`test-pyramid.md`](./package-templates/docs/philosophy/test-pyramid.md)（責務分割）、[`given-when-then.md`](./package-templates/docs/philosophy/given-when-then.md)（GWT）、[`qa-techniques.md`](./package-templates/docs/philosophy/qa-techniques.md)（QA 技法） |
-| **テスト設計** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) は要件を AC / Test Matrix / 検証コマンドへ落とすテンプレート |
+| **テスト設計** | [`test-design-template.md`](./package-templates/docs/test-design-template.md) は要件を AC / Test Matrix / 検証コマンドへ落とすテンプレート。[`ac-test-matrix.schema.json`](./package-templates/docs/ac-test-matrix.schema.json)、JSON / YAML example、`ai-check-template expect` で機械可読化できる |
 | **AI プロンプト雛形** | `decision-table` / `state-transition` / `boundary-value` / `rls-permission` / `plan-first` / [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) |
 | **Reviewability** | [PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md)、[AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md)、[design explanation](./package-templates/prompts/design-explanation.md)、[tradeoff analysis](./package-templates/prompts/tradeoff-analysis.md)、[self-understanding check](./package-templates/prompts/self-understanding-check.md)、[review training](./package-templates/prompts/review-training.md) |
 | **実行スタック** | `scripts/ai-check.sh`、`scripts/ai-check-fast.sh`、`scripts/ai-check-secure.sh`、`.claude/settings.hook-fragment.json`、`.claude/rules/test-rules.md`、`package.scripts.fragment.json` |
 | **CI 統合** | GitHub Actions `ai-check.yml`（フル）、`ai-check-fast.yml`（PR の fast ループ）、reusable workflow examples、hosted workflow / Composite Action guide の [`docs/github-actions.md`](./docs/github-actions.md) |
 | **Examples** | [`examples/nextjs-basic`](./examples/nextjs-basic/) は AI 生成コードの Before / After を示す runnable example |
 | **プロファイル** | `react-nextjs` / `react-vanilla` / `expo-rn` / `node-cli` / `supabase-rls` |
-| **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template@0.2.0` CLI、`init` command、read-only `doctor` command、guarded `update` command、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、`pnpm` / `npm` / `yarn` / `bun` の package manager detection と Claude hook / review template / CI workflow command rendering、optional `--install-deps` npm dev dependency install、exact-managed workflow cleanup、advisory profile / missing-script diagnostics warnings、stale managed CI diagnostics、`doctor --strict`、`--profile`、`--package-manager`、`--ci`、`--claude-hooks`、`--review-templates`、`--dry-run`、`--overwrite` を説明 |
+| **CLI** | [`docs/cli.md`](./docs/cli.md) は `ai-check-template` CLI、`init` / `doctor` / `update` / repository-current の `run` / `expect`、install state（`.ai-check-template.json`）、profile-aware package script migrations、profile docs migration、support script defaults、package manager detection、Claude hook / review template / CI workflow command rendering、optional `--install-deps`、exact-managed workflow cleanup、diagnostics warnings、`doctor --strict`、`--dry-run`、`--overwrite` を説明 |
 | **プロジェクト docs** | [`docs/usage-model.md`](./docs/usage-model.md)、[`docs/vision.md`](./docs/vision.md)、[`docs/roadmap.md`](./docs/roadmap.md)、Phase 1 dogfooding プロトコル、[`初回 dogfooding report`](./docs/phase-1-initial-dogfooding-report.md) |
 
 ## Where This Fits / どこに効くか
 
 `ai-check-template` は post-implementation verification stack です。AI にコードを書かせるためのものではなく、AI が生成したコードを実装後に検証・修正・安全に受け入れるための基盤です。
 
-使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テスト・理解度を人間が受け入れる **Review gate**。Review gate は CLI の `--review-templates` で導入するか、[`package-templates/.github/`](./package-templates/.github/) と [`package-templates/worksheet/`](./package-templates/worksheet/) から手動コピーできます。詳細は [`docs/usage-model.md`](./docs/usage-model.md) を参照。
+使いどころは 5 つです。AI 編集直後の **Local loop**、診断結果から修正する **Repair loop**、重要導線を守る **E2E loop**、PR で同じ検証を強制する **CI gate**、設計・リスク・追加テスト・理解度を人間が受け入れる **Review gate**。Review gate は CLI の `--review-templates` で導入するか、[`package-templates/.github/`](./package-templates/.github/) と [`package-templates/worksheet/`](./package-templates/worksheet/) から手動コピーできます。初見では [`docs/usage-model.md`](./docs/usage-model.md) の1枚絵と [`package-templates/prompts/README.md`](./package-templates/prompts/README.md) の prompt flow から見るのが最短です。
 
-Security check は意図的に分離しています。`ai:check` は機能品質、`ai:check:secure` は Semgrep ベースの security evidence として扱います。
+Security check は意図的に分離しています。`ai:check` は機能品質、`ai:check:secure` は secret scan / dependency audit / supply-chain check / Semgrep SAST の security evidence として扱います。
 
 ## Quick start / 最短手順
 
@@ -112,7 +114,11 @@ npx -y ai-check-template update --target . --dry-run
 ```bash
 pnpm ai:check
 pnpm ai:check:secure
+npx -y ai-check-template run --target . --script ai:check --json
+npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
 ```
+
+`run` / `expect` は repository-current CLI の追加機能です。次回 npm publish 前に試す場合は、この repository の checkout か `npm pack` した tarball から実行してください。
 
 Next.js 以外は `--profile node-cli`、`--profile react-vanilla`、`--profile expo-rn`、`--profile react-nextjs+supabase-rls` などに変えます。詳しい option は [`docs/cli.md`](./docs/cli.md)、運用モデルは [`docs/usage-model.md`](./docs/usage-model.md) を参照。
 

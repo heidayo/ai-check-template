@@ -17,6 +17,7 @@ const PACKAGE_MANAGER_SUBCOMMANDS = new Set([
   "init",
   "install",
   "link",
+  "npm",
   "outdated",
   "pack",
   "publish",

@@ -37,7 +37,7 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": "semgrep scan --config auto"
+    "ai:check:secure": "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast"
   }
 }
 ```
@@ -50,7 +50,11 @@ Next.js（App Router 想定）+ TypeScript の typical stack で AI 駆動開発
 - `test`: `vitest run`
 - `test:unit`: `vitest run --dir tests/unit`
 - `test:e2e:smoke`: `playwright test --grep smoke`
-- `ai:check:secure`: Semgrep による security gate。`ai:check` には混ぜず、PR / CI の別 step で実行。
+- `security:secrets`: `npx -y @secretlint/quick-start "**/*"`
+- `security:deps`: `pnpm audit --audit-level high`
+- `security:supply-chain`: `pnpm audit --prod --audit-level moderate`
+- `security:sast`: `semgrep scan --config auto`
+- `ai:check:secure`: secret / dependency / supply-chain / SAST の security gate。`ai:check` には混ぜず、PR / CI の別 step で実行。
 
 ## Playwright 安定化
 
