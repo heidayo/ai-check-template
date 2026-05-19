@@ -174,8 +174,27 @@ validate-structure:
 	@grep -q "future @v1" docs/github-actions.md
 	@grep -q "Marketplace listing is planned" docs/github-actions.md
 	@grep -q "v0.3.0.*Released" package-templates/ci-examples/README.md
+	@test -f docs/releases/v0.4.0.md
+	@grep -q "^## Highlights" docs/releases/v0.4.0.md
+	@grep -q "^## Install" docs/releases/v0.4.0.md
+	@grep -q "^## Verification" docs/releases/v0.4.0.md
+	@grep -q "^## Publish" docs/releases/v0.4.0.md
+	@grep -q "^## Limitations" docs/releases/v0.4.0.md
+	@grep -q "^## Next" docs/releases/v0.4.0.md
+	@grep -q "ai-check-template@0.4.0" docs/releases/v0.4.0.md
+	@grep -q "release-ready" docs/releases/v0.4.0.md
+	@grep -q "npm publish pending" docs/releases/v0.4.0.md
+	@grep -q "ai-check-template run" docs/releases/v0.4.0.md
+	@grep -q "ai-check-template expect" docs/releases/v0.4.0.md
+	@grep -q "MultiEdit" docs/releases/v0.4.0.md
+	@grep -q "first-look" docs/releases/v0.4.0.md
+	@grep -q "v0.4.0.*Release-ready" README.md
+	@grep -q "v0.4.0.*Release-ready" README-en.md
+	@grep -q "v0.4.0.*Release-ready" package-templates/README.md
+	@grep -q "releases/v0.4.0.md" docs/roadmap.md
+	@grep -q 'package version is `0.4.0`' docs/roadmap.md
 	@test -f package.json
-	@grep -q '"version": "0.2.0"' package.json
+	@grep -q '"version": "0.4.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json
 	@grep -q '"repository"' package.json
 	@grep -q '"bugs"' package.json
@@ -186,8 +205,10 @@ validate-structure:
 	@test -f bin/ai-check-template.mjs
 	@test -f src/cli/index.mjs
 	@test -f src/cli/doctor.mjs
+	@test -f src/cli/expect.mjs
 	@test -f src/cli/init.mjs
 	@test -f src/cli/profile.mjs
+	@test -f src/cli/run.mjs
 	@test -f src/cli/update.mjs
 	@test -f src/cli/utils.mjs
 	@test -f tests/cli/doctor.test.mjs

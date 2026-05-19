@@ -164,13 +164,14 @@ Review gate は CLI の `--review-templates` で導入するか、[reviewability
 
 ## Roadmap
 
-Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は npm stable CLI package `ai-check-template@0.2.0`、v0.3.0 は GitHub Actions integration foundation の release です。v0.3.0 は npm package release ではなく、CLI package は引き続き `0.2.0` です。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
+Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は npm stable CLI package `ai-check-template@0.2.0`、v0.3.0 は GitHub Actions integration foundation、v0.4.0 は repository-current npm CLI release candidate です。v0.4.0 は `package.json` version を `0.4.0` に上げた release-ready 状態で、npm publish / tag / GitHub Release は maintainer の明示作業として残します。publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 | バージョン | テーマ | 状態 |
 |---|---|---|
 | **v0.1.0** | 手動コピーで使うテンプレ集 | Released（[notes](./docs/releases/v0.1.0.md)） |
 | **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Released（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
 | **v0.3.0** | Hosted reusable workflow + Composite Action（[GitHub Actions guide](./docs/github-actions.md)）、GitHub Marketplace は後続 | Released（[notes](./docs/releases/v0.3.0.md)） |
+| **v0.4.0** | Structured CLI evidence（`run` / `expect`）+ security gate expansion | Release-ready / npm publish pending（[notes](./docs/releases/v0.4.0.md)） |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
 

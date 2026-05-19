@@ -62,6 +62,7 @@ package-templates/
 
 - v0.1.0 — Released（2026-05-14）。手動コピーで使う template set として配布。
 - v0.2.0 — Released（2026-05-16）。`npx ai-check-template init` でこの template set を導入できる stable CLI release。
+- v0.4.0 — Release-ready（2026-05-19）。`run` / `expect`、structured AC/Test Matrix、拡張 security gate を含む npm CLI release candidate。npm publish は maintainer follow-up。
 
 ## テスト設計と修復
 

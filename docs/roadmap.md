@@ -9,6 +9,7 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - v0.1.0: manual copy-and-adapt templates.
 - v0.2.0: stable npm CLI package, currently `ai-check-template@0.2.0`.
 - v0.3.0: GitHub Actions integration foundation. This is not an npm package release; the npm CLI package remains `0.2.0`.
+- v0.4.0: npm CLI release candidate for structured check evidence, structured AC/Test Matrix validation, and expanded security gates. The repository package version is `0.4.0`; npm publish, tag, and GitHub Release are maintainer follow-up work.
 
 Future npm publishes still require repository validation, including `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight.
 
@@ -117,12 +118,49 @@ Future npm publishes still require repository validation, including `npm pack` r
 - Profile names and the per-profile script set are stable
 - Versioning policy is clear (`@v0.3.0` exact-pin first, future `@v1` major alias after contract stability)
 
-## Beyond v0.3.0
+## v0.4.0 — Structured CLI evidence and security gate expansion
+
+**Status**: Release-ready on 2026-05-19. Release notes: [`./releases/v0.4.0.md`](./releases/v0.4.0.md). npm publish, `v0.4.0` git tag, and GitHub Release are pending maintainer execution.
+
+**Release type**: npm CLI release candidate. The repository `package.json` version is `0.4.0`.
+
+**Theme**: Move from a thin script scaffold toward machine-readable evidence that AI agents, CI, and reviewers can use.
+
+**Goals**
+
+- `ai-check-template run` records package-script steps with `PASS`, `FAIL`, `SKIPPED`, timing, exit code, and redacted stdout/stderr.
+- `ai-check-template expect` validates AC / Test Matrix JSON or template-subset YAML before implementation.
+- `ai:check:secure` separates secret scanning, dependency audit, supply-chain check, and Semgrep SAST.
+- Claude hook templates capture `Edit`, `Write`, `MultiEdit`, and `NotebookEdit`.
+- First-time readers can follow one map from requirements to prompts, test design, local checks, repair, CI, and review gates.
+
+**Delivered scope**
+
+- [x] Structured run command and tests
+- [x] Structured AC/Test Matrix schema, JSON example, YAML example, validator, and init migration
+- [x] Expanded security support scripts for `security:secrets`, `security:deps`, `security:supply-chain`, and `security:sast`
+- [x] Claude hook matcher expansion for `MultiEdit` and `NotebookEdit`
+- [x] First-look map in [`./usage-model.md`](./usage-model.md) and prompt README alignment
+- [x] `0.4.0` package metadata and release readiness validation
+
+**Pending release work**
+
+- [ ] `npm publish --tag latest --access public`
+- [ ] `git tag v0.4.0`
+- [ ] GitHub Release for `v0.4.0`
+- [ ] post-publish `npx -y ai-check-template@latest --help` and smoke init
+
+**Dependencies on v0.2.0 and v0.3.0**
+
+- v0.2.0 provides the stable npm CLI scaffolding base.
+- v0.3.0 provides the hosted GitHub Actions foundation that can consume the generated `ai:check` scripts.
+
+## Beyond v0.4.0
 
 Candidates, not commitments:
 
 - Adoption-focused usage model: [`./usage-model.md`](./usage-model.md) explains the Local loop, Repair loop, E2E loop, CI gate, and Review gate that make the package useful after installation.
-- Security split foundation: `ai:check:secure` and `scripts/ai-check-secure.sh` separate Semgrep security scans from functional quality checks.
+- Structured reporting aggregation for `ai-check-template run` results across PRs.
 - Reviewability template foundation: [`../package-templates/.github/PULL_REQUEST_TEMPLATE.md`](../package-templates/.github/PULL_REQUEST_TEMPLATE.md), [`../package-templates/worksheet/ai-code-understanding.md`](../package-templates/worksheet/ai-code-understanding.md), and review prompts make AI-generated code explainable before human acceptance.
 - GitLab CI / CircleCI / Bitbucket Pipelines templates
 - Project-specific dashboards that aggregate `ai:check` results across PRs
