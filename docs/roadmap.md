@@ -2,6 +2,16 @@
 
 Versioned milestones for `ai-check-template`. Each version aims to deliver enough value to be adopted on its own; later versions build on earlier ones rather than replacing them.
 
+## Release wording
+
+`Released` means a tagged project milestone is available. The release vehicle differs by version:
+
+- v0.1.0: manual copy-and-adapt templates.
+- v0.2.0: stable npm CLI package, currently `ai-check-template@0.2.0`.
+- v0.3.0: GitHub Actions integration foundation. This is not an npm package release; the npm CLI package remains `0.2.0`.
+
+Future npm publishes still require repository validation, including `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight.
+
 ## v0.1.0 — Manual templates for AI code verification
 
 **Status**: Released on 2026-05-14. Release notes: [`./releases/v0.1.0.md`](./releases/v0.1.0.md).

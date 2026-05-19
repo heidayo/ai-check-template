@@ -4,6 +4,8 @@
 
 `ai-check-template` provides reusable templates for **verifying, repairing, and safely merging AI-generated code**. It helps teams move from:
 
+In one sentence: it is a **quality-assurance template stack for after AI coding**. Users do not need SAGE installed; the templates can be added to an existing project through the CLI or by manual copy.
+
 > "AI implemented it."
 
 to:
@@ -89,43 +91,56 @@ Security checks are intentionally split: keep `ai:check` for functional quality,
 
 ## Quick start
 
-> v0.1.0 is released as "copy & adapt." See [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md). v0.2.0 is released as the stable CLI package `ai-check-template@0.2.0`; see [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md), the alpha history in [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md), and [`docs/cli.md`](./docs/cli.md). v0.3.0 is released as the GitHub Actions integration foundation; see [`docs/releases/v0.3.0.md`](./docs/releases/v0.3.0.md) and [`docs/github-actions.md`](./docs/github-actions.md). Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
+Start with a dry-run from the root of an existing project. It does not write files.
 
 ```bash
-# 1. Clone or browse the templates
-git clone https://github.com/heidayo/ai-check-template.git
-
-# 2. Preview the stable CLI init from npm
 npx -y ai-check-template init --target . --profile react-nextjs --dry-run
-npx -y ai-check-template init --target . --profile node-cli --package-manager npm --ci none --dry-run
-npx -y ai-check-template doctor --target . --ci none
+```
+
+If the preview looks right, apply it with `--yes`, then run `doctor`.
+
+```bash
+npx -y ai-check-template init --target . --profile react-nextjs --yes
+npx -y ai-check-template doctor --target .
 npx -y ai-check-template update --target . --dry-run
+```
 
-# 3. Pick a profile that matches your stack
-cat ai-check-template/package-templates/profiles/react-nextjs/README.md
+Then run the target project's checks.
 
-# 4. Copy what you need into your project
-cp -r ai-check-template/package-templates/scripts ./scripts
-cp -r ai-check-template/package-templates/.claude ./.claude
-cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
-cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
-# Optional manual-copy Review gate templates:
-cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
-cp -r ai-check-template/package-templates/worksheet ./worksheet
-# Or use the source CLI option after cloning: node ai-check-template/bin/ai-check-template.mjs init --target . --review-templates --yes
-# Or copy ai-quality-reusable.yml + ai-quality-call.yml if you prefer reusable workflows.
-# For the hosted reusable workflow and Composite Action, see docs/github-actions.md.
-
-# 5. Merge the scripts fragment into your package.json
-cat ai-check-template/package-templates/package.scripts.fragment.json
-# Then add the "ai:check" and "ai:check:fast" entries to your package.json "scripts"
-
-# 6. Run the loop
+```bash
 pnpm ai:check
 pnpm ai:check:secure
 ```
 
-To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/). To prepare your own task before implementation, start from [`test-design-template.md`](./package-templates/docs/test-design-template.md), then use [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) when `ai:check` or CI returns a failing diagnostic. Before human acceptance, use the [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) and [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md).
+For non-Next.js projects, switch the profile to `node-cli`, `react-vanilla`, `expo-rn`, or `react-nextjs+supabase-rls`. See [`docs/cli.md`](./docs/cli.md) for options and [`docs/usage-model.md`](./docs/usage-model.md) for the operating model.
+
+## Other install paths
+
+Preview another profile:
+
+```bash
+npx -y ai-check-template init --target . --profile node-cli --package-manager npm --ci none --dry-run
+npx -y ai-check-template doctor --target . --ci none
+npx -y ai-check-template update --target . --dry-run
+```
+
+Manual copy:
+
+```bash
+git clone https://github.com/heidayo/ai-check-template.git
+cat ai-check-template/package-templates/profiles/react-nextjs/README.md
+cp -r ai-check-template/package-templates/scripts ./scripts
+cp -r ai-check-template/package-templates/.claude ./.claude
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
+cp -r ai-check-template/package-templates/worksheet ./worksheet
+cat ai-check-template/package-templates/package.scripts.fragment.json
+```
+
+The Review gate can be installed with `--review-templates`, or copied manually through the [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) and [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md). For the hosted reusable workflow and Composite Action, see [`docs/github-actions.md`](./docs/github-actions.md).
+
+To inspect a runnable Before / After example, see [`examples/nextjs-basic`](./examples/nextjs-basic/). To prepare your own task before implementation, start from [`test-design-template.md`](./package-templates/docs/test-design-template.md), then use [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) when `ai:check` or CI returns a failing diagnostic.
 
 Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-profile README under [`package-templates/profiles/`](./package-templates/profiles/).
 
@@ -140,6 +155,8 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 | [`supabase-rls`](./package-templates/profiles/supabase-rls/) | Supabase + RLS (addon) | Combine with any of the above (e.g. `react-nextjs+supabase-rls`) |
 
 ## Roadmap
+
+Release wording: v0.1.0 is the manual-template release, v0.2.0 is the stable npm CLI package `ai-check-template@0.2.0`, and v0.3.0 is the GitHub Actions integration foundation release. v0.3.0 is not an npm package release; the CLI package remains `0.2.0`. Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
 
 | Version | Theme | Status |
 |---|---|---|
