@@ -10,7 +10,7 @@ AI 駆動開発のための **テストフローテンプレート** と **テ�
 
 | 区分 | 場所 | 扱い |
 |---|---|---|
-| **配布物**（コミット、npm publish 対象） | `package-templates/`, `bin/`, `src/`, `tests/`, `README.md`, `LICENSE`, `CLAUDE.md`, `package.json` | git で管理 |
+| **配布物**（npm publish 対象） | `package.json` の `files` フィールドを一次情報源とする。本ファイルでは固定リストを持たない（更新漏れで実態と乖離するため）。`CLAUDE.md` / `tests/` は内部開発用で含めない | git で管理（一部のみ npm 同梱） |
 | **SAGE 内部物**（local-only） | `.sage/`, `sage/`, `scripts/sage-*.sh`, `specs/_template.md`, `plans/_template.md`, `tasks/_template.md`, `templates/hooks/`, `templates/sage/`, `templates/settings/`, `.claude/rules/*-rules.md`, `.claude/skills/sage-*/`, `docs/claude-collaboration-brief.md`, `docs/codex-delegation-packet.md`, `AGENTS.md` | `.gitignore` で除外 |
 | **作業成果物**（コミット） | `specs/SPEC-XXXX.md`, `plans/PLAN-XXXX.md`, `tasks/TASK-XXXX.md` | git で管理 |
 
@@ -42,7 +42,7 @@ gakuten 固有の判断（mobile 除外、全 app 一律、workflow 整理など
 - gakuten「全 app 一律で適用」→ パッケージ「monorepo 対応 + glob で対象指定」
 
 ### 2. 実証ファースト
-抽象論で固めずに、gakuten + 他プロジェクトの dogfooding で検証する。Phase 0 と Phase 1 を行き来して洗練する。
+抽象論で固めずに、gakuten + 他プロジェクトの dogfooding で検証する。設計と dogfooding を行き来して洗練する。
 
 ### 3. SAGE 横並びコンパニオン
 - パッケージは SAGE 非依存で動作する（SAGE が無くても `npx init` できる）
