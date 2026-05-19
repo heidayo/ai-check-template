@@ -4,6 +4,8 @@
 
 `ai-check-template` は、AI が書いたコードを**検証・修正・安全にマージする**ためのテンプレート集です。
 
+一言でいうと、**AI コーディング後の品質保証テンプレート**です。利用者は SAGE インストール不要で、既存プロジェクトに CLI または手動コピーで導入できます。
+
 > 「AI が実装しました」
 
 から、
@@ -91,43 +93,56 @@ Security check は意図的に分離しています。`ai:check` は機能品質
 
 ## Quick start / 最短手順
 
-> v0.1.0 は「コピー＆カスタマイズ」型としてリリース済み。詳細は [`docs/releases/v0.1.0.md`](./docs/releases/v0.1.0.md)。v0.2.0 は stable CLI package `ai-check-template@0.2.0` としてリリース済みです。詳細は [`docs/releases/v0.2.0.md`](./docs/releases/v0.2.0.md)、alpha 履歴は [`docs/releases/v0.2.0-alpha.0.md`](./docs/releases/v0.2.0-alpha.0.md)、CLI 詳細は [`docs/cli.md`](./docs/cli.md) を参照。v0.3.0 は GitHub Actions integration foundation としてリリース済みです。詳細は [`docs/releases/v0.3.0.md`](./docs/releases/v0.3.0.md) と [`docs/github-actions.md`](./docs/github-actions.md) を参照。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
+まずは既存プロジェクトの root で dry-run します。ファイルは書き換えません。
 
 ```bash
-# 1. リポをクローン
-git clone https://github.com/heidayo/ai-check-template.git
-
-# 2. npm から stable CLI init を dry-run
 npx -y ai-check-template init --target . --profile react-nextjs --dry-run
-npx -y ai-check-template init --target . --profile node-cli --package-manager npm --ci none --dry-run
-npx -y ai-check-template doctor --target . --ci none
+```
+
+問題なければ `--yes` を付けて適用し、`doctor` で導入状態を確認します。
+
+```bash
+npx -y ai-check-template init --target . --profile react-nextjs --yes
+npx -y ai-check-template doctor --target .
 npx -y ai-check-template update --target . --dry-run
+```
 
-# 3. スタックに合う profile を確認
-cat ai-check-template/package-templates/profiles/react-nextjs/README.md
+導入後は target project 側の script を走らせます。
 
-# 4. 必要なファイルを自プロジェクトにコピー
-cp -r ai-check-template/package-templates/scripts ./scripts
-cp -r ai-check-template/package-templates/.claude ./.claude
-cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
-cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
-# 任意: Review gate 用 manual-copy templates
-cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
-cp -r ai-check-template/package-templates/worksheet ./worksheet
-# clone 済み source CLI で導入する場合: node ai-check-template/bin/ai-check-template.mjs init --target . --review-templates --yes
-# reusable workflow 方式にしたい場合は ai-quality-reusable.yml + ai-quality-call.yml をコピー
-# hosted reusable workflow / Composite Action は docs/github-actions.md を参照
-
-# 5. scripts fragment を package.json にマージ
-cat ai-check-template/package-templates/package.scripts.fragment.json
-# 出力の "ai:check" / "ai:check:fast" を自プロジェクトの package.json の scripts に追加
-
-# 6. ループを回す
+```bash
 pnpm ai:check
 pnpm ai:check:secure
 ```
 
-実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。自分のタスクを実装前に整理する場合は [`test-design-template.md`](./package-templates/docs/test-design-template.md) から始め、`ai:check` や CI の diagnostic が失敗したら [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) を使います。人間の受け入れ前には [reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) と [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md) を使います。
+Next.js 以外は `--profile node-cli`、`--profile react-vanilla`、`--profile expo-rn`、`--profile react-nextjs+supabase-rls` などに変えます。詳しい option は [`docs/cli.md`](./docs/cli.md)、運用モデルは [`docs/usage-model.md`](./docs/usage-model.md) を参照。
+
+## Other install paths / 他の導入方法
+
+CLI で preview だけしたい場合:
+
+```bash
+npx -y ai-check-template init --target . --profile node-cli --package-manager npm --ci none --dry-run
+npx -y ai-check-template doctor --target . --ci none
+npx -y ai-check-template update --target . --dry-run
+```
+
+手動コピーで中身を確認したい場合:
+
+```bash
+git clone https://github.com/heidayo/ai-check-template.git
+cat ai-check-template/package-templates/profiles/react-nextjs/README.md
+cp -r ai-check-template/package-templates/scripts ./scripts
+cp -r ai-check-template/package-templates/.claude ./.claude
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check.yml .github/workflows/
+cp ai-check-template/package-templates/ci-examples/github-actions/ai-check-fast.yml .github/workflows/
+cp ai-check-template/package-templates/.github/PULL_REQUEST_TEMPLATE.md .github/
+cp -r ai-check-template/package-templates/worksheet ./worksheet
+cat ai-check-template/package-templates/package.scripts.fragment.json
+```
+
+Review gate は CLI の `--review-templates` で導入するか、[reviewability PR template](./package-templates/.github/PULL_REQUEST_TEMPLATE.md) と [AI code understanding worksheet](./package-templates/worksheet/ai-code-understanding.md) を手動コピーできます。hosted reusable workflow / Composite Action は [`docs/github-actions.md`](./docs/github-actions.md) を参照。
+
+実行できる Before / After の例は [`examples/nextjs-basic`](./examples/nextjs-basic/) を参照。自分のタスクを実装前に整理する場合は [`test-design-template.md`](./package-templates/docs/test-design-template.md) から始め、`ai:check` や CI の diagnostic が失敗したら [`diagnostic-repair.md`](./package-templates/prompts/diagnostic-repair.md) を使います。
 
 詳細は [`docs/roadmap.md`](./docs/roadmap.md) と各 profile の README（[`package-templates/profiles/`](./package-templates/profiles/)）を参照。
 
@@ -142,6 +157,8 @@ pnpm ai:check:secure
 | [`supabase-rls`](./package-templates/profiles/supabase-rls/) | Supabase + RLS（addon） | 他 profile と組み合わせ（例: `react-nextjs+supabase-rls`） |
 
 ## Roadmap
+
+Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は npm stable CLI package `ai-check-template@0.2.0`、v0.3.0 は GitHub Actions integration foundation の release です。v0.3.0 は npm package release ではなく、CLI package は引き続き `0.2.0` です。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 | バージョン | テーマ | 状態 |
 |---|---|---|

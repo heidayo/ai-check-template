@@ -1,8 +1,8 @@
 # scripts/
 
-`ai:check` 系の薄い entry point スクリプト。配布される example。
+`ai:check` 系の薄い entrypoint スクリプト。配布される example。
 
-> **ステータス**: Draft v0.1（Phase 1 dogfooding 後に改訂予定）
+> **ステータス**: Maintained template document. Current roadmap context is tracked in the repository `docs/roadmap.md`.
 
 ## 提供物
 
@@ -20,6 +20,19 @@ scripts/
 - 「名」（成功基準）は `package.json` の `ai:check` / `ai:check:fast` / `ai:check:secure` スクリプトに定義
 - 「形」（実測値）はそれらを実行した出力
 - 本スクリプトは PM 抽象化と最小ロギングのみ担当し、ロジックは npm scripts に委譲する
+
+## 責任分界
+
+`ai-check*.sh` は品質検査そのものを実装する場所ではない。対象プロジェクトごとの toolchain、profile、command chain は `package.json` scripts と CLI の profile resolver が決める。
+
+| 層 | 責務 | 例 |
+|---|---|---|
+| `scripts/ai-check*.sh` | package manager の選択、共通ログ、終了コードの伝播 | `PM="${PM:-pnpm}"` → `"${PM}" ai:check` |
+| target `package.json` scripts | 対象プロジェクトで実行する検証コマンド列 | `typecheck`, `lint`, `test`, `e2e:smoke`, `ai:diagnostics` |
+| CLI profile resolver | `react-nextjs`, `node-cli`, `expo-rn` など profile ごとの scripts fragment を生成 | `ai-check-template init --profile react-nextjs` |
+| hooks / CI | いつ、どの gate を呼ぶかを決める | Edit hook は `ai:check:fast`、PR gate は `ai:check` |
+
+この分離により、shell wrapper は小さく保ちつつ、プロジェクトごとの実際の品質基準は npm scripts 側で明示できる。レビュー時は shell の厚みではなく、生成された `package.json` scripts と CI / hook が同じ gate を呼んでいるかを見る。
 
 ## 使い方
 

@@ -1,10 +1,8 @@
 # .claude/
 
-Claude Code 用の設定とルールを配布する example。
+`ai-check-template` が配布する Claude Code 用の設定とルールの example。利用者は自プロジェクトの `.claude/` にコピーするか、`npx -y ai-check-template init` で導入する（[`../../docs/cli.md`](../../docs/cli.md) 参照）。
 
-> **ステータス**: Draft v0.1（Phase 1 dogfooding 後に改訂予定）
-
-> **重要**: ここに置く `.claude/` は **配布物** として利用者のプロジェクトにコピーされる前提。本リポ自身の `.claude/`（リポジトリルート直下）は SAGE が管理しており、配布物とは別物。
+> **SAGE 不要**: ここに置く `.claude/` は **配布物** として利用者のプロジェクトにコピーされる前提。本リポ自身の root の `.claude/` は SAGE Development System による内部開発専用で、配布物とは別物。**利用者は SAGE をインストールせずに本 hook / rule を導入できる**。
 
 ## 提供物
 

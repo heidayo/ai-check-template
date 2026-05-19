@@ -4,6 +4,10 @@
 
 Use it to copy the v0.1.0 templates into an existing project with safer defaults than manual copy.
 
+The CLI does not require SAGE. This repository uses SAGE for its own maintenance, but target projects can use `init`, `doctor`, and `update` without installing SAGE or adopting this repository's internal workflow.
+
+v0.3.0 is a GitHub Actions integration release, not an npm CLI release. The CLI package remains `ai-check-template@0.2.0`; hosted workflow and Composite Action usage is documented in [`github-actions.md`](./github-actions.md).
+
 ## Command
 
 ```bash

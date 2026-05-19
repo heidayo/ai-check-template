@@ -28,6 +28,7 @@
     "ai-check-template": "bin/ai-check-template.mjs"
   },
   "scripts": {
+    "ai:check": "make validate",
     "cli:help": "node bin/ai-check-template.mjs --help",
     "test": "node --test tests/cli/*.test.mjs",
     "test:cli": "node --test tests/cli/*.test.mjs"

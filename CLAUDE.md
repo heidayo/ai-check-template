@@ -1,5 +1,11 @@
 # CLAUDE.md (Project: ai-check-template)
 
+## Audience
+
+本ファイルは `ai-check-template` リポの maintainer（本リポ内で SAGE Development System を用いて開発する人）向け。`ai-check-template` を配布物として **利用する側のプロジェクトでは SAGE のインストールは不要**で、`npx -y ai-check-template init` または手動コピーで導入できる（[`README.md`](./README.md) / [`docs/cli.md`](./docs/cli.md) 参照）。
+
+配布テンプレート側の Claude Code hook / rule の source は [`package-templates/.claude/`](./package-templates/.claude/) であり、本リポ root の `.claude/` は本リポ内部開発専用。root の `CLAUDE.md` は `package.json` の `files` に含めず npm package には同梱しない。
+
 ## Project Overview
 
 `ai-check-template` は AI 駆動開発のための **テストフローテンプレート** と **テスト設計思想** を npm パッケージとして配布するリポジトリ。

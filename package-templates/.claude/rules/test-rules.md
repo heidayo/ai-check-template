@@ -1,9 +1,7 @@
 # Test Rules
 
 このファイルはテスト記述ルールを Claude Code / Codex 等の実装エージェントに伝える。
-配布される example。利用者が自プロジェクトの `.claude/rules/` にコピーして使う。
-
-> **ステータス**: Draft v0.1（Phase 1 dogfooding 後に改訂予定）
+配布される example。利用者が自プロジェクトの `.claude/rules/` にコピーして使う。リリース状況は [`docs/roadmap.md`](../../../docs/roadmap.md) を参照。
 
 ## Playwright Locator 優先順位
 

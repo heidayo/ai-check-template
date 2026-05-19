@@ -6,6 +6,13 @@ development.
 It does not make AI write code. It helps teams verify, repair, and safely accept
 AI-generated code after implementation.
 
+You do not need SAGE to use it. SAGE is only the governance system used to
+maintain this repository; target projects can start with the CLI dry-run:
+
+```sh
+npx -y ai-check-template init --target . --profile react-nextjs --dry-run
+```
+
 ```text
 Requirement / SPEC
   -> AI implementation

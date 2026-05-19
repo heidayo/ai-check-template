@@ -10,7 +10,7 @@ AI 駆動開発のための **テストフローテンプレート** と **テ�
 
 | 区分 | 場所 | 扱い |
 |---|---|---|
-| **配布物**（コミット、npm publish 対象） | `package-templates/`, `bin/`, `src/`, `tests/`, `README.md`, `LICENSE`, `CLAUDE.md`, `package.json` | git で管理 |
+| **配布物**（npm publish 対象） | `package.json` の `files` フィールドを一次情報源とする。本ファイルでは固定リストを持たない（更新漏れで実態と乖離するため）。`CLAUDE.md` / `tests/` は内部開発用で含めない | git で管理（一部のみ npm 同梱） |
 | **SAGE 内部物**（local-only） | `.sage/`, `sage/`, `scripts/sage-*.sh`, `specs/_template.md`, `plans/_template.md`, `tasks/_template.md`, `templates/hooks/`, `templates/sage/`, `templates/settings/`, `.claude/rules/*-rules.md`, `.claude/skills/sage-*/`, `docs/claude-collaboration-brief.md`, `docs/codex-delegation-packet.md`, `AGENTS.md` | `.gitignore` で除外 |
 | **作業成果物**（コミット） | `specs/SPEC-XXXX.md`, `plans/PLAN-XXXX.md`, `tasks/TASK-XXXX.md` | git で管理 |
 
@@ -19,14 +19,9 @@ AI 駆動開発のための **テストフローテンプレート** と **テ�
 - 本リポの配布テンプレートは **必ず `package-templates/` に置く**（`templates/` ではない）
 - これにより `npx ai-check-template init` で配布する内容と SAGE 内部物が混ざらない
 
-## 開発フェーズ
+## リリース状況
 
-| Phase | 内容 | 状態 |
-|---|---|---|
-| 0 | 思想 + テンプレ骨格設計 | 完了 |
-| 1 | dogfooding（gakuten 等で手動運用） | 未着手 |
-| 2 | CLI / npm パッケージ化 | 未着手 |
-| 3 | 複数プロジェクト横展開 | 未着手 |
+リリース状況と各バージョンのスコープは [`docs/roadmap.md`](../../docs/roadmap.md) を一次情報源とする。本ファイルでは固定の Phase 表を持たない（過去に未着手のままの記述が残り続けて roadmap と乖離したため、参照型に切り替えた）。
 
 ## 主体文書（Notion）— 設計の根拠
 
@@ -47,57 +42,24 @@ gakuten 固有の判断（mobile 除外、全 app 一律、workflow 整理など
 - gakuten「全 app 一律で適用」→ パッケージ「monorepo 対応 + glob で対象指定」
 
 ### 2. 実証ファースト
-抽象論で固めずに、gakuten + 他プロジェクトの dogfooding で検証する。Phase 0 と Phase 1 を行き来して洗練する。
+抽象論で固めずに、gakuten + 他プロジェクトの dogfooding で検証する。設計と dogfooding を行き来して洗練する。
 
 ### 3. SAGE 横並びコンパニオン
 - パッケージは SAGE 非依存で動作する（SAGE が無くても `npx init` できる）
 - SAGE 検出時は `specs/_template.md` に「テスト観点」「DB/RLS 観点」「権限別」セクションを追記する共存モードを提供
 - SAGE を置き換えない、競合しない
 
-## 提供するもの（Phase 2 で具体化）
+## 配布物の構成（概観）
 
-### 思想ドキュメント (`package-templates/docs/`)
-- `philosophy/formal-name-match.md` — 形名参同
-- `philosophy/test-pyramid.md` — 責務分割
-- `philosophy/given-when-then.md` — 受け入れ条件先行
-- `philosophy/qa-techniques.md` — 同値分割・境界値・デシジョンテーブル・状態遷移・エラー推測
+配布物の master 一覧と詳細は次の一次情報源に集約する。本ファイルでは固定のファイル列挙を持たない（更新漏れで実体と乖離するため）。
 
-### テストフローテンプレ (`package-templates/`)
-- `scripts/ai-check.sh` / `scripts/ai-check-fast.sh`
-- `.claude/settings.hook-fragment.json` — Edit=fast / Stop=full
-- `.claude/rules/test-rules.md` — Playwright Locator 優先順位
-- `package.scripts.fragment.json` — `ai:check` / `ai:check:fast` の npm script
+- リリース別スコープ: [`docs/roadmap.md`](../../docs/roadmap.md)
+- CLI surface（`init` / `doctor` / `update` と option / state file）: [`docs/cli.md`](../../docs/cli.md)
+- profile 別の詳細: [`package-templates/profiles/`](../../package-templates/profiles/)
+- 配布される `.claude/` の中身と使い方: [`package-templates/.claude/README.md`](../../package-templates/.claude/README.md)
+- philosophy / prompts / scripts / CI examples: [`package-templates/`](../../package-templates/) 配下を参照
 
-### CI 統合例 (`package-templates/ci-examples/`)
-- `github-actions/ai-check.yml` — full check（push / PR 全体、`pnpm ai:check` を呼ぶ）
-- `github-actions/ai-check-fast.yml` — fast check（PR のみ、`pnpm ai:check:fast` を呼ぶ）
-- 将来追加: GitLab CI / CircleCI（汎用ファースト原則のため、CI ツールを強制しない）
-
-### プロファイル (`package-templates/profiles/`)
-| プロファイル | 想定 |
-|---|---|
-| `react-nextjs` | Next.js App Router + TypeScript |
-| `react-vanilla` | 純 React + TypeScript |
-| `expo-rn` | Expo / React Native（React Doctor 非対応） |
-| `node-cli` | Node.js CLI |
-| `supabase-rls` | Supabase + RLS 観点（pgTAP・InBucket） |
-
-### AI プロンプト雛形 (`package-templates/prompts/`)
-- `decision-table.md` — デシジョンテーブル生成プロンプト
-- `state-transition.md` — 状態遷移検証プロンプト
-- `boundary-value.md` — 同値分割 + 境界値プロンプト
-- `rls-permission.md` — RLS 権限テストプロンプト
-- `plan-first.md` — Plan 先出しプロンプト（実装前の成功基準定義）
-
-## CLI 仕様（Phase 2 で実装）
-
-```bash
-npx ai-check-template@latest init \
-  --profile react-nextjs+supabase-rls \
-  --hook-mode hybrid \         # Edit=fast / Stop=full
-  --with-sage \                # SAGE 検出時に specs テンプレに append
-  --rd-fail-on none|warning    # React Doctor 閾値
-```
+本リポ開発の意思決定で「現在の配布物に何が含まれるか」を確認したい場合は、上記 docs を見る。本ファイルを fixed-list として更新しない。
 
 ## 言語規約
 
@@ -107,4 +69,7 @@ npx ai-check-template@latest init \
 
 ## SAGE との関係
 
-このリポでの開発自体に SAGE を使う（dogfooding）。SAGE の SPEC → PLAN → TASK ルールに従って作業する。ただし配布物は SAGE 非依存。
+- **利用者は SAGE 不要**。`ai-check-template` を配布物として利用する側のプロジェクトでは SAGE のインストール・SPEC/PLAN/TASK 運用は不要。CLI（`npx -y ai-check-template init`）または手動コピーのみで完結する（[`README.md`](../../README.md) / [`docs/cli.md`](../../docs/cli.md)）。
+- 本リポ内部の開発のみ SAGE を使う（dogfooding）。SPEC → PLAN → TASK ルールに従って作業する。
+- 配布物（`package-templates/`）は SAGE 非依存で動作するよう保つ。`package-templates/.claude/` の hook / rule にも SAGE 前提の文言を含めない。
+- SAGE 検出時は `specs/_template.md` に「テスト観点」「DB/RLS 観点」「権限別」セクションを追記する共存モードを提供する。SAGE を置き換えない、競合しない。
