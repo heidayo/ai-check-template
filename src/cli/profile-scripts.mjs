@@ -1,26 +1,31 @@
 import { parseProfiles } from "./profile.mjs";
 import { DEFAULT_PACKAGE_MANAGER, scriptCommand } from "./package-manager.mjs";
 
-const SECURITY_CHECK_SCRIPT = "semgrep scan --config auto";
+const SECURITY_CHECK_STEPS = [
+  "security:secrets",
+  "security:deps",
+  "security:supply-chain",
+  "security:sast",
+];
 
 const BASE_PROFILE_SCRIPTS = {
   "react-nextjs": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": SECURITY_CHECK_SCRIPT,
+    "ai:check:secure": securityCheckScript("pnpm"),
     doctor: "npx -y react-doctor@latest . --fail-on warning",
     deadcode: "knip",
   },
   "react-vanilla": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": SECURITY_CHECK_SCRIPT,
+    "ai:check:secure": securityCheckScript("pnpm"),
     deadcode: "knip",
   },
   "expo-rn": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": SECURITY_CHECK_SCRIPT,
+    "ai:check:secure": securityCheckScript("pnpm"),
     doctor: "npx -y react-doctor@latest . --fail-on warning",
     deadcode: "knip",
     "test:e2e:smoke": "maestro test .maestro/smoke.yaml",
@@ -28,7 +33,7 @@ const BASE_PROFILE_SCRIPTS = {
   "node-cli": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": SECURITY_CHECK_SCRIPT,
+    "ai:check:secure": securityCheckScript("pnpm"),
     deadcode: "knip",
   },
 };
@@ -49,6 +54,11 @@ const COMMON_SUPPORT_SCRIPTS = {
   lint: "eslint .",
   test: "vitest run",
   "test:unit": "vitest run --dir tests/unit",
+};
+
+const COMMON_SECURITY_SUPPORT_SCRIPTS = {
+  "security:secrets": "npx -y @secretlint/quick-start \"**/*\"",
+  "security:sast": "semgrep scan --config auto",
 };
 
 const BASE_PROFILE_SUPPORT_SCRIPTS = {
@@ -76,9 +86,25 @@ export function getProfileScripts(input = "react-nextjs", options = {}) {
   return renderPackageManagerScripts(scripts, packageManager);
 }
 
-export function getProfileSupportScripts(input = "react-nextjs") {
+export function getProfileSupportScripts(input = "react-nextjs", options = {}) {
   const profile = typeof input === "string" ? parseProfiles(input) : input;
-  return { ...BASE_PROFILE_SUPPORT_SCRIPTS[profile.base] };
+  const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER;
+  return renderPackageManagerScripts({
+    ...BASE_PROFILE_SUPPORT_SCRIPTS[profile.base],
+    ...getSecuritySupportScripts(packageManager),
+  }, packageManager);
+}
+
+function getSecuritySupportScripts(packageManager) {
+  return {
+    ...COMMON_SECURITY_SUPPORT_SCRIPTS,
+    "security:deps": dependencyAuditCommand(packageManager),
+    "security:supply-chain": supplyChainCommand(packageManager),
+  };
+}
+
+function securityCheckScript(packageManager) {
+  return SECURITY_CHECK_STEPS.map((step) => scriptCommand(packageManager, step)).join(" && ");
 }
 
 function appendScriptStep(command, step) {
@@ -94,6 +120,38 @@ function renderPackageManagerScripts(scripts, packageManager) {
   return Object.fromEntries(
     Object.entries(scripts).map(([name, command]) => [name, renderScriptCommand(command, packageManager)]),
   );
+}
+
+function dependencyAuditCommand(packageManager) {
+  if (packageManager === "npm") {
+    return "npm audit --audit-level high";
+  }
+
+  if (packageManager === "yarn") {
+    return "yarn npm audit --severity high";
+  }
+
+  if (packageManager === "bun") {
+    return "bun audit";
+  }
+
+  return "pnpm audit --audit-level high";
+}
+
+function supplyChainCommand(packageManager) {
+  if (packageManager === "npm") {
+    return "npm audit signatures";
+  }
+
+  if (packageManager === "yarn") {
+    return "yarn npm audit --environment production --severity moderate";
+  }
+
+  if (packageManager === "bun") {
+    return "bun audit";
+  }
+
+  return "pnpm audit --prod --audit-level moderate";
 }
 
 function renderScriptCommand(command, packageManager) {

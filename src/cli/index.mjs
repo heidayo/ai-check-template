@@ -1,5 +1,7 @@
 import { runDoctor } from "./doctor.mjs";
+import { runExpect } from "./expect.mjs";
 import { runInit } from "./init.mjs";
+import { runStructuredCheck } from "./run.mjs";
 import { runUpdate } from "./update.mjs";
 import { CliError, writeLine } from "./utils.mjs";
 
@@ -10,10 +12,14 @@ Usage:
   ai-check-template init [options]
   ai-check-template doctor [options]
   ai-check-template update [options]
+  ai-check-template run [options]
+  ai-check-template expect [options]
 
 Commands:
   doctor  Diagnose an existing ai-check-template installation.
+  expect  Validate a structured AC/Test Matrix JSON or YAML file.
   init    Copy ai-check templates into an existing project.
+  run     Execute a package script with structured PASS/FAIL/SKIPPED output.
   update  Update template-managed files in an existing installation.
 
 Init options:
@@ -48,11 +54,23 @@ Update options:
   --yes                Confirm non-interactive writes.
   --json               Print machine-readable JSON output.
 
+Run options:
+  --target <dir>       Target project directory. Defaults to the current directory.
+  --script <name>      Package script to run. Defaults to ai:check.
+  --json               Print machine-readable JSON output.
+  --output <file>      Write the JSON result to a file.
+
+Expect options:
+  --file <path>        JSON or template-subset YAML AC/Test Matrix file.
+  --json               Print machine-readable JSON output.
+
 Examples:
   ai-check-template init --target . --profile react-nextjs --review-templates --yes
   ai-check-template init --target . --profile react-nextjs+supabase-rls --ci reusable --dry-run
   ai-check-template doctor --target . --ci direct --json
-  ai-check-template update --target . --ci direct --dry-run`;
+  ai-check-template update --target . --ci direct --dry-run
+  ai-check-template run --target . --script ai:check --json
+  ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json`;
 
 export async function main(argv = process.argv.slice(2), io = {}) {
   const args = [...argv];
@@ -76,6 +94,16 @@ export async function main(argv = process.argv.slice(2), io = {}) {
 
   if (command === "update") {
     await runUpdate(args, io);
+    return;
+  }
+
+  if (command === "run") {
+    await runStructuredCheck(args, io);
+    return;
+  }
+
+  if (command === "expect") {
+    await runExpect(args, io);
     return;
   }
 

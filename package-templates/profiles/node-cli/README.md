@@ -37,7 +37,7 @@ UI を持たない Node.js CLI / Library / サーバー側コード向け profil
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": "semgrep scan --config auto"
+    "ai:check:secure": "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast"
   }
 }
 ```
@@ -45,7 +45,7 @@ UI を持たない Node.js CLI / Library / サーバー側コード向け profil
 - E2E ステップは含まない
 - `test`: integration を含む全テスト
 - `test:unit`: Unit のみ（fast loop 用）
-- `ai:check:secure`: CLI 引数、ファイル I/O、外部入力まわりを Semgrep で確認する security gate
+- `ai:check:secure`: CLI 引数、ファイル I/O、外部入力まわりを secret scan / dependency audit / supply-chain check / Semgrep SAST で確認する security gate
 
 ## .claude / scripts カスタマイズ案
 

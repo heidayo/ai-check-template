@@ -6,8 +6,9 @@
 #
 # Security split:
 #   `ai:check` remains the functional quality gate.
-#   `ai:check:secure` is the security-oriented gate and delegates to Semgrep by
-#   default through package.json scripts.
+#   `ai:check:secure` is the security-oriented gate and delegates to the target
+#   project's package scripts. The default chain covers secret scan, dependency
+#   audit, supply-chain check, and Semgrep SAST.
 #
 # PM switching:
 #   Default is pnpm. Override with PM for npm/yarn/bun:

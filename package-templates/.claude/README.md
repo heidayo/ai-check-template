@@ -17,7 +17,7 @@
 
 [`../docs/philosophy/formal-name-match.md`](../docs/philosophy/formal-name-match.md) の **AI 内部ループ** を実体化するための hook 設定。
 
-- **Edit hook**（fast）: AI がコード編集するたびに `pnpm ai:check:fast` を呼ぶ。Static + Unit のみで軽量
+- **Edit hook**（fast）: AI が `Edit` / `Write` / `MultiEdit` / `NotebookEdit` でコード編集するたびに `pnpm ai:check:fast` を呼ぶ。Static + Unit のみで軽量
 - **Stop hook**（full）: AI セッション終了時に `pnpm ai:check` を呼ぶ。Diagnostic + E2E まで含む完全版
 
 これにより、AI が「実装完了しました」と言って終わる前に必ず形名照合が走る。
@@ -57,7 +57,7 @@ cp .claude/rules/test-rules.md /your-project/.claude/rules/
 
 | Hook | コマンド | scripts エントリ |
 |---|---|---|
-| `PostToolUse` (Edit/Write) | `pnpm ai:check:fast` | `package.json` の `scripts."ai:check:fast"` |
+| `PostToolUse` (`Edit|Write|MultiEdit|NotebookEdit`) | `pnpm ai:check:fast` | `package.json` の `scripts."ai:check:fast"` |
 | `Stop` | `pnpm ai:check` | `package.json` の `scripts."ai:check"` |
 
 `scripts."ai:check"` / `"ai:check:fast"` の中身は [`../package.scripts.fragment.json`](../package.scripts.fragment.json) を参照。
@@ -70,6 +70,9 @@ hook の `command` フィールドを `npm run ai:check`, `yarn ai:check`, `bun 
 
 ### Edit hook を無効化
 `PostToolUse` セクションを削除すれば、Edit ごとの fast loop は走らない（Stop hook の full check のみになる）。
+
+### matcher の調整
+既定 matcher は `Edit|Write|MultiEdit|NotebookEdit`。特定 tool だけに絞る場合は `matcher` を短くし、Notebook を使わない repository でも既定のまま動作する。
 
 ### blocking モード
 本 fragment は非 blocking (Claude Code 現行 spec のデフォルト挙動)。hook が呼ぶ `pnpm ai:check` / `pnpm ai:check:fast` が失敗 (exit code 1) しても、AI セッションは続行される。

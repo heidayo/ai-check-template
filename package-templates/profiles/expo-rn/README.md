@@ -38,14 +38,14 @@ Expo / React Native 環境の typical stack 向け profile。モバイル特有�
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": "semgrep scan --config auto"
+    "ai:check:secure": "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast"
   }
 }
 ```
 
 - `test:e2e:smoke`: Maestro で `maestro test .maestro/smoke.yaml` 等
 - `doctor`: `npx -y react-doctor@latest . --fail-on warning`
-- Security gate は `ai:check:secure` として分離し、Semgrep は JavaScript / TypeScript 側の安全性確認に使う。
+- Security gate は `ai:check:secure` として分離し、secret scan / dependency audit / supply-chain check / Semgrep SAST を JavaScript / TypeScript 側の安全性確認に使う。
 
 ## .claude / scripts カスタマイズ案
 

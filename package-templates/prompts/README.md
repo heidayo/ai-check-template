@@ -2,6 +2,8 @@
 
 AI 駆動開発で利用する**プロンプト雛形ライブラリ**。`docs/philosophy/` の思想を AI（Claude Code / Codex 等）に渡す具体的なテキストとして実体化したもの。
 
+全体像は repository docs の [`docs/usage-model.md`](../../docs/usage-model.md) にある first-look map と同じ語彙で読む。ここでは、その map を実際の prompt file に落とす。
+
 > **ステータス**: Draft v0.1（Phase 1 dogfooding 後に改訂予定）
 
 ## 提供物
@@ -50,12 +52,14 @@ Claude Code / Codex / Cursor 等に貼り付けて実行。実装前段階（obs
 3. 補強した成功基準を SPEC / Plan に登録
    ↓
 4. ../docs/test-design-template.md で AC と Test Matrix を固定
+   - 機械可読にする場合は ../docs/ac-test-matrix.example.json または ../docs/ac-test-matrix.example.yaml に転記し、`ai-check-template expect --file ... --json` で検証
    ↓
 5. 必要な主要導線だけ e2e-test-creation.md で Playwright smoke test を設計
    ↓
 6. 実装
    ↓
 7. 形名参同（formal-name-match）で「名」（成功基準）と「形」（実測）を照合
+   - `ai-check-template run --target . --script ai:check --json --output .ai-check/ai-check-result.json` で PASS / FAIL / SKIPPED と redacted output を残す
    ↓
 8. 機能品質の失敗は diagnostic-repair.md、security finding は security-scan.md に redacted output を渡して修復し、同じ command を再実行
    ↓

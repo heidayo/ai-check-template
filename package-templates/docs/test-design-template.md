@@ -21,6 +21,19 @@ The goal is Formal Name Match: the "name" is the declared behavior below, and th
 5. After implementation, run the verification commands exactly as written.
 6. If a command fails, use [`../prompts/diagnostic-repair.md`](../prompts/diagnostic-repair.md) with redacted diagnostic output.
 
+For automation, keep the Markdown version for human review and mirror the same
+AC / Test Matrix into the structured examples:
+
+- [`ac-test-matrix.schema.json`](./ac-test-matrix.schema.json)
+- [`ac-test-matrix.example.json`](./ac-test-matrix.example.json)
+- [`ac-test-matrix.example.yaml`](./ac-test-matrix.example.yaml)
+
+Validate the structured file before implementation:
+
+```bash
+npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
+```
+
 ## Requirement
 
 ### Summary
@@ -89,6 +102,36 @@ Layer guidance:
 - Integration: API route, database boundary, service boundary, auth context.
 - E2E: core user path only; avoid using E2E for cheap unit-observable behavior.
 - Security: RLS, authorization, private field exposure, injection, secret handling.
+
+## Structured AC / Test Matrix
+
+When the project wants machine-readable "name" evidence, store the same AC and
+test rows in JSON or YAML. The shape is:
+
+```yaml
+requirement:
+  id: REQ-001
+  summary: Short requirement summary
+acceptanceCriteria:
+  - id: AC-01
+    criterion: Behavior that must hold
+    command: pnpm test path/to/test
+testMatrix:
+  - id: T-001
+    ac: AC-01
+    scenario: happy path
+    given: required precondition
+    when: action happens
+    then: observable result appears
+    command: pnpm test path/to/test
+```
+
+Rules:
+
+- Every `acceptanceCriteria[].id` must be unique.
+- Every AC must be referenced by at least one `testMatrix[].ac`.
+- `testMatrix[].ac` must reference an existing AC.
+- The YAML parser used by `ai-check-template expect` intentionally supports only this template subset. Use JSON for complex metadata.
 
 ## Given-When-Then
 

@@ -235,7 +235,7 @@ async function mergePackageScripts(packageJsonPath, profile, options, operations
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
   const expectedScripts = getProfileScripts(profile, { packageManager: options.packageManager });
-  const supportScripts = getProfileSupportScripts(profile);
+  const supportScripts = getProfileSupportScripts(profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 

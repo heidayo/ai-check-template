@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/heidayo/ai-check-template/package-templates/docs/ac-test-matrix.schema.json",
+  "title": "ai-check-template AC/Test Matrix",
+  "type": "object",
+  "required": ["requirement", "acceptanceCriteria", "testMatrix"],
+  "additionalProperties": false,
+  "properties": {
+    "requirement": {
+      "type": "object",
+      "required": ["id", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "source": { "type": "string" }
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "criterion", "command"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^AC-[0-9]{2,}$" },
+          "criterion": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "layer": { "type": "string" }
+        }
+      }
+    },
+    "testMatrix": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "ac", "scenario", "given", "when", "then", "command"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^T-[0-9]{2,}$" },
+          "ac": { "type": "string", "pattern": "^AC-[0-9]{2,}$" },
+          "scenario": { "type": "string", "minLength": 1 },
+          "given": { "type": "string", "minLength": 1 },
+          "when": { "type": "string", "minLength": 1 },
+          "then": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string" }
+        }
+      }
+    }
+  }
+}

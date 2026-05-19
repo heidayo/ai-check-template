@@ -5,6 +5,9 @@ const TARGET_ROOT = "docs/ai-check-template";
 
 const COMMON_DOC_FILES = [
   ["docs/test-design-template.md", `${TARGET_ROOT}/docs/test-design-template.md`],
+  ["docs/ac-test-matrix.schema.json", `${TARGET_ROOT}/docs/ac-test-matrix.schema.json`],
+  ["docs/ac-test-matrix.example.json", `${TARGET_ROOT}/docs/ac-test-matrix.example.json`],
+  ["docs/ac-test-matrix.example.yaml", `${TARGET_ROOT}/docs/ac-test-matrix.example.yaml`],
   ["docs/philosophy/formal-name-match.md", `${TARGET_ROOT}/docs/philosophy/formal-name-match.md`],
   ["docs/philosophy/given-when-then.md", `${TARGET_ROOT}/docs/philosophy/given-when-then.md`],
   ["docs/philosophy/qa-techniques.md", `${TARGET_ROOT}/docs/philosophy/qa-techniques.md`],

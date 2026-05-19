@@ -1,0 +1,59 @@
+{
+  "requirement": {
+    "id": "REQ-001",
+    "summary": "Validate AI-generated login changes before merge",
+    "source": "SPEC-XXXX"
+  },
+  "acceptanceCriteria": [
+    {
+      "id": "AC-01",
+      "criterion": "Valid credentials return success",
+      "command": "pnpm test tests/auth.test.ts",
+      "layer": "unit"
+    },
+    {
+      "id": "AC-02",
+      "criterion": "Invalid credentials are rejected without user enumeration",
+      "command": "pnpm test tests/auth.test.ts",
+      "layer": "unit"
+    },
+    {
+      "id": "AC-03",
+      "criterion": "The full quality gate passes before PR review",
+      "command": "pnpm ai:check",
+      "layer": "full gate"
+    }
+  ],
+  "testMatrix": [
+    {
+      "id": "T-001",
+      "ac": "AC-01",
+      "scenario": "happy path login",
+      "given": "a registered user and valid password",
+      "when": "the login action runs",
+      "then": "a success response and session token are returned",
+      "command": "pnpm test tests/auth.test.ts",
+      "owner": "AI"
+    },
+    {
+      "id": "T-002",
+      "ac": "AC-02",
+      "scenario": "invalid password",
+      "given": "a registered user and invalid password",
+      "when": "the login action runs",
+      "then": "the response is rejected without exposing account existence",
+      "command": "pnpm test tests/auth.test.ts",
+      "owner": "AI"
+    },
+    {
+      "id": "T-003",
+      "ac": "AC-03",
+      "scenario": "full regression gate",
+      "given": "the implementation is complete",
+      "when": "the full quality gate runs",
+      "then": "all configured checks pass",
+      "command": "pnpm ai:check",
+      "owner": "human + AI"
+    }
+  ]
+}

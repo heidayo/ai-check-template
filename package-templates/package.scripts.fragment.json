@@ -2,6 +2,10 @@
   "scripts": {
     "ai:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e:smoke",
     "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit",
-    "ai:check:secure": "semgrep scan --config auto"
+    "ai:check:secure": "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast",
+    "security:secrets": "npx -y @secretlint/quick-start \"**/*\"",
+    "security:deps": "pnpm audit --audit-level high",
+    "security:supply-chain": "pnpm audit --prod --audit-level moderate",
+    "security:sast": "semgrep scan --config auto"
   }
 }

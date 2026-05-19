@@ -8,6 +8,9 @@ import test from "node:test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const binPath = path.join(repoRoot, "bin", "ai-check-template.mjs");
+const PNPM_SECURE_SCRIPT = "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast";
+const NPM_SECURE_SCRIPT = "npm run security:secrets && npm run security:deps && npm run security:supply-chain && npm run security:sast";
+const YARN_SECURE_SCRIPT = "yarn security:secrets && yarn security:deps && yarn security:supply-chain && yarn security:sast";
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [binPath, ...args], {
@@ -100,7 +103,11 @@ test("init merges package scripts and copies shell scripts", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts["ai:check:fast"], "pnpm typecheck && pnpm lint && pnpm test:unit");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], PNPM_SECURE_SCRIPT);
+  assert.equal(packageJson.scripts["security:secrets"], "npx -y @secretlint/quick-start \"**/*\"");
+  assert.equal(packageJson.scripts["security:deps"], "pnpm audit --audit-level high");
+  assert.equal(packageJson.scripts["security:supply-chain"], "pnpm audit --prod --audit-level moderate");
+  assert.equal(packageJson.scripts["security:sast"], "semgrep scan --config auto");
   assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
   assert.equal(packageJson.scripts.deadcode, "knip");
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
@@ -131,7 +138,9 @@ test("init uses explicit npm package manager scripts", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "npm run typecheck && npm run lint && npm run doctor && npm run deadcode && npm run test && npm run test:e2e:smoke && npm run test:db && npm run test:integration:rls");
   assert.equal(packageJson.scripts["ai:check:fast"], "npm run typecheck && npm run lint && npm run test:unit");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], NPM_SECURE_SCRIPT);
+  assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level high");
+  assert.equal(packageJson.scripts["security:supply-chain"], "npm audit signatures");
   assert.equal(readInstallState(target).packageManager, "npm");
 });
 
@@ -144,7 +153,8 @@ test("init detects yarn from lockfile", (t) => {
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "yarn typecheck && yarn lint && yarn deadcode && yarn test");
   assert.equal(packageJson.scripts["ai:check:fast"], "yarn typecheck && yarn lint && yarn test:unit");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], YARN_SECURE_SCRIPT);
+  assert.equal(packageJson.scripts["security:deps"], "yarn npm audit --severity high");
   assert.equal(readInstallState(target).packageManager, "yarn");
 });
 
@@ -155,7 +165,7 @@ test("node-cli profile scripts exclude UI E2E", (t) => {
   assert.equal(result.status, 0, result.stderr);
   const packageJson = readPackageJson(target);
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm deadcode && pnpm test");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], PNPM_SECURE_SCRIPT);
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
   assert.equal(packageJson.scripts.lint, "eslint .");
   assert.equal(packageJson.scripts.test, "node --test");
@@ -175,7 +185,7 @@ test("expo-rn profile scripts include React Doctor and Maestro smoke", (t) => {
   assert.equal(packageJson.scripts["ai:check"], "pnpm typecheck && pnpm lint && pnpm doctor && pnpm deadcode && pnpm test && pnpm test:e2e:smoke");
   assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
   assert.equal(packageJson.scripts["test:e2e:smoke"], "maestro test .maestro/smoke.yaml");
-  assert.equal(packageJson.scripts["ai:check:secure"], "semgrep scan --config auto");
+  assert.equal(packageJson.scripts["ai:check:secure"], PNPM_SECURE_SCRIPT);
 });
 
 test("supabase addon profile scripts add RLS checks", (t) => {
@@ -196,6 +206,9 @@ test("init copies common and selected profile docs", (t) => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "test-design-template.md")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "ac-test-matrix.schema.json")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "ac-test-matrix.example.json")), true);
+  assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "ac-test-matrix.example.yaml")), true);
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "docs", "philosophy", "formal-name-match.md")), true);
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "prompts", "diagnostic-repair.md")), true);
   assert.equal(fs.existsSync(path.join(target, "docs", "ai-check-template", "profiles", "README.md")), true);
@@ -491,6 +504,7 @@ test("Claude hooks copy rules and merge settings", (t) => {
   const settings = readClaudeSettings(target);
   assert.ok(settings.hooks.PostToolUse);
   assert.ok(settings.hooks.Stop);
+  assert.equal(settings.hooks.PostToolUse[0].matcher, "Edit|Write|MultiEdit|NotebookEdit");
   assert.deepEqual(claudeHookCommands(settings), ["pnpm ai:check:fast", "pnpm ai:check"]);
 });
 
