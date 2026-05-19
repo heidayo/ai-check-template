@@ -72,8 +72,14 @@ hook の `command` フィールドを `npm run ai:check`, `yarn ai:check`, `bun 
 `PostToolUse` セクションを削除すれば、Edit ごとの fast loop は走らない（Stop hook の full check のみになる）。
 
 ### blocking モード
-本 fragment では `blocking` を指定していない（Claude Code default の非 blocking）。
-編集を強制ブロックしたい場合は `"blocking": true` を追加。ただし誤判定でセッションが進まなくなるリスクあり。
+本 fragment は非 blocking (Claude Code 現行 spec のデフォルト挙動)。hook が呼ぶ `pnpm ai:check` / `pnpm ai:check:fast` が失敗 (exit code 1) しても、AI セッションは続行される。
+
+編集を強制ブロックしたい場合は、hook の設定で field を追加するのではなく、**hook が呼ぶスクリプト側で blocking を表現する**。Claude Code 現行 spec では以下のいずれか:
+
+- スクリプトを `exit 2` で終了させる
+- stdout に `{"decision": "block", "reason": "..."}` (PostToolUse) もしくは `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny"}}` (PreToolUse) を出力する
+
+詳細は Claude Code Hooks 公式 docs を参照。誤判定でセッションが進まなくなるリスクがあるため、まずは非 blocking で運用し、信頼度が高い check のみ blocking に昇格させることを推奨。
 
 ## 出典
 
