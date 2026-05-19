@@ -1,12 +1,12 @@
 # CLI
 
-`ai-check-template` includes a published stable CLI for v0.2.0. The current stable package is `ai-check-template@0.2.0`, available through npm's `latest` dist-tag. This document also tracks repository-current CLI additions that are validated by `npm pack` before the next npm publish.
+`ai-check-template` includes a published stable CLI for v0.2.0. The currently published package is `ai-check-template@0.2.0` on npm's `latest` dist-tag. The repository package version is now `0.4.0` as the next npm CLI release candidate; `npm pack` and `npm publish --dry-run --tag latest` validate it before a maintainer publishes.
 
 Use it to copy the v0.1.0 templates into an existing project with safer defaults than manual copy.
 
 The CLI does not require SAGE. This repository uses SAGE for its own maintenance, but target projects can use `init`, `doctor`, and `update` without installing SAGE or adopting this repository's internal workflow.
 
-v0.3.0 is a GitHub Actions integration release, not an npm CLI release. The CLI package remains `ai-check-template@0.2.0`; hosted workflow and Composite Action usage is documented in [`github-actions.md`](./github-actions.md).
+v0.3.0 is a GitHub Actions integration release, not an npm CLI release. v0.4.0 is the next npm CLI release candidate for `run`, `expect`, structured AC/Test Matrix files, and the expanded security gate. Hosted workflow and Composite Action usage is documented in [`github-actions.md`](./github-actions.md).
 
 ## Command
 
@@ -403,7 +403,7 @@ node --test tests/cli/package.test.mjs
 
 The package tests assert that runtime files are included, repository-only SAGE artifacts are excluded, and a tarball-installed `ai-check-template` binary can run both `--help` and `init`.
 
-The package is published to npm as `ai-check-template@0.2.0` under the `latest` dist-tag. It also has an alpha history at `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
+The package is currently published to npm as `ai-check-template@0.2.0` under the `latest` dist-tag. Repository version `0.4.0` is release-ready and publish-pending. It also has an alpha history at `ai-check-template@0.2.0-alpha.0` under the `next` dist-tag. Local tarball smoke remains part of repository validation because it catches package contents regressions before future publishes.
 
 ## Publish preflight
 
@@ -413,8 +413,8 @@ For future stable releases, the publish preflight command is:
 npm publish --dry-run --tag latest --json
 ```
 
-This command validates the publish payload without writing to the registry before a new version is published. Once the current package version already exists in npm, repository validation checks registry visibility instead of attempting another dry-run for the same version. `ai-check-template@0.2.0` has been published to npm and smoke-tested with `npx -y ai-check-template@latest`. Future publishes still require explicit maintainer approval and npm authentication.
+This command validates the publish payload without writing to the registry before a new version is published. Once the current package version already exists in npm, repository validation checks registry visibility instead of attempting another dry-run for the same version. `ai-check-template@0.2.0` has been published to npm and smoke-tested with `npx -y ai-check-template@latest`; `0.4.0` remains publish-pending until a maintainer runs the real publish. Future publishes still require explicit maintainer approval and npm authentication.
 
 ## 日本語メモ
 
-この CLI の published stable package は `ai-check-template@0.2.0` です。この docs は次回 npm publish 前の repository-current CLI 追加も含みます。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`run` は `ai:check` の各 step を PASS / FAIL / SKIPPED、duration、redacted output 付き JSON にし、`expect` は AC / Test Matrix の JSON / YAML を検証します。`ai:check` は機能品質、`ai:check:secure` は secret scan / dependency audit / supply-chain check / Semgrep SAST の security gate として分離します。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor、Semgrep、Secretlint などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
+この CLI の published stable package は `ai-check-template@0.2.0` です。repository package version は次回 npm CLI release candidate として `0.4.0` に更新済みで、実 publish は maintainer follow-up です。まず `npx -y ai-check-template init --dry-run` で差分を確認し、問題なければ `init --yes` を付けて実行してください。導入後は `.ai-check-template.json` に選択した profile / package manager / CI / Claude hooks が保存され、`doctor` と `update` は明示 flag がない場合にその state を使います。CLI は profile ごとの package scripts と missing support scripts を導入・診断・更新し、`pnpm` / `npm` / `yarn` / `bun` の script invocation を生成できます。`run` は `ai:check` の各 step を PASS / FAIL / SKIPPED、duration、redacted output 付き JSON にし、`expect` は AC / Test Matrix の JSON / YAML を検証します。`ai:check` は機能品質、`ai:check:secure` は secret scan / dependency audit / supply-chain check / Semgrep SAST の security gate として分離します。`--install-deps --dry-run` は npm dev dependency install command を表示し、`--install-deps --yes` は package manager binary を preflight してから missing dev dependencies を install します。Supabase CLI、Maestro、React Doctor、Semgrep、Secretlint などの external toolchain install は対象外です。profile diagnostics warnings、missing referenced package script warnings、stale managed CI workflow warnings は通常 advisory ですが、CI や release prep では `doctor --strict` で warning を failure として扱えます。`update --dry-run` で更新予定を確認できます。inactive な exact-managed workflow は `update --yes` で cleanup できますが、custom workflow は保持されます。既存ファイルや既存 scripts は `--overwrite` を付けない限り上書きしません。既存 support scripts は `--overwrite` の有無に関係なく保持されます。
