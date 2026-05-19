@@ -182,17 +182,16 @@ validate-structure:
 	@grep -q "^## Limitations" docs/releases/v0.4.0.md
 	@grep -q "^## Next" docs/releases/v0.4.0.md
 	@grep -q "ai-check-template@0.4.0" docs/releases/v0.4.0.md
-	@grep -q "release-ready" docs/releases/v0.4.0.md
-	@grep -q "npm publish pending" docs/releases/v0.4.0.md
+	@grep -q "Release state: Released" docs/releases/v0.4.0.md
 	@grep -q "ai-check-template run" docs/releases/v0.4.0.md
 	@grep -q "ai-check-template expect" docs/releases/v0.4.0.md
 	@grep -q "MultiEdit" docs/releases/v0.4.0.md
 	@grep -q "first-look" docs/releases/v0.4.0.md
-	@grep -q "v0.4.0.*Release-ready" README.md
-	@grep -q "v0.4.0.*Release-ready" README-en.md
-	@grep -q "v0.4.0.*Release-ready" package-templates/README.md
+	@grep -q "v0.4.0.*Released" README.md
+	@grep -q "v0.4.0.*Released" README-en.md
+	@grep -q "v0.4.0.*Released" package-templates/README.md
 	@grep -q "releases/v0.4.0.md" docs/roadmap.md
-	@grep -q 'package version is `0.4.0`' docs/roadmap.md
+	@grep -q "Released on 2026-05-19" docs/roadmap.md
 	@test -f package.json
 	@grep -q '"version": "0.4.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json

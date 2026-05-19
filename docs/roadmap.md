@@ -7,9 +7,9 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 `Released` means a tagged project milestone is available. The release vehicle differs by version:
 
 - v0.1.0: manual copy-and-adapt templates.
-- v0.2.0: stable npm CLI package, currently `ai-check-template@0.2.0`.
-- v0.3.0: GitHub Actions integration foundation. This is not an npm package release; the npm CLI package remains `0.2.0`.
-- v0.4.0: npm CLI release candidate for structured check evidence, structured AC/Test Matrix validation, and expanded security gates. The repository package version is `0.4.0`; npm publish, tag, and GitHub Release are maintainer follow-up work.
+- v0.2.0: first stable npm CLI package, `ai-check-template@0.2.0`.
+- v0.3.0: GitHub Actions integration foundation. This is not an npm package release.
+- v0.4.0: current stable npm CLI package, `ai-check-template@0.4.0`, for structured check evidence, structured AC/Test Matrix validation, and expanded security gates.
 
 Future npm publishes still require repository validation, including `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight.
 
@@ -120,9 +120,9 @@ Future npm publishes still require repository validation, including `npm pack` r
 
 ## v0.4.0 — Structured CLI evidence and security gate expansion
 
-**Status**: Release-ready on 2026-05-19. Release notes: [`./releases/v0.4.0.md`](./releases/v0.4.0.md). npm publish, `v0.4.0` git tag, and GitHub Release are pending maintainer execution.
+**Status**: Released on 2026-05-19. Release notes: [`./releases/v0.4.0.md`](./releases/v0.4.0.md).
 
-**Release type**: npm CLI release candidate. The repository `package.json` version is `0.4.0`.
+**Release type**: npm CLI release. The npm package is `ai-check-template@0.4.0`.
 
 **Theme**: Move from a thin script scaffold toward machine-readable evidence that AI agents, CI, and reviewers can use.
 
@@ -143,12 +143,12 @@ Future npm publishes still require repository validation, including `npm pack` r
 - [x] First-look map in [`./usage-model.md`](./usage-model.md) and prompt README alignment
 - [x] `0.4.0` package metadata and release readiness validation
 
-**Pending release work**
+**Release state**
 
-- [ ] `npm publish --tag latest --access public`
-- [ ] `git tag v0.4.0`
-- [ ] GitHub Release for `v0.4.0`
-- [ ] post-publish `npx -y ai-check-template@latest --help` and smoke init
+- [x] `npm publish --tag latest --access public`
+- [x] `git tag v0.4.0`
+- [x] GitHub Release for `v0.4.0`
+- [x] post-publish `npx -y ai-check-template@latest --help` and smoke init
 
 **Dependencies on v0.2.0 and v0.3.0**
 

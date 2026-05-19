@@ -162,14 +162,14 @@ Detailed walkthrough: see [`docs/roadmap.md`](./docs/roadmap.md) and the per-pro
 
 ## Roadmap
 
-Release wording: v0.1.0 is the manual-template release, v0.2.0 is the stable npm CLI package `ai-check-template@0.2.0`, v0.3.0 is the GitHub Actions integration foundation release, and v0.4.0 is the repository-current npm CLI release candidate. v0.4.0 bumps `package.json` to `0.4.0` and is release-ready; npm publish, tag creation, and GitHub Release creation remain explicit maintainer follow-up work. Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
+Release wording: v0.1.0 is the manual-template release, v0.2.0 is the first stable npm CLI package, v0.3.0 is the GitHub Actions integration foundation release, and v0.4.0 is the current stable npm CLI package `ai-check-template@0.4.0`. Repository validation still uses `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight before future publishes.
 
 | Version | Theme | Status |
 |---|---|---|
 | **v0.1.0** | Manual templates for AI code verification | Released ([notes](./docs/releases/v0.1.0.md)) |
 | **v0.2.0** | CLI scaffolding (`npx ai-check-template init`) | Released ([notes](./docs/releases/v0.2.0.md), [alpha notes](./docs/releases/v0.2.0-alpha.0.md), [CLI docs](./docs/cli.md)) |
 | **v0.3.0** | Hosted reusable workflow + Composite Action ([GitHub Actions guide](./docs/github-actions.md)); GitHub Marketplace later | Released ([notes](./docs/releases/v0.3.0.md)) |
-| **v0.4.0** | Structured CLI evidence (`run` / `expect`) + security gate expansion | Release-ready / npm publish pending ([notes](./docs/releases/v0.4.0.md)) |
+| **v0.4.0** | Structured CLI evidence (`run` / `expect`) + security gate expansion | Released ([notes](./docs/releases/v0.4.0.md)) |
 
 Full breakdown: [`docs/roadmap.md`](./docs/roadmap.md).
 
