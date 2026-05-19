@@ -47,7 +47,7 @@
 | 移行 | 条件 | コマンド |
 |---|---|---|
 | Specify -> Plan | SPEC-0047 に scope / out-of-scope / AC / 異常系 / Properties が揃う | `bash scripts/sage-validate.sh` |
-| Plan -> Execute | PLAN-0047 と TASK-0179..0183 に File Scope と依存関係が揃い、重複がない | `git diff --check` + scope review |
+| Plan -> Execute | PLAN-0047 と TASK-0179..0184 に File Scope と依存関係が揃い、重複がない | `git diff --check` + scope review |
 | TASK-0179 -> parallel tasks | README / public docs の source of truth が確定する | `make validate-structure` |
 | TASK-0180/0181/0182 -> TASK-0183 | 各TASKの完了条件が pass し、実行ログが更新される | 各TASKの完了条件コマンド |
 | TASK-0183 -> Merge ready | 全AC、`make validate`、SAGE validation、diff check が pass | `make validate` + `bash scripts/sage-validate.sh` + `git diff --check` |
@@ -70,6 +70,7 @@
 | TASK-0181 | CLI fixture lifecycle と root self-validation の検証を強化する | Codex Test | 45m | TASK-0179 | Yes |
 | TASK-0182 | Claude/SAGE operational docs を現行 public docs に追従させる | Claude Code Implementation | 40m | TASK-0179 | Yes |
 | TASK-0183 | SPEC-0047 全体の整合検証と SAGE status 更新を行う | Review | 30m | TASK-0180, TASK-0181, TASK-0182 | No |
+| TASK-0184 | Claude rules の npm 配布対象表記と固定 Phase 表現を修正する | Claude Code Implementation | 15m | TASK-0182, TASK-0183 | No |
 
 ## 依存グラフ
 
@@ -81,6 +82,9 @@ TASK-0179
 
 TASK-0180 + TASK-0181 + TASK-0182
   -> TASK-0183
+
+TASK-0183
+  -> TASK-0184
 ```
 
 ## リスク
