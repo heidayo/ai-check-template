@@ -1,7 +1,7 @@
 # Test Rules
 
 このファイルはテスト記述ルールを Claude Code / Codex 等の実装エージェントに伝える。
-配布される example。利用者が自プロジェクトの `.claude/rules/` にコピーして使う。リリース状況は [`docs/roadmap.md`](../../../docs/roadmap.md) を参照。
+配布される example。利用者が自プロジェクトの `.claude/rules/` にコピーして使う。
 
 ## Playwright Locator 優先順位
 

@@ -102,7 +102,9 @@
 
 詳細: `sage/traceability.md`
 
-## Quality Gate Checklist
+## Quality Gate Checklist (本リポ内部 SAGE 検証モデル)
+
+本節は **本リポを SAGE standard / promotion lane で保守する際の CI 検証モデル** を定義する。配布物として提供する `ai:check` / `ai:check:fast` / `ai:check:secure` (利用者プロジェクトでの AI 内部ループ + PR Gate ハイブリッド) **とは別概念**。配布物検証スタックの一次情報源は [`package-templates/.claude/README.md`](./package-templates/.claude/README.md) と [`package-templates/scripts/README.md`](./package-templates/scripts/README.md)。
 
 CI で 5 段階の Gate を通過すること:
 
@@ -112,7 +114,7 @@ CI で 5 段階の Gate を通過すること:
 - **Gate 4: Architecture** — layer 境界 / traceability
 - **Gate 5: Release** — migration safety / rollback / monitoring
 
-3-state: PASS(✅) / FAIL(❌) / SKIPPED(⏭️)。`.sage/config.yaml` `project_checks` で各 Gate のコマンドを設定。
+3-state: PASS(✅) / FAIL(❌) / SKIPPED(⏭️)。`.sage/config.yaml` `project_checks` で各 Gate のコマンドを設定。過去 TASK の "Gate 1/2/4 PASS" 等の記録はすべて本 SAGE 内部評価軸を指す。
 
 ## Language Rules
 
