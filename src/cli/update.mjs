@@ -1,11 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
-  ciWorkflowFiles,
   ciWorkflowRelativePath,
   inactiveCiWorkflowFiles,
   isManagedCiWorkflowContent,
-  renderedCiWorkflow,
 } from "./ci-workflows.mjs";
 import {
   dependencyInstallOperation,
@@ -24,8 +22,8 @@ import {
   validateCiMode,
   writeInstallState,
 } from "./install-state.mjs";
+import { getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
-import { getProfileDocFiles } from "./profile-docs.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
   CliError,
@@ -98,26 +96,11 @@ export async function runUpdate(argv, io = {}) {
   const operations = [];
 
   await updatePackageScripts(targetDir, packageJsonPath, writeOptions, operations);
-  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", writeOptions, operations);
-  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", writeOptions, operations);
-  await updateTemplateFile(targetDir, fromTemplates("scripts", "ai-check-secure.sh"), "scripts/ai-check-secure.sh", writeOptions, operations);
-  await createMissingProfileDocs(targetDir, writeOptions, operations);
-  await updateCi(targetDir, writeOptions, operations);
+  await updateManagedFiles(targetDir, writeOptions, operations);
   await cleanupInactiveCi(targetDir, writeOptions, operations);
 
   if (writeOptions.claudeHooks) {
-    await updateTemplateFile(
-      targetDir,
-      fromTemplates(".claude", "rules", "test-rules.md"),
-      ".claude/rules/test-rules.md",
-      writeOptions,
-      operations,
-    );
     await updateClaudeSettings(targetDir, writeOptions, operations);
-  }
-
-  if (writeOptions.reviewTemplates) {
-    await updateReviewTemplates(targetDir, writeOptions, operations);
   }
 
   await updateInstallState(targetDir, effectiveOptions, writeOptions, operations);
@@ -324,63 +307,30 @@ async function updatePackageScripts(targetDir, packageJsonPath, options, operati
   }
 }
 
-async function updateTemplateFile(targetDir, sourcePath, relativePath, options, operations) {
-  const targetPath = path.join(targetDir, relativePath);
-  const expected = await fs.readFile(sourcePath, "utf8");
-  const exists = await pathExists(targetPath);
-
-  if (exists) {
-    const actual = await fs.readFile(targetPath, "utf8");
-    if (actual === expected) {
-      operations.push(operation("keep", relativePath));
-      return;
+async function updateManagedFiles(targetDir, options, operations) {
+  for (const file of getManagedFiles(options)) {
+    if (file.kind === "profile-doc") {
+      await createMissingManagedFile(targetDir, file, options, operations);
+      continue;
     }
-  }
 
-  operations.push(
-    operation(
-      exists ? (options.dryRun ? "would-update" : "update") : (options.dryRun ? "would-create" : "create"),
-      relativePath,
-    ),
-  );
-
-  if (!options.dryRun) {
-    await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.writeFile(targetPath, expected);
+    await updateRenderedTemplateFile(targetDir, await file.render(), file.relativePath, options, operations);
   }
 }
 
-async function createMissingProfileDocs(targetDir, options, operations) {
-  for (const file of getProfileDocFiles(options.profile)) {
-    await createMissingTemplateFile(targetDir, file.sourcePath, file.relativePath, options, operations, "profile doc");
-  }
-}
-
-async function createMissingTemplateFile(targetDir, sourcePath, relativePath, options, operations, detail) {
-  const targetPath = path.join(targetDir, relativePath);
+async function createMissingManagedFile(targetDir, file, options, operations) {
+  const targetPath = path.join(targetDir, file.relativePath);
 
   if (await pathExists(targetPath)) {
-    operations.push(operation("keep", relativePath, detail));
+    operations.push(operation("keep", file.relativePath, file.detail));
     return;
   }
 
-  operations.push(operation(options.dryRun ? "would-create" : "create", relativePath, detail));
+  operations.push(operation(options.dryRun ? "would-create" : "create", file.relativePath, file.detail));
 
   if (!options.dryRun) {
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.copyFile(sourcePath, targetPath);
-  }
-}
-
-async function updateCi(targetDir, options, operations) {
-  for (const fileName of ciWorkflowFiles(options.ci)) {
-    await updateRenderedTemplateFile(
-      targetDir,
-      await renderedCiWorkflow(fileName, options.packageManager),
-      ciWorkflowRelativePath(fileName),
-      options,
-      operations,
-    );
+    await fs.copyFile(file.sourcePath, targetPath);
   }
 }
 
@@ -477,23 +427,6 @@ async function updateClaudeSettings(targetDir, options, operations) {
   if (changed && !options.dryRun) {
     await writeJson(targetPath, nextSettings);
   }
-}
-
-async function updateReviewTemplates(targetDir, options, operations) {
-  await updateTemplateFile(
-    targetDir,
-    fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
-    ".github/PULL_REQUEST_TEMPLATE.md",
-    options,
-    operations,
-  );
-  await updateTemplateFile(
-    targetDir,
-    fromTemplates("worksheet", "ai-code-understanding.md"),
-    "worksheet/ai-code-understanding.md",
-    options,
-    operations,
-  );
 }
 
 async function updateInstallState(targetDir, effectiveOptions, options, operations) {

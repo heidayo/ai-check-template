@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
-  ciWorkflowFiles,
   ciWorkflowRelativePath,
   inactiveCiWorkflowFiles,
   isManagedCiWorkflowContent,
-  renderedCiWorkflow,
 } from "./ci-workflows.mjs";
+import { getManagedFiles } from "./managed-files.mjs";
 import {
   effectiveOptionsSummary,
   installationSummary,
@@ -20,7 +19,6 @@ import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
 import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
-  fromTemplates,
   pathExists,
   readJson,
   resolveTarget,
@@ -231,35 +229,19 @@ async function diagnoseTarget(targetDir, options) {
   }
 
   checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-secure.sh"), "scripts/ai-check-secure.sh", issues);
-  await checkCi(targetDir, options.ci, options.packageManager, issues);
+
+  for (const file of getManagedFiles(options)) {
+    if (file.kind === "profile-doc") {
+      continue;
+    }
+
+    await checkExpectedFileContent(targetDir, await file.render(), file.relativePath, issues);
+  }
+
   const ciWarnings = await diagnoseInactiveCi(targetDir, options.ci);
 
   if (options.claudeHooks) {
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates(".claude", "rules", "test-rules.md"),
-      ".claude/rules/test-rules.md",
-      issues,
-    );
     await checkClaudeSettings(targetDir, issues);
-  }
-
-  if (options.reviewTemplates) {
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
-      ".github/PULL_REQUEST_TEMPLATE.md",
-      issues,
-    );
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates("worksheet", "ai-code-understanding.md"),
-      "worksheet/ai-code-understanding.md",
-      issues,
-    );
   }
 
   warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...ciWarnings];
@@ -280,17 +262,6 @@ function checkPackageScripts(packageJson, profile, issues, packageManager) {
     if (scripts[name] !== expected) {
       issues.push(issue("drift", "package.json", `Package script differs: ${name}`));
     }
-  }
-}
-
-async function checkCi(targetDir, ciMode, packageManager, issues) {
-  for (const fileName of ciWorkflowFiles(ciMode)) {
-    await checkExpectedFileContent(
-      targetDir,
-      await renderedCiWorkflow(fileName, packageManager),
-      ciWorkflowRelativePath(fileName),
-      issues,
-    );
   }
 }
 
@@ -324,24 +295,6 @@ async function checkExpectedFileContent(targetDir, expected, relativePath, issue
   }
 
   const actual = await fs.readFile(targetPath, "utf8");
-
-  if (actual !== expected) {
-    issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
-  }
-}
-
-async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) {
-  const targetPath = path.join(targetDir, relativePath);
-
-  if (!(await pathExists(targetPath))) {
-    issues.push(issue("missing-file", normalizeRelative(relativePath), "Expected template file is missing"));
-    return;
-  }
-
-  const [actual, expected] = await Promise.all([
-    fs.readFile(targetPath, "utf8"),
-    fs.readFile(expectedPath, "utf8"),
-  ]);
 
   if (actual !== expected) {
     issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
