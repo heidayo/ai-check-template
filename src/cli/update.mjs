@@ -116,7 +116,7 @@ export async function runUpdate(argv, io = {}) {
     await updateClaudeSettings(targetDir, writeOptions, operations);
   }
 
-  await updateInstallState(targetDir, effectiveOptions, writeOptions, operations);
+  await updateInstallState(targetDir, effectiveOptions, writeOptions, operations, context);
   await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
   const output = {
@@ -534,7 +534,7 @@ async function updateClaudeSettings(targetDir, options, operations) {
   }
 }
 
-async function updateInstallState(targetDir, effectiveOptions, options, operations) {
+async function updateInstallState(targetDir, effectiveOptions, options, operations, context) {
   const relativePath = ".ai-check-template.json";
   const targetPath = installStatePath(targetDir);
   const exists = await pathExists(targetPath);
@@ -558,10 +558,29 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
       // Record baselines from the on-disk content after all writes so kept
       // files (e.g. local == upstream) get their hash refreshed too (INV-02).
       // Dry runs do not read or record anything (INV-04).
-      managedFiles: options.dryRun ? {} : await collectManagedFileHashes(targetDir, effectiveOptions),
+      managedFiles: options.dryRun ? {} : await collectUpdatedManagedFileHashes(targetDir, effectiveOptions, context),
     },
     { dryRun: options.dryRun },
   );
+}
+
+async function collectUpdatedManagedFileHashes(targetDir, effectiveOptions, context) {
+  const managedFiles = await collectManagedFileHashes(targetDir, effectiveOptions);
+
+  // skip-modified files keep their previous baseline hash: rebasing them onto
+  // the locally modified content would make the next update treat that content
+  // as "unmodified" and overwrite it silently (FR-02 / INV-01). Files skipped
+  // under the FR-04 fallback (no baseline recorded) do adopt the current
+  // content as their new baseline, as specified.
+  for (const entry of context.modified) {
+    const previousBaseline = context.baseline[entry.relativePath];
+
+    if (previousBaseline) {
+      managedFiles[entry.relativePath] = previousBaseline;
+    }
+  }
+
+  return managedFiles;
 }
 
 async function maybeInstallDependencies(targetDir, dependencyInstallPlan, options, operations) {
