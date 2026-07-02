@@ -570,13 +570,17 @@ async function collectUpdatedManagedFileHashes(targetDir, effectiveOptions, cont
   // skip-modified files keep their previous baseline hash: rebasing them onto
   // the locally modified content would make the next update treat that content
   // as "unmodified" and overwrite it silently (FR-02 / INV-01). Files skipped
-  // under the FR-04 fallback (no baseline recorded) do adopt the current
-  // content as their new baseline, as specified.
+  // under the FR-04 fallback (no baseline recorded) must NOT adopt the current
+  // content as a baseline either — that would make the next update see
+  // local == baseline and overwrite the user's changes without warning. They
+  // stay baseline-less so the fallback warning repeats on every update (FR-04).
   for (const entry of context.modified) {
     const previousBaseline = context.baseline[entry.relativePath];
 
     if (previousBaseline) {
       managedFiles[entry.relativePath] = previousBaseline;
+    } else {
+      delete managedFiles[entry.relativePath];
     }
   }
 
