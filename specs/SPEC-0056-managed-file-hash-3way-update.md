@@ -53,9 +53,9 @@
 - [FR-01] init / update 完了時、書き込んだ全 managed ファイルの SHA-256 を install state `managedFiles` に記録する（dry-run 時は記録しない）
 - [FR-02] update は managed ファイルごとに baseline hash / local 内容 / upstream 内容の 3 者比較を行い、ユーザー改変ファイルをデフォルトで上書きしない（action: `skip-modified` として operations に報告）
 - [FR-03] `--force-managed` 指定時のみ改変ファイルを上書きし、上書き前の内容を `<file>.bak-<packageVersion>` として保存する
-- [FR-04] baseline hash が存在しない場合（v1 state からの migration 直後、v0.1 手動導入）は現行のバイト比較にフォールバックし、**差分ありなら上書きせず警告**（安全側に倒す）。update 完了時に hash を記録して以後 3-way に移行する
+- [FR-04] baseline hash が存在しない場合（v1 state からの migration 直後、v0.1 手動導入）は現行のバイト比較にフォールバックし、**差分ありなら上書きせず警告**（安全側に倒す）。update 完了時、フォールバックで差分なし（= upstream と一致）だったファイルのみ hash を記録して以後 3-way に移行する。**差分ありで skip したファイルの baseline に「改変済みローカル内容」の hash を記録してはならない**（次回 update で local==baseline と誤判定され改変が無警告上書きされるため。INV-01 違反）。差分ありのファイルは baseline 未記録のままフォールバック警告を継続し、ユーザーが `--force-managed` 等で解決した時点で 3-way に移行する
 - [FR-05] schemaVersion 1 の state は読み込み時に自動で v2 へ migration し、次回書き込みで永続化する。未知の schemaVersion (>2) はエラーで停止する
-- [FR-06] doctor は managed ファイルごとに `ok` / `drift-upstream`（更新未適用）/ `modified-local`（ユーザー改変）を区別して報告する
+- [FR-06] doctor は managed ファイルごとに `ok` / `drift-upstream`（更新未適用）/ `modified-local`（ユーザー改変）を区別して報告する。baseline hash が存在しないファイルは upstream 差分とユーザー改変を区別できないため、第 4 の状態 `drift`（区別不能な差分あり）として報告する
 
 ### 非機能要件
 - [NFR-01] 後方互換: v0.2.0〜v0.4.0 で生成された install state を持つプロジェクトで update がエラーなく完走し、ユーザー改変ファイルが失われないこと
@@ -76,8 +76,8 @@
 | 区分 | ファイル |
 |---|---|
 | 新規 | `src/cli/managed-files.mjs`, `tests/cli/managed-files.test.mjs` |
-| 変更 | `src/cli/update.mjs`, `src/cli/doctor.mjs`, `src/cli/init.mjs`, `src/cli/install-state.mjs` |
-| テスト | `tests/cli/update.test.mjs`, `tests/cli/doctor.test.mjs`, `tests/cli/init.test.mjs` |
+| 変更 | `src/cli/update.mjs`, `src/cli/doctor.mjs`, `src/cli/init.mjs`, `src/cli/install-state.mjs`, `src/cli/index.mjs`（usage ヘルプへの新フラグ追記のみ） |
+| テスト | `tests/cli/update.test.mjs`, `tests/cli/doctor.test.mjs`, `tests/cli/init.test.mjs`, `tests/cli/release-readiness.test.mjs`（3-way 挙動変更に伴う既存 lifecycle テストの期待値更新） |
 | ドキュメント | `docs/cli.md`, `README.md`, `README-ja.md`, `README-en.md` |
 
 上記以外への変更は本 SPEC のスコープ外。`package-templates/` 配下（配布テンプレート内容そのもの）は変更しない。
