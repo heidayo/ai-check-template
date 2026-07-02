@@ -848,10 +848,11 @@ test("managedFiles 記録があるのにファイルが欠落している場合�
   assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
 });
 
-test("baseline hash なし + 差分ありは警告付きで keep され hash が記録される", (t) => {
+test("baseline hash なし + 差分ありは警告付きで keep され hash は記録されない", (t) => {
   // FR-04: v1 state（baseline なし）からの migration 直後はバイト比較に
-  // フォールバックし、差分ありでも上書きしない。update 完了時に hash を記録し
-  // 以後 3-way に移行する
+  // フォールバックし、差分ありでも上書きしない。差分あり skip したファイルは
+  // baseline hash を記録せず、フォールバック警告を継続する（差分なしのみ
+  // hash 記録して 3-way に移行）
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
   toV1State(target);
@@ -867,7 +868,33 @@ test("baseline hash なし + 差分ありは警告付きで keep され hash が
   assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
   const state = readInstallState(target);
   assert.equal(state.schemaVersion, 2);
-  assert.match(state.managedFiles["scripts/ai-check.sh"]?.hash ?? "", /^sha256:[0-9a-f]{64}$/);
+  // FR-04: 差分あり skip では baseline hash を記録しない
+  assert.equal(state.managedFiles["scripts/ai-check.sh"]?.hash, undefined);
+});
+
+test("baseline なし + 改変は 2 回目の update でも skip-modified で内容が保持される", (t) => {
+  // INV-01 / FR-04: FIND-001 回帰。差分あり skip 時に upstream hash を記録して
+  // しまうと 2 回目の update で「baseline == local 扱い」となりユーザー改変が
+  // 上書きされる。差分あり skip では hash を記録しないため、2 回目以降も
+  // skip-modified が継続しユーザー内容が失われない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  toV1State(target);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const first = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(JSON.parse(first.stdout).operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+
+  const second = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(second.status, 0, second.stderr);
+  assert.equal(JSON.parse(second.stdout).operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  // INV-01: ユーザー内容がデータ喪失せず保持される
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
 });
 
 test("local == upstream だが baseline と異なる場合は keep して hash を更新する", (t) => {
