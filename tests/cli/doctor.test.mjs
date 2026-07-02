@@ -122,8 +122,9 @@ test("doctor uses package-manager-rendered direct CI workflows", (t) => {
   const drift = runCli(["doctor", "--target", target, "--ci", "direct", "--package-manager", "pnpm", "--json"]);
   assert.notEqual(drift.status, 0);
   const output = JSON.parse(drift.stdout);
+  // FR-06: local == baseline で template だけが変わった場合は drift-upstream（更新未適用）
   assert.equal(output.issues.some(
-    (issue) => issue.code === "drift" && issue.path === ".github/workflows/ai-check.yml",
+    (issue) => issue.code === "drift-upstream" && issue.path === ".github/workflows/ai-check.yml",
   ), true);
 });
 
@@ -279,11 +280,16 @@ test("doctor uses install state default for reviewability template drift", (t) =
 
   const result = runCli(["doctor", "--target", target, "--json"]);
 
-  assert.notEqual(result.status, 0);
+  // FR-06: baseline から改変されたファイルは modified-local（ユーザー改変）として
+  // warning で報告され、非 strict では失敗にならない
+  assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.effectiveOptions.reviewTemplates, true);
-  assert.equal(output.issues.some(
-    (issue) => issue.code === "drift" && issue.path === "worksheet/ai-code-understanding.md",
+  assert.equal(output.warnings.some(
+    (warning) => warning.code === "modified-local" && warning.path === "worksheet/ai-code-understanding.md",
+  ), true);
+  assert.equal(output.managedFiles.some(
+    (file) => file.status === "modified-local" && file.path === "worksheet/ai-code-understanding.md",
   ), true);
 });
 
@@ -511,10 +517,33 @@ test("doctor detects generic script drift for node-cli profile", (t) => {
   assert.match(result.stdout, /drift/);
 });
 
-test("doctor returns non-zero for missing files", (t) => {
+test("doctor warns on missing tracked managed files", (t) => {
+  // 異常系1: managedFiles に記録があるがファイルが削除されている →
+  // doctor は missing として警告（update が再生成する）
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
   fs.rmSync(path.join(target, "scripts", "ai-check.sh"));
+  const result = runCli(["doctor", "--target", target, "--ci", "none", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.warnings.some(
+    (warning) => warning.code === "missing-managed-file" && warning.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(output.managedFiles.some(
+    (file) => file.status === "missing" && file.path === "scripts/ai-check.sh",
+  ), true);
+
+  // strict では欠落警告も失敗になる
+  assert.notEqual(runCli(["doctor", "--target", target, "--ci", "none", "--strict"]).status, 0);
+});
+
+test("doctor returns non-zero for missing files without baseline", (t) => {
+  // baseline 記録なし（v0.1 手動導入相当）の欠落は現行どおり issue として失敗
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.rmSync(path.join(target, "scripts", "ai-check.sh"));
+  fs.rmSync(path.join(target, ".ai-check-template.json"));
   const result = runCli(["doctor", "--target", target, "--ci", "none"]);
 
   assert.notEqual(result.status, 0);
@@ -542,16 +571,21 @@ test("doctor json output is parseable", (t) => {
   fs.writeFileSync(path.join(target, "scripts", "ai-check-fast.sh"), "changed\n");
   const result = runCli(["doctor", "--target", target, "--ci", "none", "--json"]);
 
-  assert.notEqual(result.status, 0);
+  // FR-06: baseline から改変されたファイルは modified-local warning（非 strict は pass）
+  assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
-  assert.equal(output.status, "fail");
+  assert.equal(output.status, "pass");
   assert.equal(output.strict, false);
   assert.equal(Array.isArray(output.warnings), true);
-  assert.equal(output.issues[0].code, "drift");
-  assert.equal(output.issues[0].path, "scripts/ai-check-fast.sh");
+  assert.equal(output.warnings.some(
+    (warning) => warning.code === "modified-local" && warning.path === "scripts/ai-check-fast.sh",
+  ), true);
+  // OPS-02: 出力に install state の schemaVersion を含める
+  assert.equal(output.schemaVersion, 2);
 });
 
-test("strict mode keeps issue failures as failures", (t) => {
+test("strict mode keeps modified-local warnings as failures", (t) => {
+  // FR-06: strict では modified-local warning も失敗として扱われる
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
   fs.writeFileSync(path.join(target, "scripts", "ai-check-fast.sh"), "changed\n");
@@ -561,7 +595,7 @@ test("strict mode keeps issue failures as failures", (t) => {
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "fail");
   assert.equal(output.strict, true);
-  assert.equal(output.issues[0].code, "drift");
+  assert.equal(output.warnings.some((warning) => warning.code === "modified-local"), true);
 });
 
 test("doctor skips profile warnings for malformed package json", (t) => {
@@ -587,6 +621,64 @@ test("doctor rejects target without package.json", (t) => {
   assert.match(result.stdout, /package\.json/);
 });
 
+test("doctor は ok / drift-upstream / modified-local を区別して報告する", (t) => {
+  // FR-06: managed ファイルごとに ok（一致）/ drift-upstream（更新未適用）/
+  // modified-local（ユーザー改変）を区別して報告する
+  const target = createFixture(t);
+  initFixture(target, ["--package-manager", "npm", "--ci", "direct"]);
+  // ユーザー改変（local != baseline）→ modified-local
+  fs.writeFileSync(path.join(target, "scripts", "ai-check-fast.sh"), "changed\n");
+
+  // upstream 変化のシミュレーション: workflow は npm baseline のまま
+  // pnpm 期待でチェック → local == baseline != upstream → drift-upstream
+  const result = runCli(["doctor", "--target", target, "--ci", "direct", "--package-manager", "pnpm", "--json"]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  const statusOf = (filePath) => output.managedFiles.find((file) => file.path === filePath)?.status;
+  assert.equal(statusOf("scripts/ai-check.sh"), "ok");
+  assert.equal(statusOf(".github/workflows/ai-check.yml"), "drift-upstream");
+  assert.equal(statusOf("scripts/ai-check-fast.sh"), "modified-local");
+  // drift-upstream は issue、modified-local は warning
+  assert.equal(output.issues.some(
+    (issue) => issue.code === "drift-upstream" && issue.path === ".github/workflows/ai-check.yml",
+  ), true);
+  assert.equal(output.warnings.some(
+    (warning) => warning.code === "modified-local" && warning.path === "scripts/ai-check-fast.sh",
+  ), true);
+  // OPS-02: schemaVersion を出力に含める
+  assert.equal(output.schemaVersion, 2);
+});
+
+test("doctor human 出力に schema-version と managed ファイル状態を含める", (t) => {
+  // OPS-02: v1 state 残存（migration 未完了）を観測可能にするため
+  // schemaVersion を出力する
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+
+  const result = runCli(["doctor", "--target", target, "--ci", "none"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /schema-version: 2/);
+  assert.match(result.stdout, /- ok: scripts\/ai-check\.sh/);
+});
+
+test("doctor は v1 state の schemaVersion を 1 として報告する", (t) => {
+  // OPS-02: migration 未完了（v1 残存）が観測できる
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const statePath = path.join(target, ".ai-check-template.json");
+  const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  delete state.managedFiles;
+  fs.writeFileSync(statePath, `${JSON.stringify({ ...state, schemaVersion: 1 }, null, 2)}\n`);
+
+  const result = runCli(["doctor", "--target", target, "--ci", "none", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).schemaVersion, 1);
+});
+
+// 異常系3: install state の JSON 破損 → doctor は invalid-install-state を報告する
 test("doctor reports malformed install state without writing", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);

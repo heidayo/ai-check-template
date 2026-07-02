@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -233,8 +234,10 @@ test("init writes deterministic install state", (t) => {
 
   assert.equal(result.status, 0, result.stderr);
   const state = readInstallState(target);
-  assert.deepEqual(state, {
-    schemaVersion: 1,
+  // AC-02: init 直後の install state は schemaVersion: 2 で managedFiles を含む
+  const { managedFiles, ...rest } = state;
+  assert.deepEqual(rest, {
+    schemaVersion: 2,
     packageName: "ai-check-template",
     packageVersion: "0.4.0",
     profile: {
@@ -248,6 +251,22 @@ test("init writes deterministic install state", (t) => {
     reviewTemplates: false,
     managedBy: "ai-check-template",
   });
+  // AC-02: 全 managed ファイル（shell scripts / CI workflow / Claude rule / profile docs）の hash が記録される
+  for (const expected of [
+    "scripts/ai-check.sh",
+    "scripts/ai-check-fast.sh",
+    "scripts/ai-check-secure.sh",
+    ".github/workflows/ai-quality-reusable.yml",
+    ".github/workflows/ai-quality-call.yml",
+    ".claude/rules/test-rules.md",
+  ]) {
+    assert.equal(Object.hasOwn(managedFiles, expected), true, `missing managedFiles entry: ${expected}`);
+  }
+  // INV-02: 各 hash は対応ファイルの実内容の SHA-256 と一致する
+  for (const [relativePath, entry] of Object.entries(managedFiles)) {
+    const content = fs.readFileSync(path.join(target, ...relativePath.split("/")), "utf8");
+    assert.equal(entry.hash, `sha256:${createHash("sha256").update(content).digest("hex")}`, relativePath);
+  }
 });
 
 test("init copies reviewability templates when requested", (t) => {
