@@ -109,6 +109,8 @@ npx -y ai-check-template doctor --target .
 npx -y ai-check-template update --target . --dry-run
 ```
 
+`update` は各 managed ファイルを「インストール時の baseline hash / ローカル内容 / 最新テンプレート」の 3-way で判定します。未改変ファイルだけを更新し、ローカルで改変したファイルはデフォルトで保持します（`skip-modified`）。差分の確認は `--diff`、テンプレートでの上書きは `--force-managed`（上書き前に `<file>.bak-<version>` バックアップを作成。`.gitignore` への `*.bak-*` 追加を推奨）。復元は `.bak-<version>` ファイルを元のパスに戻すだけです。以前の「常に上書き」挙動が必要な場合は `npx -y ai-check-template@0.4.0` のように前バージョンに pin 留めしてください。詳細は [`docs/cli.md`](./docs/cli.md)。
+
 導入後は target project 側の script を走らせます。
 
 ```bash

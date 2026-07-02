@@ -79,9 +79,12 @@ node ../ai-check-template/bin/ai-check-template.mjs expect --file docs/ai-check-
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
 | `--review-templates` | install state or off | Updates `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` from packaged reviewability templates. |
 | `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
+| `--keep-local` | on (default behavior) | Keeps locally modified managed files. This is the default; the flag makes the choice explicit in scripts and CI. Mutually exclusive with `--force-managed`. |
+| `--force-managed` | off | Overwrites locally modified managed files. The previous content is saved as `<file>.bak-<packageVersion>` before the overwrite. |
+| `--diff` | off | Read-only mode: prints a unified diff for each locally modified managed file, writes nothing, and exits non-zero when modifications exist. Does not require `--yes`. Mutually exclusive with `--keep-local` / `--force-managed`. |
 | `--dry-run` | off | Prints planned operations without writing files. |
-| `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
-| `--json` | off | Prints `{ status, target, installation, effectiveOptions, operations }` for automation. |
+| `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` or `--diff` is used. |
+| `--json` | off | Prints `{ status, target, installation, effectiveOptions, operations, notes }` for automation (`diffs` is added with `--diff`). |
 
 ## Run options
 
@@ -118,7 +121,13 @@ template shape; use JSON for richer metadata.
 
 ## Install state
 
-`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version, package version, selected profile, package manager, CI mode, whether Claude hooks were enabled, and whether reviewability templates were enabled. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
+`init` writes a deterministic `.ai-check-template.json` file at the target project root. The file records schema version (currently `2`), package version, selected profile, package manager, CI mode, whether Claude hooks were enabled, whether reviewability templates were enabled, and a `managedFiles` map with the `sha256:<hex>` baseline hash of every managed file as written on disk. It intentionally does not store timestamps, absolute target paths, environment values, or secrets.
+
+Schema version handling:
+
+- schemaVersion `1` states (written by v0.2.0–v0.4.0) are read as-is and migrated to schemaVersion `2` on the next `init`/`update` write. Until re-recorded, they carry no baseline hashes, so `update` falls back to byte comparison and keeps any differing file with a warning instead of overwriting it.
+- schemaVersion greater than `2` (state written by a newer CLI) stops `update` with an explicit error instead of being read silently. Upgrade the CLI or pin the newer version.
+- `doctor` prints the current `schema-version`, so unmigrated v1 states remain observable.
 
 `doctor` and `update` read this file when it exists. Explicit flags still win:
 
@@ -225,7 +234,7 @@ The copied set includes:
 - the selected base profile README, such as `profiles/react-nextjs/README.md` or `profiles/node-cli/README.md`
 - selected addon profile READMEs, such as `profiles/supabase-rls/README.md`
 
-The target layout preserves the package-template-like `docs/`, `prompts/`, and `profiles/` structure so existing relative links in the copied Markdown continue to work. `init` skips existing files by default and follows `--overwrite` for conflicts. `update` creates missing docs only and keeps existing target docs unchanged.
+The target layout preserves the package-template-like `docs/`, `prompts/`, and `profiles/` structure so existing relative links in the copied Markdown continue to work. `init` skips existing files by default and follows `--overwrite` for conflicts. `update` applies the same 3-way resolution as other managed files: missing docs are created, unmodified docs follow the template, and locally modified docs are kept as `skip-modified`.
 
 ## Support script defaults
 
@@ -284,6 +293,16 @@ It does not modify `package-templates/`, publish to npm, install dependencies wi
 - missing referenced package script warnings from `ai:check` / `ai:check:fast` / `ai:check:secure`
 - stale managed CI workflow warnings for inactive `--ci` modes
 
+When baseline hashes are recorded (schema v2), `doctor` reports each managed file with one of:
+
+- `ok` — matches the current template
+- `drift-upstream` — unmodified locally but behind the template (issue; run `update`)
+- `modified-local` — locally customized (warning; `update` keeps it, resolve with `update --diff` / `--force-managed`)
+- `drift` — differs and no baseline hash is recorded (issue; byte-comparison fallback)
+- `missing` — the managed file does not exist (warning when tracked in the install state, issue otherwise)
+
+The human output also prints the install state `schema-version` so unmigrated v1 states are visible.
+
 It exits with code `0` when no issues are found and code `1` when files are missing, drifted, or the install state is malformed. It does not repair files; use the reported paths to decide whether to run `update --dry-run` and then `update --yes`.
 
 ## What update changes
@@ -294,7 +313,7 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 - package-manager-aware package script invocations
 - `scripts/ai-check.sh`, `scripts/ai-check-fast.sh`, and `scripts/ai-check-secure.sh`
 - selected package-manager-aware GitHub Actions workflows for `--ci direct` or `--ci reusable`
-- missing profile docs under `docs/ai-check-template/`
+- profile docs under `docs/ai-check-template/` (missing docs are created; existing docs follow the 3-way resolution below)
 - inactive exact-managed GitHub Actions workflows from other `--ci` modes
 - optional Claude Code rule and package-manager-aware managed hook settings when `--claude-hooks` is set
 - optional Review gate PR template and AI code understanding worksheet when `--review-templates` is set or install state enabled it
@@ -303,14 +322,39 @@ It exits with code `0` when no issues are found and code `1` when files are miss
 
 It requires `--yes` before writing. Use `--dry-run` to preview operations. It performs package-script profile migrations, missing support script creation, exact-managed workflow cleanup, and optional npm dev dependency install only; semantic merges of arbitrary custom user scripts, external toolchain install, and arbitrary workflow cleanup are still out of scope.
 
+### 3-way update resolution (breaking behavior change)
+
+Before schema v2, `update` always overwrote drifted managed files. Since schema v2, `update` compares three states per managed file — the baseline hash recorded in `.ai-check-template.json`, the local file content, and the upstream (current template) content — and reports one action per file (also in `--json` `operations`):
+
+| Action | Condition | Effect |
+|---|---|---|
+| `keep` | local == upstream | Nothing to do. The baseline hash is refreshed, including when you applied the upstream content manually. |
+| `update` | local == baseline, upstream changed | File is updated to the current template. |
+| `skip-modified` | local differs from both baseline and upstream | **Default: the file is kept.** The output explains the choice and points to `--keep-local` / `--force-managed` / `--diff`. |
+| `overwrite-forced` | same as above, with `--force-managed` | The file is overwritten after `<file>.bak-<packageVersion>` is written first. |
+
+Files without a baseline hash (v1 state migration, v0.1 manual installs) fall back to byte comparison: identical files are kept, differing files are kept with a warning (never overwritten silently), and the on-disk content is recorded as the new baseline when the update completes. Managed files that were deleted locally are regenerated.
+
+If the previous always-overwrite behavior is required, pin the previous release: `npx -y ai-check-template@0.4.0 update ...`.
+
+### Restoring from a `.bak-<version>` backup
+
+`--force-managed` writes the previous content to `<file>.bak-<packageVersion>` (for example `scripts/ai-check.sh.bak-0.4.0`) before overwriting. To restore a backup:
+
+```bash
+mv scripts/ai-check.sh.bak-0.4.0 scripts/ai-check.sh
+```
+
+After restoring, the next `update` reports the file as `skip-modified` again and keeps it. Backup files can contain project-specific content (including secrets embedded in customized scripts); add `*.bak-*` to `.gitignore` and do not commit them.
+
 ## Safety behavior
 
 - During `init`, existing target files are not overwritten by default.
 - During `init`, existing target scripts are not overwritten by default.
 - During `init --review-templates`, existing PR templates and worksheets are not overwritten unless `--overwrite` is set.
 - During `init` / `update`, existing support scripts such as `lint` and `test` are preserved.
-- During `update`, only known template-managed non-doc paths are rewritten, and `--yes` is required.
-- During `update`, existing files under `docs/ai-check-template/` are kept instead of overwritten.
+- During `update`, only known template-managed paths are rewritten, and `--yes` is required.
+- During `update`, locally modified managed files are kept (`skip-modified`) unless `--force-managed` is set; forced overwrites write a `.bak-<version>` backup first.
 - During `update`, inactive workflow files are deleted only when they exactly match packaged managed templates or their package-manager-rendered variants.
 - `--install-deps` is the explicit opt-in for dependency install; without it, no package manager install command runs.
 - Actual `--install-deps --yes` preflights the package manager binary before target writes.
