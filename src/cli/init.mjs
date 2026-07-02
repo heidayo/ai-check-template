@@ -8,7 +8,7 @@ import {
 } from "./dependency-installer.mjs";
 import { renderClaudeHookSettings } from "./claude-hooks.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
-import { getManagedFiles } from "./managed-files.mjs";
+import { collectManagedFileHashes, getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
@@ -368,14 +368,22 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     targetPath,
   });
 
+  const managedFileOptions = {
+    profile,
+    packageManager: options.packageManager,
+    ci: options.ci,
+    claudeHooks: options.claudeHooks,
+    reviewTemplates: options.reviewTemplates,
+  };
+
   await writeInstallState(
     targetDir,
     {
-      profile,
-      packageManager: options.packageManager,
-      ci: options.ci,
-      claudeHooks: options.claudeHooks,
-      reviewTemplates: options.reviewTemplates,
+      ...managedFileOptions,
+      // Hash the files as written on disk so baselines stay truthful even for
+      // files init skipped because they already existed (INV-02). Dry runs do
+      // not read or record anything (INV-04).
+      managedFiles: options.dryRun ? {} : await collectManagedFileHashes(targetDir, managedFileOptions),
     },
     { dryRun: options.dryRun },
   );

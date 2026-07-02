@@ -22,7 +22,7 @@ import {
   validateCiMode,
   writeInstallState,
 } from "./install-state.mjs";
-import { getManagedFiles } from "./managed-files.mjs";
+import { collectManagedFileHashes, getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
@@ -450,6 +450,10 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
       ci: effectiveOptions.ci,
       claudeHooks: effectiveOptions.claudeHooks,
       reviewTemplates: effectiveOptions.reviewTemplates,
+      // Record baselines from the on-disk content after all writes so kept
+      // files (e.g. local == upstream) get their hash refreshed too (INV-02).
+      // Dry runs do not read or record anything (INV-04).
+      managedFiles: options.dryRun ? {} : await collectManagedFileHashes(targetDir, effectiveOptions),
     },
     { dryRun: options.dryRun },
   );
