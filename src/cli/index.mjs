@@ -50,6 +50,9 @@ Update options:
   --claude-hooks       Update Claude rule and hook settings.
   --review-templates   Update PR template and AI code understanding worksheet.
   --install-deps       Install missing dev dependencies for generated package scripts.
+  --keep-local         Keep locally modified managed files (explicit default behavior).
+  --force-managed      Overwrite locally modified managed files. A <file>.bak-<version> backup is written first.
+  --diff               Print unified diffs for locally modified managed files without writing, and exit non-zero if any.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --json               Print machine-readable JSON output.
