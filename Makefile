@@ -64,9 +64,10 @@ validate-structure:
 	@grep -q "semgrep scan --config auto" package-templates/package.scripts.fragment.json
 	@grep -q "ai-check-secure.sh" package-templates/scripts/README.md
 	@grep -q "ai:check:secure" src/cli/profile-scripts.mjs
-	@grep -q "ai-check-secure.sh" src/cli/init.mjs
-	@grep -q "ai-check-secure.sh" src/cli/doctor.mjs
-	@grep -q "ai-check-secure.sh" src/cli/update.mjs
+	@grep -q "ai-check-secure.sh" src/cli/managed-files.mjs
+	@grep -q 'from "./managed-files.mjs"' src/cli/init.mjs
+	@grep -q 'from "./managed-files.mjs"' src/cli/doctor.mjs
+	@grep -q 'from "./managed-files.mjs"' src/cli/update.mjs
 	@grep -q "ai:check:secure" docs/cli.md
 	@grep -q "semgrep scan --config auto" docs/cli.md
 	@grep -q "ai:check:secure" docs/usage-model.md
@@ -224,9 +225,7 @@ validate-structure:
 	@grep -q -- "--claude-hooks" docs/cli.md
 	@grep -q -- "--review-templates" docs/cli.md
 	@grep -q "reviewTemplates" src/cli/install-state.mjs
-	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/init.mjs
-	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/update.mjs
-	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/doctor.mjs
+	@grep -q "PULL_REQUEST_TEMPLATE.md" src/cli/managed-files.mjs
 	@grep -q "docs/cli.md" README.md
 	@grep -q "docs/cli.md" README-en.md
 	@test -f docs/usage-model.md
