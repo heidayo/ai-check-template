@@ -55,20 +55,56 @@ cp package-templates/supabase/tests/e2e/magic-link.spec.ts tests/e2e/magic-link.
 
 ## Replacement Checklist
 
-Replace these placeholders before running:
+Each template keeps its schema-dependent values in a single "設定変数" block at
+the top of the file. Edit that one block, or inject the matching environment
+variable — you no longer have to find-replace the same name across the body.
 
-- `app_items`: table under RLS
-- `owner_id`: owner column
-- `tenant_id`: tenant or organization column, if your app uses one
-- `00000000-0000-0000-0000-000000000001`: user A test id
-- `00000000-0000-0000-0000-000000000002`: user B test id
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- test user session environment values
-- local mail capture endpoint
+| Template | Variable | env var | Meaning |
+|---|---|---|---|
+| `rls_policy.test.sql` | `\set table_name` | `psql -v table_name=<name>` | table under RLS |
+| `rls_policy.test.sql` | `\set owner_column` | `psql -v owner_column=<name>` | owner column |
+| `rls.integration.test.ts` | `const TABLE` | `RLS_TABLE=<name>` | table under RLS |
+| `rls.integration.test.ts` | `const OWNER` | `RLS_OWNER_COLUMN=<name>` | owner column |
+| `magic-link.spec.ts` | `const mailApiUrl` | `SUPABASE_LOCAL_MAIL_API_URL=<url>` | local mail capture endpoint |
+| `magic-link.spec.ts` | `const testEmail` | `SUPABASE_TEST_EMAIL=<email>` | test email |
+
+Two ways to set them:
+
+1. **Edit the block** — open the file and change the default next to each
+   variable (`\set table_name app_items`, `const TABLE = ... ?? "app_items"`).
+2. **Inject an env var** — leave the defaults and pass the value at run time
+   (`psql -v table_name=orders ...`, `RLS_TABLE=orders vitest run ...`,
+   `SUPABASE_TEST_EMAIL=me@example.test playwright test ...`). Unset env falls
+   back to the in-file default, so behavior is unchanged when nothing is passed.
+
+Connection and identity values are already env-driven and stay that way:
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, test user session values, and the test
+user ids. Replace the seed UUIDs
+(`00000000-0000-0000-0000-000000000001` / `...0002`) with deterministic users
+from your local seed data.
+
+### SQL identifier injection
+
+`rls_policy.test.sql` builds each test query with `format()` and the `%I`
+(identifier) placeholder, e.g.
+`format($q$ select id from %I where %I = ... $q$, :'table_name', :'owner_column')`.
+
+- Use `:'var'` (single quotes) to pass the value: psql expands it to a quoted
+  string literal, and `format('%I', ...)` renders it as a properly quoted
+  identifier, so a reserved word or a space in a table/column name will not
+  break the query.
+- Do **not** expect `:"var"` (double quotes) or `:'var'` to interpolate *inside*
+  a dollar-quoted string (`$$...$$`): psql does not perform variable
+  interpolation within quoted SQL literals, so the variables are passed to
+  `format()` from outside the quoted template text.
 
 Do not use `service_role` or another privileged server key for RLS correctness
 tests. It can bypass RLS and make a broken policy look safe.
+
+> Manual-copy note: these templates are copied by hand, not managed by the CLI.
+> Changing a template here does **not** flow to copies you already made — the
+> new form only applies to the next fresh copy. Re-copy a file if you want the
+> updated template.
 
 ## Local Mail Capture
 

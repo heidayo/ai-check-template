@@ -79,6 +79,25 @@ RLS testing を実装する場合は、まず以下の templates を target proj
 
 `rls-permission.md` で権限マトリクスを作り、OK / NG の各セルを pgTAP または integration test に落とす。`service_role` は RLS を bypass し得るため、RLS correctness の検証では使わない。
 
+### 権限マトリクス → テスト設定変数の対応づけ
+
+これらのテンプレは**変数集約形**で、スキーマ依存の識別子は各ファイル冒頭の「設定変数ブロック」1 箇所に集約されている（本文に直書きしない）。`rls-permission.md` が生成する権限マトリクス（role / resource / action）を、この設定変数へ次のように落とし込む。
+
+| マトリクスの要素 | 対応するテスト設定変数 | 集約先 |
+|---|---|---|
+| resource（対象テーブル） | `table_name`（SQL）/ `RLS_TABLE`（TS） | 各ファイル冒頭の設定変数ブロック |
+| resource の所有者列 | `owner_column`（SQL）/ `RLS_OWNER_COLUMN`（TS） | 同上 |
+| role（anonymous / user / admin 等） | テスト対象ユーザーの session / test id（`SUPABASE_TEST_USER_A_SESSION` 等の env） | 接続情報（既に env 化済み） |
+| policy（許可 / 拒否の各セル） | 各アサーション（`isnt_empty` / `is_empty` / `throws_ok` 等）に 1:1 対応 | テスト本文 |
+
+手順:
+
+1. マトリクスの resource（テーブル）と所有者列を、各テンプレ冒頭の設定変数ブロック（SQL: `\set table_name` / `\set owner_column`、TS: `const TABLE` / `const OWNER`）に書き込む。または env（SQL: `psql -v table_name=...`、TS: `RLS_TABLE=...`）で注入する
+2. マトリクスの各 role を、対応する test user の session / id（既存の `requireEnv(...)` / `set_config(...)` 集約）に割り当てる
+3. マトリクスの OK / NG セルを、テスト本文の許可アサーション（`isnt_empty` / `lives_ok`）と拒否アサーション（`is_empty` / `results_eq` / `throws_ok`）に対応させる。セル数と `plan(...)` 件数を一致させる
+
+詳細な変数名一覧と 2 つの注入方法（冒頭編集 / env 注入）は [`../../supabase/README.md`](../../supabase/README.md) の Replacement Checklist を参照。
+
 ## 隣接 profile（組み合わせ先）
 
 - [`../react-nextjs/README.md`](../react-nextjs/README.md) — Next.js + Supabase の典型

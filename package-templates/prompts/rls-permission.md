@@ -88,6 +88,21 @@ Row Level Security（RLS）や権限制御で、「見えるべき / 見えて�
 - **行レベル + 列レベル権限**: ある列だけ管理者にも見せないケースを別行で扱う
 - **時間依存権限**: 「公開予約日時前は所有者のみ閲覧」等は state-transition プロンプトと組み合わせる
 
+### マトリクス → テスト設定変数への落とし込み
+
+生成した権限マトリクス（role / resource / action）を、RLS テストテンプレ（[`../supabase/README.md`](../supabase/README.md) 参照）の**設定変数**に対応づける。テンプレは変数集約形で、スキーマ依存の識別子は各ファイル冒頭の設定変数ブロック 1 箇所に集約されている。
+
+| マトリクスの要素 | 対応するテスト設定変数（pgTAP / integration） |
+|---|---|
+| resource（対象テーブル） | `\set table_name <table>`（SQL）/ `const TABLE = process.env.RLS_TABLE ?? "..."`（TS） |
+| resource の所有者列 | `\set owner_column <column>`（SQL）/ `const OWNER = process.env.RLS_OWNER_COLUMN ?? "..."`（TS） |
+| role（テスト対象ユーザー） | test user の session / id（`SUPABASE_TEST_USER_A_SESSION` 等の env、SQL は `set_config('app.test_user_a', ...)`） |
+| policy（許可 / 拒否の各セル） | テスト本文の許可アサーション（`isnt_empty` / `lives_ok`）/ 拒否アサーション（`is_empty` / `throws_ok`） |
+
+- マトリクスの resource（テーブル）と所有者列は、各テンプレ冒頭の設定変数ブロックに書き込む（または env で注入する）。SQL の識別子は `:"table_name"`（ダブルクォート = 識別子展開）で参照し、`:'...'`（リテラル文字列展開）と取り違えない
+- マトリクスの各 OK / NG セルは、テスト本文のアサーション 1 つに対応させ、セル数と `plan(...)` の件数を合わせる
+- `service_role` は RLS を bypass するため、どの role の検証でも使わない（実ユーザー session で検証する）
+
 ## 出典
 
 - Notion ページ: `35b68c677f4380bfa1ffeab248264e92` — テストフロー再設計（参照日 2026-05-13）の Supabase / RLS 観点
