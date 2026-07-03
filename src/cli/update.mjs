@@ -13,6 +13,10 @@ import {
 } from "./dependency-installer.mjs";
 import { mergeRenderedClaudeHookEntries, renderClaudeHookSettings } from "./claude-hooks.mjs";
 import {
+  planCustomDependencyInstall,
+  resolveCustomProfileBundle,
+} from "./custom-profile.mjs";
+import {
   assertWritableInstallState,
   effectiveOptionsSummary,
   installationSummary,
@@ -45,6 +49,9 @@ Usage:
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Profile to refresh in install state. Defaults to install state or react-nextjs.
+                       With --profile-file, pass custom:<name> for a custom profile.
+  --profile-file <path> Custom profile definition file (.ai-check-profile.yaml / .json),
+                       relative to --target. Defaults to the install state's custom profile.
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to install state or target detection.
   --ci <mode>          CI mode to update: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Update Claude rule and hook settings.
@@ -85,6 +92,12 @@ export async function runUpdate(argv, io = {}) {
   assertWritableInstallState(installState);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
 
+  // SPEC-0065 FR-04 / FR-07 / PRE-01: resolve the custom profile (explicit
+  // --profile-file > state customProfile) before any write. A missing / invalid
+  // definition file fails here — no partial write (想定エラー1). Built-in mode
+  // (no --profile-file and no state customProfile) is untouched (INV-01).
+  const custom = await resolveUpdateCustomProfile(targetDir, options, effectiveOptions);
+
   // SPEC-0061 FR-08: covers both the explicit flag and a state-recorded
   // workspace — dependency installation targets the root package.json only.
   if (effectiveOptions.workspace && options.installDeps) {
@@ -104,15 +117,21 @@ export async function runUpdate(argv, io = {}) {
     ...options,
     // --diff is a read-only reporting mode: no files or state are written.
     dryRun: options.dryRun || options.diff,
-    profile: effectiveOptions.profile,
+    // SPEC-0065 FR-05: managed-file operations use the custom doc profile so
+    // custom-<name>/README.md is tracked; the state profile field stays a
+    // built-in placeholder (set in updateInstallState).
+    profile: custom ? custom.docProfile : effectiveOptions.profile,
     packageManager: effectiveOptions.packageManager,
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
     reviewTemplates: effectiveOptions.reviewTemplates,
     workspaceInfo,
+    custom,
   };
   const dependencyInstallPlan = writeOptions.installDeps
-    ? await planDependencyInstall(packageJsonPath, writeOptions.profile, writeOptions.packageManager)
+    ? custom
+      ? await planCustomDependencyInstall(packageJsonPath, custom.definition, writeOptions.packageManager)
+      : await planDependencyInstall(packageJsonPath, writeOptions.profile, writeOptions.packageManager)
     : null;
 
   if (dependencyInstallPlan && !writeOptions.dryRun) {
@@ -143,7 +162,7 @@ export async function runUpdate(argv, io = {}) {
     status: options.diff ? "diff" : options.dryRun ? "dry-run" : "updated",
     target: targetDir,
     installation: installationSummary(installState),
-    effectiveOptions: effectiveOptionsSummary(effectiveOptions),
+    effectiveOptions: effectiveOptionsSummary(effectiveOptions, custom),
     operations,
     notes: buildUpdateNotes(options, context),
     ...(options.diff
@@ -206,6 +225,7 @@ function parseUpdateArgs(argv, cwd) {
     json: false,
     help: false,
     workspace: null,
+    profileFile: null,
     explicit: {
       profile: false,
       packageManager: false,
@@ -213,6 +233,7 @@ function parseUpdateArgs(argv, cwd) {
       claudeHooks: false,
       reviewTemplates: false,
       workspace: false,
+      profileFile: false,
     },
   };
 
@@ -281,6 +302,16 @@ function parseUpdateArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--profile-file=")) {
+      setProfileFileOption(options, arg.slice("--profile-file=".length));
+      continue;
+    }
+
+    if (arg === "--profile-file") {
+      setProfileFileOption(options, readFlagValue(argv, (index += 1), arg));
+      continue;
+    }
+
     if (arg.startsWith("--profile=")) {
       options.profile = arg.slice("--profile=".length);
       options.explicit.profile = true;
@@ -340,6 +371,11 @@ function parseUpdateArgs(argv, cwd) {
     throw new CliError("--diff cannot be combined with --keep-local or --force-managed");
   }
 
+  // SPEC-0065 (v1 scope): custom profiles use single-package placement.
+  if (options.profileFile && options.workspace) {
+    throw new CliError("--profile-file (custom profile) cannot be combined with --workspace in this version.");
+  }
+
   return options;
 }
 
@@ -350,6 +386,15 @@ function setWorkspaceOption(options, value) {
   }
   options.workspace = value;
   options.explicit.workspace = true;
+}
+
+// SPEC-0065 FR-01: --profile-file accepts a single value only.
+function setProfileFileOption(options, value) {
+  if (options.profileFile !== null) {
+    throw new CliError("--profile-file can only be specified once (single custom profile support)");
+  }
+  options.profileFile = value;
+  options.explicit.profileFile = true;
 }
 
 function readFlagValue(argv, index, flagName) {
@@ -372,7 +417,46 @@ async function normalizeTargetDir(target) {
   }
 }
 
+// SPEC-0065 FR-07: resolve the custom profile for update — explicit
+// --profile-file (with --profile custom:<name>) > state customProfile > null.
+// From state, the recorded name / filePath drive a fresh load so a definition
+// file edit is picked up. A missing / invalid file throws before any write
+// (想定エラー1).
+async function resolveUpdateCustomProfile(targetDir, options, effectiveOptions) {
+  if (effectiveOptions.profileFile !== null) {
+    return resolveCustomProfileBundle(targetDir, {
+      profileValue: options.profile,
+      profileFile: effectiveOptions.profileFile,
+      packageManager: effectiveOptions.packageManager,
+    });
+  }
+
+  if (effectiveOptions.customProfile) {
+    return resolveCustomProfileBundle(targetDir, {
+      profileValue: `custom:${effectiveOptions.customProfile.name}`,
+      profileFile: effectiveOptions.customProfile.filePath,
+      packageManager: effectiveOptions.packageManager,
+    });
+  }
+
+  return null;
+}
+
 async function updatePackageScripts(targetDir, packageJsonPath, options, operations) {
+  // SPEC-0065 FR-04 / FR-07 / POST-02: custom mode updates scripts from the
+  // resolved definition with the same placement rule as init (single-package).
+  if (options.custom) {
+    await updateScriptsIn(
+      packageJsonPath,
+      "package.json",
+      options.custom.gateScripts,
+      options.custom.supportScripts,
+      options,
+      operations,
+    );
+    return;
+  }
+
   const expectedScripts = getProfileScripts(options.profile, {
     packageManager: options.packageManager,
     ...(options.workspaceInfo ? { workspace: options.workspaceInfo } : {}),
@@ -442,6 +526,12 @@ async function updateScriptsIn(packageJsonPath, relativePath, expectedScripts, s
 
 async function updateManagedFiles(targetDir, options, operations, context) {
   for (const file of getManagedFiles(options)) {
+    // SPEC-0065 境界ケース1 / ASM-02: a custom profile doc has no bundled source
+    // template; skip it (the CLI never generates custom READMEs). Built-in docs
+    // always resolve, so this never fires for built-in profiles (INV-01).
+    if (file.kind === "profile-doc" && file.sourcePath && !(await pathExists(file.sourcePath))) {
+      continue;
+    }
     await applyManagedFileUpdate(targetDir, file, options, operations, context);
   }
 }
@@ -606,20 +696,31 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
     ),
   );
 
+  // SPEC-0065 FR-06 / FR-07 / POST-02: custom mode keeps the built-in placeholder
+  // in the required profile field and re-records the resolved custom snapshot;
+  // managed-file hashing uses the custom doc profile so custom-<name>/README.md
+  // (if any) is tracked. Built-in mode is unchanged.
+  const managedFilesProfile = options.custom
+    ? { ...effectiveOptions, profile: options.custom.docProfile }
+    : effectiveOptions;
+
   await writeInstallState(
     targetDir,
     {
+      // In custom mode this is the inert built-in placeholder recorded at init.
       profile: effectiveOptions.profile,
       packageManager: effectiveOptions.packageManager,
       ci: effectiveOptions.ci,
       claudeHooks: effectiveOptions.claudeHooks,
       reviewTemplates: effectiveOptions.reviewTemplates,
+      // SPEC-0065 FR-06 / POST-02: preserve / refresh the custom profile snapshot.
+      ...(options.custom ? { customProfile: options.custom.stateSnapshot } : {}),
       // SPEC-0061 POST-02: the workspace field is preserved across updates.
       ...(options.workspaceInfo ? { workspace: options.workspaceInfo.dir } : {}),
       // Record baselines from the on-disk content after all writes so kept
       // files (e.g. local == upstream) get their hash refreshed too (INV-02).
       // Dry runs do not read or record anything (INV-04).
-      managedFiles: options.dryRun ? {} : await collectUpdatedManagedFileHashes(targetDir, effectiveOptions, context),
+      managedFiles: options.dryRun ? {} : await collectUpdatedManagedFileHashes(targetDir, managedFilesProfile, context),
     },
     { dryRun: options.dryRun },
   );

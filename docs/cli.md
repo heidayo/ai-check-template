@@ -46,7 +46,8 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | Option | Default | Description |
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
-| `--profile <name>` | `react-nextjs` | One base profile: `react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`. Add `+supabase-rls` when needed. |
+| `--profile <name>` | `react-nextjs` | One base profile: `react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`. Add `+supabase-rls` when needed. With `--profile-file`, pass `custom:<name>` instead. |
+| `--profile-file <path>` | off | Path (relative to `--target`) to a custom profile definition file. Enables custom mode; requires `--profile custom:<name>`. See [Custom profiles](#custom-profiles---profile-file). |
 | `--package-manager <name>` | target detection or `pnpm` | Package manager for generated package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | `direct` writes package-manager-aware `ai-check.yml` and `ai-check-fast.yml`; `reusable` writes `ai-quality-reusable.yml` plus a package-manager-aware `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges package-manager-aware hook commands into `.claude/settings.json`. |
@@ -63,7 +64,8 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | Option | Default | Description |
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
-| `--profile <name>` | install state or `react-nextjs` | Profile to check. One base profile plus optional `+supabase-rls`. |
+| `--profile <name>` | install state or `react-nextjs` | Profile to check. One base profile plus optional `+supabase-rls`. With `--profile-file`, pass `custom:<name>`. |
+| `--profile-file <path>` | install state or off | Custom profile definition file (relative to `--target`). Defaults to the custom profile recorded in the install state. See [Custom profiles](#custom-profiles---profile-file). |
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when checking package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
@@ -77,7 +79,8 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | Option | Default | Description |
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
-| `--profile <name>` | install state or `react-nextjs` | Profile to refresh in install state. One base profile plus optional `+supabase-rls`. |
+| `--profile <name>` | install state or `react-nextjs` | Profile to refresh in install state. One base profile plus optional `+supabase-rls`. With `--profile-file`, pass `custom:<name>`. |
+| `--profile-file <path>` | install state or off | Custom profile definition file (relative to `--target`). Defaults to the custom profile recorded in the install state. See [Custom profiles](#custom-profiles---profile-file). |
 | `--package-manager <name>` | install state, target detection, or `pnpm` | Package manager used when refreshing package scripts: `pnpm`, `npm`, `yarn`, or `bun`. |
 | `--ci <mode>` | `direct` | Updates package-manager-aware `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
@@ -129,6 +132,56 @@ Constraints:
 - Compatibility: workspace mode requires ai-check-template v0.5.0 or later. Older CLI versions ignore the `workspace` field in the install state and may misreport the root gate scripts as drift.
 
 Rollback: workspace mode is opt-in. To revert, remove the generated gate scripts from the root `package.json`, remove the step scripts from the package, and delete the `workspace` field from `.ai-check-template.json` (or re-run `init` without `--workspace`).
+
+## Custom profiles (`--profile-file`)
+
+The four built-in base profiles (`react-nextjs`, `react-vanilla`, `expo-rn`, `node-cli`) and the `supabase-rls` addon cover the common JavaScript/TypeScript stacks. For a stack that has no built-in profile — Vue, Svelte, Go, Rust, or an in-house toolchain — you can define a **custom profile** in your own project and install it with `--profile-file`. Custom profiles require ai-check-template v0.5.0 or later.
+
+`init`, `update`, and `doctor` accept `--profile-file <path>` (or `--profile-file=<path>`), a path relative to `--target`. When it is set, custom mode is entered and `--profile` must be `custom:<name>` where `<name>` matches `[a-z][a-z0-9-]*` and equals the definition file's `profile.name`. Passing a built-in profile name together with `--profile-file` is an error (`--profile-file` is custom-mode-only), as is passing it twice.
+
+```bash
+npx -y ai-check-template init --target . --profile custom:mystack --profile-file ./.ai-check-profile.yaml --yes
+```
+
+### Definition file schema (version 1)
+
+The definition file is `.ai-check-profile.yaml` (a minimal YAML subset, same parser family as `.ai-check.yaml`) or `.ai-check-profile.json` (parsed with `JSON.parse`; use it when the YAML subset is too limiting). It is **your** file: it is not distributed, not managed by the installer, and never overwritten by `update`.
+
+```yaml
+version: 1
+profile:
+  name: mystack                       # [a-z][a-z0-9-]* ; must equal <name> in --profile custom:<name>
+  gateScripts:                        # all three gates are required
+    ai:check: [typecheck, lint, test] # a list of step names, joined into "&&"
+    ai:check:fast: [typecheck, lint]
+    ai:check:secure: myorg-scan --ci  # or a full command string
+  supportScripts:                     # step name -> command; every step referenced by a gate list must appear here
+    typecheck: tsc --noEmit
+    lint: eslint .
+    test: vitest run
+  devDependencies:                    # optional; installed with --install-deps
+    - typescript
+    - eslint
+    - vitest
+```
+
+Fields:
+
+- `version` — must be `1`.
+- `profile.name` — the custom profile name; must match `[a-z][a-z0-9-]*` and cannot be a built-in profile name.
+- `profile.gateScripts` — must cover all of `ai:check`, `ai:check:fast`, and `ai:check:secure`. Each value is either a command string or a list of step names. Step names in a list are rendered as `<package-manager> <step>` (the same per-package-manager transform built-in profiles use) and must be defined in `supportScripts`.
+- `profile.supportScripts` — a mapping of step name (`[a-z][a-z0-9:_-]*`) to a non-empty command string. These are the step commands the gate scripts invoke.
+- `profile.devDependencies` — optional array of package names installed when `--install-deps` is passed.
+
+Any schema violation (missing `version`, missing gate, unknown key, bad name, a gate list referencing an undefined step, and so on) fails fast with an error naming the file and cause, and nothing is written. `init` merges the gate and support scripts into the target `package.json` and records a snapshot under `customProfile` in `.ai-check-template.json`; `doctor` then reports if the definition file is missing, drifts from that snapshot, or the package scripts drift; `update` refreshes the scripts and the snapshot from the current definition file.
+
+### How custom profiles relate to built-in profiles
+
+Custom profiles are a **separate resolution path**. They are never added to the built-in profile registry (`supportedProfiles`), so the built-in profiles, their composition, and the profile-composition snapshot are unaffected — a project using built-in profiles behaves identically whether or not the custom-profile feature exists. The installer does not ship a README for custom profiles: if `docs/ai-check-template/profiles/custom-<name>/README.md` is not present in the package it is simply skipped (you may add your own). Custom addons, multiple custom profiles at once, and composing a custom base with `+supabase-rls` are out of scope in this version — v1 provides one custom base profile.
+
+### Security: command trust boundary
+
+The `gateScripts` and `supportScripts` commands from the definition file are written **verbatim** into your `package.json` scripts and executed when the gates run. Treat the definition file with the same trust as `package.json` and `.ai-check.yaml`: only use definition files you control, and do not run one from an untrusted source. Do not put secrets, tokens, or API keys directly in the command strings — reference them through environment variables or a secret manager (for example `MYORG_TOKEN=... myorg-scan` supplied by CI, not a literal token in the command). The `<name>` and step names are validated against a conservative pattern before being embedded into scripts or the `custom-<name>` doc path, and `--profile-file` rejects absolute paths and `..` segments so the read stays inside `--target`.
 
 ## Run options
 

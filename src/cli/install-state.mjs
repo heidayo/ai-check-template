@@ -1,4 +1,5 @@
 import path from "node:path";
+import { CUSTOM_GATE_SCRIPT_NAMES } from "./custom-profile.mjs";
 import { DEFAULT_PACKAGE_MANAGER, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
 import { isValidWorkspaceStatePath } from "./workspace.mjs";
@@ -16,6 +17,19 @@ export const INSTALL_STATE_SCHEMA_VERSION = 2;
 const SUPPORTED_SCHEMA_VERSIONS = new Set([1, INSTALL_STATE_SCHEMA_VERSION]);
 const MANAGED_FILE_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
+// SPEC-0065 SEC-03: the recorded custom profile name is embedded into doc paths
+// and scripts, so the state validator enforces the same pattern as the
+// definition-file validator (custom-profile.mjs) — a tampered state cannot
+// smuggle metacharacters back in.
+const CUSTOM_PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+// SPEC-0065 FR-07 (F1): the `--profile custom:<name>` form is not a built-in
+// profile; resolveEffectiveOptions must not route it through parseProfiles. In
+// custom mode it records the same inert built-in placeholder init uses
+// (writeInitInstallState), leaving the real profile to the caller's custom
+// resolution path (resolveDoctorCustomProfile / resolveUpdateCustomProfile).
+const CUSTOM_PROFILE_PLACEHOLDER = "react-nextjs";
+
 const PACKAGE_NAME = "ai-check-template";
 const VALID_CI_MODES = new Set(["direct", "reusable", "none"]);
 
@@ -31,6 +45,7 @@ export async function buildInstallState({
   packageManager = DEFAULT_PACKAGE_MANAGER,
   managedFiles = {},
   workspace = null,
+  customProfile = null,
 }) {
   const packageJson = await readJson(path.join(repoRoot, "package.json"));
   const parsedProfile = normalizeProfile(profile);
@@ -41,6 +56,12 @@ export async function buildInstallState({
   if (workspace !== null && !isValidWorkspaceStatePath(workspace)) {
     throw new CliError(`Install state workspace must be a relative path without ".." segments: ${String(workspace)}`);
   }
+
+  // SPEC-0065 FR-06 / INV-05: customProfile is additive — present and valid, or
+  // absent. Never write null/empty. Built-in mode passes customProfile: null.
+  const normalizedCustomProfile = customProfile !== null
+    ? normalizeCustomProfileForState(customProfile)
+    : null;
 
   return {
     schemaVersion: INSTALL_STATE_SCHEMA_VERSION,
@@ -53,6 +74,7 @@ export async function buildInstallState({
     claudeHooks: Boolean(claudeHooks),
     reviewTemplates: Boolean(reviewTemplates),
     managedFiles: validateManagedFiles(managedFiles),
+    ...(normalizedCustomProfile !== null ? { customProfile: normalizedCustomProfile } : {}),
     managedBy: PACKAGE_NAME,
   };
 }
@@ -83,9 +105,31 @@ export async function loadInstallState(targetDir) {
 export function resolveEffectiveOptions(options, installState) {
   const state = installState?.source === "state" ? installState.state : null;
   const stateProfile = state ? serializeProfile(state.profile) : null;
-  const profileInput = options.explicit.profile
-    ? options.profile
-    : stateProfile ?? parseProfiles(options.profile);
+
+  // SPEC-0065 FR-07 / PRE-02: explicit --profile-file > state customProfile > null.
+  // When --profile-file is passed the caller (init/update/doctor) loads the
+  // definition file fresh; here we only surface which path/snapshot applies so
+  // built-in mode stays untouched (customProfile is null unless custom).
+  const explicitProfileFile = options.explicit?.profileFile ? options.profileFile : null;
+  const customProfile = explicitProfileFile !== null
+    ? null
+    : state?.customProfile ?? null;
+
+  // SPEC-0065 FR-07 (F1): in custom mode the required profile field carries an
+  // inert built-in placeholder — the same react-nextjs stand-in init records
+  // (writeInitInstallState). A `--profile custom:<name>` value is NOT a
+  // parseProfiles-valid built-in, so feeding it to normalizeProfile below would
+  // throw before the caller's custom resolution (resolveDoctorCustomProfile /
+  // resolveUpdateCustomProfile) runs. Custom mode requires an actual definition
+  // source: an explicit --profile-file or a state-recorded customProfile. A bare
+  // custom:<name> with no definition file stays an error (parseProfiles rejects
+  // it), matching pre-F1 behavior.
+  const customMode = explicitProfileFile !== null || customProfile !== null;
+  const profileInput = customMode
+    ? CUSTOM_PROFILE_PLACEHOLDER
+    : options.explicit.profile
+      ? options.profile
+      : stateProfile ?? parseProfiles(options.profile);
   const profile = normalizeProfile(profileInput);
 
   return {
@@ -104,6 +148,10 @@ export function resolveEffectiveOptions(options, installState) {
     workspace: options.explicit.workspace
       ? options.workspace
       : state?.workspace ?? null,
+    // SPEC-0065 FR-07: the explicit --profile-file path (loaded by the caller)
+    // or null. Callers prefer this over the state snapshot when set.
+    profileFile: explicitProfileFile,
+    customProfile,
   };
 }
 
@@ -150,13 +198,17 @@ export function installationSummary(installState) {
   return summary;
 }
 
-export function effectiveOptionsSummary(effectiveOptions) {
+export function effectiveOptionsSummary(effectiveOptions, custom = null) {
   return {
-    profile: effectiveOptions.profile.all.join("+"),
+    // SPEC-0065: in custom mode show custom:<name>; the profiles field still
+    // carries the inert built-in placeholder so downstream shape is unchanged.
+    profile: custom ? `custom:${custom.name}` : effectiveOptions.profile.all.join("+"),
     profiles: serializeProfile(effectiveOptions.profile),
     packageManager: effectiveOptions.packageManager,
     // Additive key (SPEC-0061): present only in workspace mode.
     ...(effectiveOptions.workspace ? { workspace: effectiveOptions.workspace } : {}),
+    // Additive key (SPEC-0065): present only in custom mode.
+    ...(custom ? { profileFile: custom.filePath } : {}),
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
     reviewTemplates: effectiveOptions.reviewTemplates,
@@ -242,6 +294,18 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state reviewTemplates must be a boolean");
   }
 
+  // SPEC-0065 FR-06: customProfile is optional and validated only when present.
+  // A missing key means built-in mode; null/empty are never valid (INV-05). The
+  // v1 / v2-without-customProfile states stay valid unchanged (NFR-03).
+  let customProfile;
+  try {
+    customProfile = state.customProfile === undefined
+      ? undefined
+      : validateCustomProfileStateShape(state.customProfile);
+  } catch (error) {
+    return invalidState("invalid-install-state", error.message);
+  }
+
   // v1 states carry no managedFiles; migrate to an empty map in memory. The
   // migration is persisted (as schemaVersion 2) on the next state write (FR-05).
   let managedFiles;
@@ -264,6 +328,7 @@ function validateInstallState(state) {
       claudeHooks: state.claudeHooks,
       reviewTemplates,
       managedFiles,
+      ...(customProfile !== undefined ? { customProfile } : {}),
       managedBy: state.managedBy,
     },
     error: null,
@@ -316,6 +381,81 @@ function serializeProfile(profile) {
     base: profile.base,
     addons: [...profile.addons],
     all: [...profile.all],
+  };
+}
+
+// SPEC-0065 FR-06: normalize a resolved custom profile snapshot before writing
+// it into the install state. Reuses the same shape check as load-time
+// validation so a build error and a load error are symmetric (INV-05).
+function normalizeCustomProfileForState(customProfile) {
+  return validateCustomProfileStateShape(customProfile);
+}
+
+// SPEC-0065 FR-06 / SEC-02 / SEC-03: validate the { name, filePath, definition }
+// snapshot structurally (no file read). name pattern (SEC-03), filePath must be
+// a relative path without ".." (SEC-02 — a tampered state cannot point outside
+// the target), definition must cover the three gates. Throws CliError.
+function validateCustomProfileStateShape(customProfile) {
+  if (!customProfile || typeof customProfile !== "object" || Array.isArray(customProfile)) {
+    throw new CliError("Install state customProfile must be an object");
+  }
+
+  const allowedKeys = new Set(["name", "filePath", "definition"]);
+  for (const key of Object.keys(customProfile)) {
+    if (!allowedKeys.has(key)) {
+      throw new CliError(`Install state customProfile has unknown key: ${key}`);
+    }
+  }
+
+  const { name, filePath, definition } = customProfile;
+
+  if (typeof name !== "string" || !CUSTOM_PROFILE_NAME_PATTERN.test(name)) {
+    throw new CliError("Install state customProfile.name must match [a-z][a-z0-9-]*");
+  }
+
+  if (typeof filePath !== "string" || filePath.length === 0) {
+    throw new CliError("Install state customProfile.filePath must be a non-empty string");
+  }
+  if (path.isAbsolute(filePath) || filePath.split(/[\\/]/).includes("..")) {
+    throw new CliError(
+      `Install state customProfile.filePath must be a relative path without ".." segments: ${filePath}`,
+    );
+  }
+
+  const normalizedDefinition = validateCustomProfileDefinitionShape(definition);
+
+  return { name, filePath, definition: normalizedDefinition };
+}
+
+function validateCustomProfileDefinitionShape(definition) {
+  if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
+    throw new CliError("Install state customProfile.definition must be an object");
+  }
+
+  const gateScripts = definition.gateScripts;
+  if (!gateScripts || typeof gateScripts !== "object" || Array.isArray(gateScripts)) {
+    throw new CliError("Install state customProfile.definition.gateScripts must be an object");
+  }
+  for (const gate of CUSTOM_GATE_SCRIPT_NAMES) {
+    if (typeof gateScripts[gate] !== "string" || gateScripts[gate].length === 0) {
+      throw new CliError(`Install state customProfile.definition.gateScripts is missing gate: ${gate}`);
+    }
+  }
+
+  const supportScripts = definition.supportScripts;
+  if (!supportScripts || typeof supportScripts !== "object" || Array.isArray(supportScripts)) {
+    throw new CliError("Install state customProfile.definition.supportScripts must be an object");
+  }
+
+  const devDependencies = definition.devDependencies ?? [];
+  if (!Array.isArray(devDependencies) || devDependencies.some((dep) => typeof dep !== "string")) {
+    throw new CliError("Install state customProfile.definition.devDependencies must be an array of strings");
+  }
+
+  return {
+    gateScripts: { ...gateScripts },
+    supportScripts: { ...supportScripts },
+    devDependencies: [...devDependencies],
   };
 }
 
