@@ -76,6 +76,8 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "src/cli/expect.mjs",
     "src/cli/profile-docs.mjs",
     "src/cli/run.mjs",
+    // SPEC-0058 AC-09: config 検出・validation モジュールは pack に含まれる
+    "src/cli/check-config.mjs",
     "src/cli/index.mjs",
     "src/cli/doctor.mjs",
     "src/cli/install-state.mjs",
@@ -115,12 +117,29 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     // SPEC-0057 AC-08 / FR-02: ai-check.local.sh 実ファイルは配布物に含めない
     // （overlay はユーザーが作成する。example は README 内コードブロックのみ）
     assert.equal(filePath.endsWith("ai-check.local.sh"), false, `${filePath} should not be packed`);
+    // SPEC-0058 AC-09 / FR-08: `.ai-check.yaml` / `.ai-check.json` 実ファイルは
+    // 配布物に含めない（config はユーザーが手書きする opt-in。例示は docs 内のみ）
+    assert.equal(filePath.endsWith(".ai-check.yaml"), false, `${filePath} should not be packed`);
+    assert.equal(filePath.endsWith(".ai-check.json"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("specs/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("plans/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("tasks/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("tests/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith(".github/"), false, `${filePath} should not be packed`);
   }
+});
+
+test("package.json は runtime dependencies を持たない", () => {
+  // SPEC-0058 NFR-02 / Forbidden Shortcuts: YAML パーサ等のための npm 依存追加を禁止
+  // （YAML はサブセット自前パーサ、JSON は JSON.parse）。dependencies フィールドが
+  // 存在しない、または空であることを検査する
+  const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+
+  assert.equal(
+    packageJson.dependencies === undefined || Object.keys(packageJson.dependencies).length === 0,
+    true,
+    `package.json must not declare runtime dependencies: ${JSON.stringify(packageJson.dependencies)}`,
+  );
 });
 
 test("packed tarball exposes the CLI binary", (t) => {

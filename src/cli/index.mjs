@@ -63,6 +63,9 @@ Run options:
   --script <name>      Package script to run. Defaults to ai:check.
   --json               Print machine-readable JSON output.
   --output <file>      Write the JSON result to a file.
+  Config: if .ai-check.yaml or .ai-check.json exists in the target directory,
+  gate steps (ai:check=full, ai:check:fast=fast, ai:check:secure=secure) are
+  resolved from it. See docs/cli.md for the schema.
 
 Expect options:
   --file <path>        JSON or template-subset YAML AC/Test Matrix file.

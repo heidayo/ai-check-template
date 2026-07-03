@@ -114,6 +114,14 @@ test("getManagedFiles はいかなる profile / オプション組合せでも l
             false,
             `.claude/rules/local/* must not be managed (${combo})`,
           );
+          // SPEC-0058 AC-08 / FR-08 / INV-01: `.ai-check.yaml` / `.ai-check.json` は
+          // ユーザー所有・installer 非管理の config であり、いかなる profile /
+          // オプション組合せでも managed 一覧に現れない（リスク4 の回帰ガード）
+          assert.equal(
+            paths.some((filePath) => filePath.endsWith(".ai-check.yaml") || filePath.endsWith(".ai-check.json")),
+            false,
+            `.ai-check.yaml / .ai-check.json must not be managed (${combo})`,
+          );
         }
       }
     }
