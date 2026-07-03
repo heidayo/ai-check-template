@@ -9,9 +9,22 @@
 ```
 .claude/
 ├── rules/
-│   └── test-rules.md                    # Playwright Locator 優先順位
+│   ├── test-rules.md                    # Playwright Locator 優先順位
+│   └── local/
+│       └── README.md                    # overlay 置き場の案内（init --claude-hooks が配置）
 └── settings.hook-fragment.json          # Edit/Stop hook の雛形
 ```
+
+### `rules/local/` — installer が触らない overlay 置き場
+
+`.claude/rules/local/` は **プロジェクト固有ルールの overlay 領域**。installer（init / update /
+doctor）はこの配下を管理しない: init（`--claude-hooks`）が案内 README を一度だけ置き（既存なら
+skip）、update は配下を上書き・削除せず、doctor も検査しない。
+
+配布 rule（`test-rules.md` 等）を直接編集すると update の 3-way 判定で skip-modified となり
+自動追従から外れるため、プロジェクト固有の追加ルールは `local/` 配下に別ファイルで置く。
+scripts 側の overlay（`scripts/ai-check.local.sh`）と合わせて
+[`../scripts/README.md`](../scripts/README.md) / 配布元の `docs/cli.md` を参照。
 
 ## 思想
 

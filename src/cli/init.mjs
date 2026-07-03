@@ -38,7 +38,8 @@ Options:
   --install-deps       Install missing dev dependencies for generated package scripts.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
-  --overwrite          Replace conflicting files/scripts.`;
+  --overwrite          Replace conflicting files/scripts.
+  --json               Print machine-readable JSON output.`;
 
 export async function runInit(argv, io = {}) {
   const options = parseInitArgs(argv, io.cwd ?? process.cwd());
@@ -79,10 +80,29 @@ export async function runInit(argv, io = {}) {
 
   if (writeOptions.claudeHooks) {
     await mergeClaudeSettings(targetDir, writeOptions, operations);
+    await createLocalRulesReadme(targetDir, writeOptions, operations);
   }
 
   await writeInitInstallState(targetDir, profile, writeOptions, operations);
   await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
+
+  if (writeOptions.json) {
+    writeLine(
+      io.stdout,
+      JSON.stringify(
+        {
+          status: writeOptions.dryRun ? "dry-run" : "completed",
+          target: targetDir,
+          profile: profile.all.join("+"),
+          packageManager: writeOptions.packageManager,
+          operations,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
 
   writeLine(io.stdout, `ai-check-template init ${writeOptions.dryRun ? "dry-run" : "completed"}`);
   writeLine(io.stdout, `target: ${targetDir}`);
@@ -108,6 +128,7 @@ function parseInitArgs(argv, cwd) {
     dryRun: false,
     yes: false,
     overwrite: false,
+    json: false,
     help: false,
     explicit: {
       packageManager: false,
@@ -149,6 +170,11 @@ function parseInitArgs(argv, cwd) {
 
     if (arg === "--overwrite") {
       options.overwrite = true;
+      continue;
+    }
+
+    if (arg === "--json") {
+      options.json = true;
       continue;
     }
 
@@ -351,6 +377,46 @@ async function mergeClaudeSettings(targetDir, options, operations) {
   if (changed) {
     await writeJson(targetPath, nextSettings, { dryRun: options.dryRun });
   }
+}
+
+// Seed the installer-untouched overlay directory (.claude/rules/local/) with a
+// usage README on --claude-hooks init. The README is written once: an existing
+// README is skipped without touching its content (INV-05), and update/doctor
+// never manage anything under local/ (FR-04 / FR-05).
+async function createLocalRulesReadme(targetDir, options, operations) {
+  const localDir = path.join(targetDir, ".claude", "rules", "local");
+  const targetPath = path.join(localDir, "README.md");
+
+  // The local path may already exist as a plain file: never destroy user
+  // content, skip with an explanatory reason instead (SPEC-0057 想定エラー3).
+  if (await pathExists(localDir)) {
+    const stats = await fs.stat(localDir);
+
+    if (!stats.isDirectory()) {
+      operations.push({
+        action: "skip",
+        reason: ".claude/rules/local exists as a file; overlay README not written",
+        targetPath,
+      });
+      return;
+    }
+  }
+
+  if (await pathExists(targetPath)) {
+    operations.push({ action: "skip", reason: "exists", targetPath });
+    return;
+  }
+
+  if (!options.dryRun) {
+    await fs.mkdir(localDir, { recursive: true });
+    await fs.copyFile(fromTemplates(".claude", "rules", "local", "README.md"), targetPath);
+  }
+
+  operations.push({
+    action: options.dryRun ? "would-create" : "create",
+    reason: "overlay rules directory",
+    targetPath,
+  });
 }
 
 async function writeInitInstallState(targetDir, profile, options, operations) {
