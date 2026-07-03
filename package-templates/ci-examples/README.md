@@ -133,7 +133,46 @@ trace / screenshot / video に private value が入る可能性がある場合�
 
 ### 7. third-party action の version pin
 
-セキュリティ要件が厳しい組織では、major version pin（`@v5`）ではなく SHA pin（`@<commit-sha>`）に変更する。Dependabot 等で自動更新する運用が必要。
+セキュリティ要件が厳しい組織では、major version pin（`@v5`）ではなく SHA pin（`@<40 桁 commit SHA> # v5`）に変更する。tag は可変で同一 tag が別 commit を指しうるため、SHA pin で内容を固定するのが supply-chain 対策の標準手法。既定のテンプレは major pin のままで、SHA pin は opt-in（強制しない）。
+
+具体手順（SHA の調べ方 `gh api` / UI、`# vX` コメント併記、Dependabot での自動更新、`@v0.3.0` タグ pin との違い）は [`../../docs/github-actions.md`](../../docs/github-actions.md) の「SHA-pinning third-party actions」節を参照。
+
+テンプレ内で使う third-party action の一覧（SHA pin 対象）:
+
+| Action | 使用箇所 |
+|---|---|
+| `actions/checkout` | 全テンプレ |
+| `actions/setup-node` | 全テンプレ |
+| `pnpm/action-setup` | pnpm setup |
+| `oven-sh/setup-bun` | bun setup |
+| `actions/upload-artifact` | Playwright / diagnostic artifact |
+| `github/codeql-action` | SARIF opt-in（`upload-sarif`） |
+
+### 8. monorepo（paths filter / matrix / workspace）
+
+direct workflow（`ai-check.yml` / `ai-check-fast.yml`）には monorepo 向けの **opt-in コメント雛形**が入っている。既定はリポジトリ全体で起動し、雛形をコメント解除すると対象を絞ったり複数構成に展開できる。
+
+- **paths filter**: 変更パッケージのみで起動する。SPEC-0061 の `--workspace <pkg-dir>` で絞った対象ディレクトリを glob（例: `packages/app/**`）に指定する。`ai-check.yml` / `ai-check-fast.yml` の両方に雛形あり
+  - 注意: paths filter で全 job がスキップされる PR があると、その job を required status check にしている場合に never-run で pending のままマージがブロックされる。回避策（常に成功する fallback job を required に指定する等）は雛形コメントと docs に記載
+- **matrix**: 複数 Node バージョン（`matrix.node: [20, 22]` → `node-version`）や複数 workspace（`matrix.workspace: [...]` → `working-directory`）を 1 job で回す。`ai-check.yml` のみに雛形あり（fast は軽量性を保つため無し）
+- **reusable workflow**: `ai-quality-reusable.yml` の `working-directory` input（§3 の inputs 表参照）で workspace ディレクトリを指定できる。複数 workspace の fan-out は caller 側の matrix で書く
+
+詳細な有効化手順は [`../../docs/github-actions.md`](../../docs/github-actions.md) の「Monorepo: paths filter, matrix, and workspaces」節を参照。
+
+### 9. Semgrep SARIF opt-in（Code Scanning 連携）
+
+`ai-check.yml` には Semgrep の finding を GitHub Code Scanning（Security タブ）に載せる **opt-in コメント雛形**が入っている。既定は無効で、コメント解除で有効化する。`ai-check-fast.yml` には入れていない（fast の軽量性を保つため）。
+
+- SARIF upload には `security-events: write` permission が必須（付与漏れで 403 fail）。SARIF を使う場合のみ追加し、それ以外は既定の `contents: read` のまま（least-privilege）
+- 雛形は package script（`security:sast` = `semgrep scan --config auto`）を変えず、CI 側で `semgrep scan --sarif --output` を走らせる別経路
+- 有効化手順・permission の詳細・secret を SARIF に載せない注意は [`../../docs/github-actions.md`](../../docs/github-actions.md) の「Semgrep SARIF opt-in」節を参照
+
+## update 時の挙動（CI テンプレへのコメント雛形追加について）
+
+本更新で CI テンプレ（`ai-check.yml` / `ai-check-fast.yml`）に上記の opt-in コメント雛形が追加された。既存利用者の `update` は次のように分岐する（CI テンプレは managed file のため）:
+
+- **未改変の利用者**: `update` で新テンプレに自動追従する。差分はコメント雛形が増えるだけで、active な CI 挙動（トリガー・job・実行コマンド）は変わらない
+- **改変済みの利用者**: `update` は `skip-modified` となり既存の改変が保護される。新しいコメント雛形を取り込みたい場合は `--diff` で確認して手動反映するか、`--force-managed`（`.bak-<version>` を残してから上書き）で明示的に upstream 化する
 
 ## なぜ「example」扱いか
 
