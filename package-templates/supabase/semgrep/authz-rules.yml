@@ -1,0 +1,171 @@
+# authz-rules.yml — example Semgrep rules for Supabase authz / RLS anti-patterns
+#
+# WHAT THIS IS
+#   A small set of EXAMPLE (starting-point) Semgrep rules that flag common
+#   ways authorization, Row Level Security (RLS), or rate limiting get skipped
+#   in Supabase + TypeScript/Next.js code. These rules are NOT exhaustive and
+#   WILL produce false positives on some codebases. Treat every finding as a
+#   prompt to review, not as a verdict.
+#
+# OPT-IN ONLY (does not change the default gate)
+#   The default `security:sast` script stays `semgrep scan --config auto`.
+#   These rules are NOT wired into that default. Apply them explicitly by
+#   ADDING a second --config:
+#       semgrep scan --config auto --config ./supabase/semgrep/authz-rules.yml
+#   Skipping the extra --config keeps the default behavior unchanged.
+#
+# TUNING & SUPPRESSION
+#   - Line-level suppression: put `// nosemgrep: <rule-id>` on (or just before)
+#     the flagged line, e.g. `// nosemgrep: supabase-rls.service-role-client-misuse`.
+#   - Scope: add a `paths:` block to each rule to include/exclude directories.
+#   - Narrowing: add `pattern-not` clauses to exclude your legitimate shapes.
+#   Copy this file into your project and edit it to fit your codebase.
+#
+# SECURITY NOTES
+#   - No network access is required or performed by these rules.
+#   - No real secrets/tokens/service_role keys are embedded. Patterns reference
+#     env var NAMES only (e.g. SUPABASE_SERVICE_ROLE_KEY), never values.
+#   - RLS correctness is proven by the pgTAP / integration templates in this
+#     addon; Semgrep here is a supplementary early-warning, not the main check.
+#
+# SYNTAX VERIFICATION (AI Output Verification /幻覚防止)
+#   Rule syntax checked against the official Semgrep rule-syntax docs on
+#   2026-07-03 (docs.semgrep.dev/writing-rules/rule-syntax):
+#   - top-level key `rules`; each rule needs id / message / severity /
+#     languages / one pattern operator.
+#   - severity here uses the OSS values ERROR / WARNING / INFO only
+#     (HIGH / CRITICAL / MEDIUM / LOW are AppSec Platform display classes and
+#     are avoided in this OSS rule file).
+#   - operators used: patterns, pattern, pattern-regex, metavariable-pattern,
+#     pattern-not, pattern-inside, pattern-not-inside.
+#   - languages spelled `typescript` / `javascript`.
+
+rules:
+  # ---------------------------------------------------------------------------
+  # (a) service_role client misuse — RLS bypass suspicion
+  #
+  # 検出意図 / Intent: a Supabase client created with a service_role key
+  #   bypasses RLS. If such a client is built on a user-request path, every
+  #   RLS policy is silently skipped. This flags createClient() whose key
+  #   argument looks service_role-derived (env name or variable containing
+  #   `service_role`).
+  # 例（出発点）/ Example, not exhaustive: legitimate server-only/admin paths
+  #   also use service_role. Review each hit; this is a starting point.
+  # 抑制 / Suppress: `// nosemgrep: supabase-rls.service-role-client-misuse`
+  # チューニング / Tune: add `paths:` to limit to request-handler dirs, or add
+  #   `pattern-not` to exclude vetted admin/server-only modules.
+  # ---------------------------------------------------------------------------
+  - id: supabase-rls.service-role-client-misuse
+    message: >-
+      Supabase client appears to be created with a service_role key. A
+      service_role client bypasses Row Level Security, so using it on a
+      user-request path skips every RLS policy. Confirm this client is
+      confined to trusted server-only code, or switch to an anon key plus the
+      user's session (Authorization: Bearer <user-jwt>). This is an example
+      rule and may be a false positive on legitimate admin/server-only paths;
+      suppress a reviewed line with `// nosemgrep: supabase-rls.service-role-client-misuse`.
+    severity: WARNING
+    languages: [typescript, javascript]
+    patterns:
+      - pattern: createClient($URL, $KEY, ...)
+      - metavariable-pattern:
+          metavariable: $KEY
+          patterns:
+            - pattern-regex: (?i)service_?role
+
+  # ---------------------------------------------------------------------------
+  # (b) RLS-dependent query without an owner filter
+  #
+  # 検出意図 / Intent: a `.from(...).select(...)` that relies on RLS but carries
+  #   no explicit owner/tenant filter (.eq("owner_id"/"user_id"/"tenant_id"/
+  #   "organization_id", ...)). Defense-in-depth wants the filter in the query
+  #   too, not RLS alone.
+  # 例（出発点）/ Example, not exhaustive: RLS may fully protect the table, so an
+  #   unfiltered select can be correct. Conservative by design — it only flags a
+  #   bare select(...) directly followed by nothing filtering-related, and
+  #   excludes shapes that already chain an owner/tenant .eq(...).
+  # 抑制 / Suppress: `// nosemgrep: supabase-rls.rls-query-without-owner-filter`
+  # チューニング / Tune: extend `pattern-not` with your own owner/tenant column
+  #   names, or add `paths:` to scope to user-request code.
+  # ---------------------------------------------------------------------------
+  - id: supabase-rls.rls-query-without-owner-filter
+    message: >-
+      This Supabase select() appears to rely on RLS alone without an explicit
+      owner/tenant filter (for example .eq("owner_id", ...) or
+      .eq("tenant_id", ...)). Prefer defense-in-depth: keep the filter in the
+      query as well as the RLS policy. This is an example rule and may be a
+      false positive when RLS fully protects the table; suppress a reviewed
+      line with `// nosemgrep: supabase-rls.rls-query-without-owner-filter`.
+    severity: INFO
+    languages: [typescript, javascript]
+    patterns:
+      - pattern: $DB.from($TABLE).select(...)
+      - pattern-not: $DB.from($TABLE).select(...).eq("owner_id", ...)
+      - pattern-not: $DB.from($TABLE).select(...).eq("user_id", ...)
+      - pattern-not: $DB.from($TABLE).select(...).eq("tenant_id", ...)
+      - pattern-not: $DB.from($TABLE).select(...).eq("organization_id", ...)
+      - pattern-not: $DB.from($TABLE).select(...).match(...)
+
+  # ---------------------------------------------------------------------------
+  # (c) route handler without an authz / rate-limit guard
+  #
+  # 検出意図 / Intent: a Next.js App Router route handler
+  #   (`export async function GET/POST/...`) with no visible authorization or
+  #   rate-limit guard inside it (no auth.getUser / getSession / requireAuth /
+  #   authorize / rateLimit call).
+  # 例（出発点）/ Example, not exhaustive: guards can live in middleware or a
+  #   wrapper, so a bare handler is not always wrong. This is a TS/Next.js
+  #   route example only — language- and framework-agnostic detection is not
+  #   attempted here.
+  # 抑制 / Suppress: `// nosemgrep: supabase-rls.route-handler-without-authz-guard`
+  # チューニング / Tune: add your own guard names to `pattern-not-inside`, or use
+  #   `paths:` to target only `app/**/route.ts`.
+  # ---------------------------------------------------------------------------
+  - id: supabase-rls.route-handler-without-authz-guard
+    message: >-
+      This route handler has no visible authorization or rate-limit guard
+      (for example auth.getUser(), getSession(), requireAuth(), authorize(),
+      or a rateLimit() call). If the guard is not enforced in middleware or a
+      wrapper, the endpoint may be reachable without authentication. This is a
+      TS/Next.js example rule and a starting point, not exhaustive; suppress a
+      reviewed line with `// nosemgrep: supabase-rls.route-handler-without-authz-guard`.
+    severity: WARNING
+    languages: [typescript, javascript]
+    patterns:
+      - pattern: |
+          export async function $METHOD(...) {
+            ...
+          }
+      - metavariable-pattern:
+          metavariable: $METHOD
+          pattern-regex: ^(GET|POST|PUT|PATCH|DELETE)$
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            $GUARD.getUser(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            $GUARD.getSession(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            requireAuth(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            authorize(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            rateLimit(...)
+            ...
+          }
