@@ -572,7 +572,10 @@ test("AC-05: v1 state（customProfile / managedFiles なし）も従来どおり
 });
 
 test("AC-05: resolveEffectiveOptions は explicit --profile-file > state > null で解決する", () => {
-  // FR-07 / PRE-02: 決定的な優先順（環境非依存）
+  // FR-07 / PRE-02: 決定的な優先順（環境非依存）。custom モード（explicit
+  // --profile-file あり）では profile 入力を built-in placeholder に差し替えて
+  // parseProfiles を回避するので、profile: "custom:mystack" を明示しても throw
+  // せず profileFile / customProfile の解決だけを返す（F1 修正の unit 側）。
   const stateInstall = {
     source: "state",
     state: {
@@ -825,6 +828,80 @@ test("AC-05: 定義ファイル不在の update は CliError で部分書き込�
 });
 
 // ===========================================================================
+// F1 回帰 / FR-07 / AC-04 / AC-07 (TASK-0234): explicit --profile custom:<name>
+// --profile-file を doctor / update に渡した経路。F1 修正前は
+// resolveEffectiveOptions が custom:<name> を parseProfiles に通して
+// "Invalid profile" で exit 1 になっていた（init だけが resolveEffectiveOptions
+// を profile 解決に使わないため通っていた）。修正後は custom モードで built-in
+// placeholder に差し替え、caller の custom 解決経路（resolveDoctorCustomProfile /
+// resolveUpdateCustomProfile）に委ねるため exit 0 で custom を扱う。
+// 期待値は SPEC の FR-07 / AC-04（custom:<name> 判定）/ AC-07（doctor の custom
+// 診断）から導出（AP-07）。
+// ===========================================================================
+
+test("F1: doctor に explicit --profile custom:<name> --profile-file を渡すと exit 0 で custom を診断する", (t) => {
+  // FR-07 / AC-04 / AC-07: 明示フラグ経路（旧: exit 1）。state 駆動ではなく
+  // フラグ由来で custom を解決し、effectiveOptions.profile が custom:<name> になる。
+  const dir = createFixture(t);
+  const relative = writeDefinitionYaml(dir);
+  assert.equal(initCustom(dir, relative).status, 0);
+
+  const result = runCli([
+    "doctor", "--target", dir, "--profile", "custom:mystack", "--profile-file", relative, "--ci", "none", "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "pass");
+  assert.equal(output.effectiveOptions.profile, "custom:mystack");
+  assert.equal(output.effectiveOptions.profileFile, relative);
+});
+
+test("F1: update に explicit --profile custom:<name> --profile-file を渡すと exit 0 で custom を更新する", (t) => {
+  // FR-07 / AC-04: 明示フラグ経路（旧: exit 1）。custom snapshot を維持したまま
+  // 更新でき、state の customProfile が保持される（built-in placeholder に落ちない）。
+  const dir = createFixture(t);
+  const relative = writeDefinitionYaml(dir);
+  assert.equal(initCustom(dir, relative).status, 0);
+
+  const result = runCli([
+    "update", "--target", dir, "--profile", "custom:mystack", "--profile-file", relative, "--ci", "none", "--yes", "--json",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.status, "updated");
+  assert.equal(output.effectiveOptions.profile, "custom:mystack");
+  // custom snapshot は維持される（F1 修正で placeholder に潰されない）
+  const state = readInstallState(dir);
+  assert.equal(state.customProfile.name, "mystack");
+  assert.equal(state.customProfile.filePath, relative);
+});
+
+test("F1: built-in の explicit --profile react-nextjs は doctor / update で従来どおり exit 0（後方互換）", (t) => {
+  // FR-07 / NFR-01 / INV-01: built-in の明示フラグ経路は F1 修正の影響を受けない。
+  const dir = createFixture(t);
+  assert.equal(
+    runCli(["init", "--target", dir, "--profile", "react-nextjs", "--ci", "none", "--yes"]).status,
+    0,
+  );
+
+  const doctorResult = runCli([
+    "doctor", "--target", dir, "--profile", "react-nextjs", "--ci", "none", "--json",
+  ]);
+  assert.equal(doctorResult.status, 0, doctorResult.stderr);
+  assert.equal(JSON.parse(doctorResult.stdout).effectiveOptions.profile, "react-nextjs");
+
+  const updateResult = runCli([
+    "update", "--target", dir, "--profile", "react-nextjs", "--ci", "none", "--yes", "--json",
+  ]);
+  assert.equal(updateResult.status, 0, updateResult.stderr);
+  assert.equal(JSON.parse(updateResult.stdout).effectiveOptions.profile, "react-nextjs");
+  // built-in モードは customProfile を書かない（INV-05）
+  assert.equal("customProfile" in readInstallState(dir), false);
+});
+
+// ===========================================================================
 // AC-07 integration / FR-07 / SEC-02 / SEC-03: doctor の custom 診断と異常系
 // NFR-04 分岐 (6): doctor の定義ファイル不在 / drift 検出
 // ===========================================================================
@@ -911,9 +988,11 @@ test("AC-07: init で --profile-file の絶対パス / .. 入りは SEC-02 の C
 });
 
 test("AC-07: doctor の --profile-file 絶対パス / .. 入り（explicit custom）も CliError になる", (t) => {
-  // SEC-02 / FR-07: doctor でも不正パスは非 0 終了する。--profile custom:<name> を
-  // 明示すると resolveEffectiveOptions の parseProfiles ガードが先に非 0 CliError を
-  // 返す（custom 名は built-in レジストリに無い）ため、いずれの経路でも書き込みなし。
+  // SEC-02 / FR-07: doctor でも不正パスは非 0 終了する。F1 修正後、explicit
+  // --profile custom:<name> は resolveEffectiveOptions で built-in placeholder に
+  // 差し替わり parseProfiles ガードを通過するため、非 0 の由来は
+  // resolveDoctorCustomProfile 内の resolveCustomProfilePath（SEC-02 パス検証）に
+  // 移る。観測結果（status≠0・書き込みなし）は F1 修正前後で同一。
   const dir = createFixture(t);
   writeDefinitionYaml(dir);
 
