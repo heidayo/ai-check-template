@@ -138,6 +138,8 @@ npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matri
 
 `run` and `expect` are repository-current CLI additions. Before the next npm publish, use this repository checkout or an `npm pack` tarball to try them.
 
+The steps `run` executes per gate (fast / full / secure) can be declaratively replaced or disabled by placing `.ai-check.yaml` (or `.ai-check.json`) at the project root — opt-in, user-owned, and never touched by the installer. Without the file, behavior is unchanged; deleting it fully restores the default behavior. Each step in `--json` output records its origin via `name` / `source` (`config` / `default`) plus a root-level `configPath`. Config `command` values run exactly as committed, so never hardcode secrets / tokens / API keys — pass them via environment variables or a secret manager. See the "Step config" section in [`docs/cli.md`](./docs/cli.md) for the schema and a complete example.
+
 For non-Next.js projects, switch the profile to `node-cli`, `react-vanilla`, `expo-rn`, or `react-nextjs+supabase-rls`. See [`docs/cli.md`](./docs/cli.md) for options and [`docs/usage-model.md`](./docs/usage-model.md) for the operating model.
 
 ## Other install paths

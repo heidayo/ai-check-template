@@ -97,13 +97,118 @@ AI self-report.
 |---|---|---|
 | `--target <dir>` | current directory | Existing project directory. It must already contain `package.json`. |
 | `--script <name>` | `ai:check` | Package script to execute. The command is split on explicit `&&` steps. |
-| `--json` | off | Prints `{ status, script, command, startedAt, durationMs, steps }`. |
+| `--json` | off | Prints `{ status, script, command, startedAt, durationMs, configPath, steps }`. |
 | `--output <file>` | none | Writes the same JSON result to a file, creating parent directories as needed. |
 
 Step status is one of `PASS`, `FAIL`, or `SKIPPED`. After the first failing
 step, remaining steps are recorded as `SKIPPED` to preserve `&&` semantics.
 Captured stdout/stderr is redacted for common token, secret, password,
-credential, API key, AWS key, GitHub token, and JWT patterns.
+credential, API key, AWS key, GitHub token, and JWT patterns. Redaction applies
+to every step regardless of whether it came from a config file or from the
+package script.
+
+Each step in the JSON result carries evidence of where it came from:
+
+- `name`: the config-declared step name, or `step-<index>` for default steps.
+- `source`: `"config"` when the step was resolved from `.ai-check.yaml` /
+  `.ai-check.json`, `"default"` when it came from splitting the package script.
+- `configPath` (result root): the relative path of the config file that was
+  used, or `null` when no config was used for this run.
+
+These fields are additive; all previously documented fields are unchanged.
+
+### Step config (`.ai-check.yaml` / `.ai-check.json`)
+
+`run` optionally reads a step configuration file from the target project root
+(the `--target` directory only; parent directories are never searched). The
+file is **opt-in and user-owned**: `init` never creates it, `update` never
+overwrites or deletes it, `doctor` never inspects it, and it is not part of the
+managed file list. Without the file, `run` behaves exactly as before. To roll
+back, simply delete the config file — the previous behavior is fully restored.
+
+Schema version 1:
+
+- Top level: `version: 1` (required) and `steps` (required, at least one step).
+- Each step name must match `[a-z][a-z0-9:_-]*` and maps to:
+  - `gates` (required): non-empty array of `fast`, `full`, `secure`.
+  - `command` (optional): non-empty command string. When omitted, the command
+    of the target project's package script with the same name as the step is
+    used (a missing script of that name is an error, never a silent skip).
+  - `enabled` (optional, default `true`): `false` records the step as
+    `SKIPPED` without executing it.
+
+Breaking schema changes will bump `version` and be rejected with an explicit
+error, following the same policy as the install state `schemaVersion`.
+
+Gate resolution: `--script ai:check` maps to gate `full`, `ai:check:fast` to
+`fast`, and `ai:check:secure` to `secure`. Fallback rules:
+
+- If the config declares at least one step for the matched gate, the executed
+  steps are **fully replaced** by those steps in declaration order (full
+  enumeration model — there is no partial patching of the default chain).
+- If the config exists but declares no step for the matched gate, that gate
+  falls back to splitting the package script (`source: "default"`,
+  `configPath: null`).
+- Any other `--script` value never consults the config.
+- Validation runs before any step executes: parse errors, a missing or wrong
+  `version`, unknown keys, unknown gate values, empty `command`, invalid or
+  duplicate step names all fail fast with a non-zero exit. The config is never
+  silently ignored in favor of the default behavior.
+- If both `.ai-check.yaml` and `.ai-check.json` exist, `run` errors and asks
+  you to delete one of them.
+
+A complete example covering all three gates:
+
+```yaml
+# .ai-check.yaml — committed by you, never distributed or managed
+version: 1
+steps:
+  lint:
+    gates: [fast, full]        # command omitted: reuses package script "lint"
+  typecheck:
+    gates: [fast, full]
+  test:
+    command: "pnpm vitest run"
+    gates: [full]
+  e2e:smoke:
+    command: "pnpm playwright test --grep @smoke"
+    enabled: false             # temporarily paused; recorded as SKIPPED
+    gates: [full]
+  secret-scan:
+    command: "bash scripts/ai-check-secure.sh"
+    gates: [secure]
+```
+
+The YAML parser supports only a minimal subset: the `version` line, the
+`steps:` mapping, step-name keys, nested scalar `key: value` pairs, and inline
+gate arrays like `[fast, full]`. Anything else (block lists, anchors, aliases,
+multi-line scalars, flow mappings) is rejected with an error that points to the
+equivalent escape hatch: `.ai-check.json` with the same schema, parsed as full
+JSON:
+
+```json
+{
+  "version": 1,
+  "steps": {
+    "lint": { "gates": ["fast", "full"] },
+    "test": { "command": "pnpm vitest run", "gates": ["full"] }
+  }
+}
+```
+
+Security notes:
+
+- The committed `command` values run exactly as-is (arbitrary code execution at
+  the same trust level as `package.json` scripts). Review config changes like
+  any other executable change and do not let untrusted edits in.
+- Never hardcode secrets / tokens / API keys in the config; pass them via
+  environment variables or a secret manager. Captured output still goes
+  through the standard redaction, but redaction is a safety net, not a license
+  to commit secrets.
+- Declaring a gate with every step `enabled: false` makes the whole gate a
+  no-op that still reports `PASS` (zero executed steps, all `SKIPPED`). This is
+  honored as an explicit user choice, but it effectively disables the gate and
+  is discouraged in CI.
 
 ## Expect options
 
