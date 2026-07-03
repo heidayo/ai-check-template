@@ -1097,3 +1097,97 @@ test("update rejects invalid profile before writing", (t) => {
   assert.match(result.stderr, /Invalid profile/);
   assert.deepEqual(after, before);
 });
+
+// --- SPEC-0061 workspace mode ------------------------------------------------
+
+function createWorkspaceFixture(t) {
+  const dir = createTempDir(t, "ai-check-template-update-ws-");
+  fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    `${JSON.stringify({ name: "root-fixture", private: true, scripts: {} }, null, 2)}\n`,
+  );
+  fs.mkdirSync(path.join(dir, "packages", "app"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "packages", "app", "package.json"),
+    `${JSON.stringify({ name: "@fixture/app", scripts: {} }, null, 2)}\n`,
+  );
+  return dir;
+}
+
+function initWorkspaceFixture(target) {
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app", "--profile", "react-nextjs", "--ci", "none", "--yes",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+}
+
+function readRootPackageJson(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+}
+
+function readWorkspacePackageJson(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, "packages", "app", "package.json"), "utf8"));
+}
+
+function readState(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, ".ai-check-template.json"), "utf8"));
+}
+
+// AC-05 / POST-02 / FR-06: update（フラグなし）は state の workspace を解決し、配置規則と state を維持する
+test("update は state の workspace を解決して配置規則と workspace フィールドを維持する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  const rootBefore = readRootPackageJson(target);
+  const packageBefore = readWorkspacePackageJson(target);
+
+  const result = runCli(["update", "--target", target, "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  // 冪等性: init 直後の update で scripts は不変（root gate / package step とも）
+  assert.deepEqual(readRootPackageJson(target).scripts, rootBefore.scripts);
+  assert.deepEqual(readWorkspacePackageJson(target).scripts, packageBefore.scripts);
+  assert.equal(readState(target).workspace, "packages/app");
+});
+
+// AC-05 / FR-03: root gate script の drift を workspace 描画で修復する
+test("update は root gate scripts の drift を --filter 形に修復する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  const expected = readRootPackageJson(target).scripts["ai:check"];
+  mergePackageScripts(target, { "ai:check": "echo drifted" });
+
+  const result = runCli(["update", "--target", target, "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readRootPackageJson(target).scripts["ai:check"], expected);
+  assert.match(expected, /pnpm --filter @fixture\/app typecheck/);
+  assert.equal(readState(target).workspace, "packages/app");
+});
+
+// 境界ケース1 / PRE-01: パッケージ削除後の update は書き込み前検証で CliError になり何も書かない
+test("update はパッケージ削除済み workspace state で CliError になり書き込まない", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  fs.rmSync(path.join(target, "packages", "app"), { recursive: true, force: true });
+  const rootBefore = readRootPackageJson(target);
+  const stateBefore = readState(target);
+
+  const result = runCli(["update", "--target", target, "--yes"]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /packages\/app/);
+  assert.deepEqual(readRootPackageJson(target), rootBefore);
+  assert.deepEqual(readState(target), stateBefore);
+});
+
+// FR-08: workspace state と --install-deps の併用は CliError
+test("update は workspace state と --install-deps の併用を CliError にする", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+
+  const result = runCli(["update", "--target", target, "--install-deps", "--yes"]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--workspace cannot be combined with --install-deps/);
+});

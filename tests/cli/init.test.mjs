@@ -742,3 +742,173 @@ test("invalid package manager is rejected before writes", (t) => {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// --- SPEC-0061 workspace mode ------------------------------------------------
+
+function createWorkspaceFixture(t, { rootMarker = "pnpm-workspace.yaml" } = {}) {
+  const dir = createTempDir(t, "ai-check-template-ws-");
+  const rootPackageJson = { name: "root-fixture", private: true, scripts: {} };
+  if (rootMarker === "workspaces") {
+    rootPackageJson.workspaces = ["packages/*"];
+  } else {
+    fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+  }
+  fs.writeFileSync(path.join(dir, "package.json"), `${JSON.stringify(rootPackageJson, null, 2)}\n`);
+  fs.mkdirSync(path.join(dir, "packages", "app"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "packages", "app", "package.json"),
+    `${JSON.stringify({ name: "@fixture/app", scripts: {} }, null, 2)}\n`,
+  );
+  return dir;
+}
+
+function readWorkspacePackageJson(dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, "packages", "app", "package.json"), "utf8"));
+}
+
+// AC-02 / FR-03 / FR-04: pnpm — ルートに gate scripts（--filter 形）、パッケージに step + support scripts
+test("init --workspace はルートに pnpm --filter 形の gate scripts、パッケージに step scripts を書く", (t) => {
+  const target = createWorkspaceFixture(t);
+  const result = runCli(["init", "--target", target, "--workspace", "packages/app", "--profile", "react-nextjs", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const rootPackageJson = readPackageJson(target);
+  const f = "pnpm --filter @fixture/app";
+  assert.equal(
+    rootPackageJson.scripts["ai:check"],
+    `${f} typecheck && ${f} lint && ${f} doctor && ${f} deadcode && ${f} test && ${f} test:e2e:smoke`,
+  );
+  assert.equal(rootPackageJson.scripts["ai:check:fast"], `${f} typecheck && ${f} lint && ${f} test:unit`);
+  assert.equal(
+    rootPackageJson.scripts["ai:check:secure"],
+    `${f} security:secrets && ${f} security:deps && ${f} security:supply-chain && ${f} security:sast`,
+  );
+  // FR-04: ルートには gate scripts のみ（step / support はパッケージ側）
+  assert.equal(rootPackageJson.scripts.typecheck, undefined);
+  assert.equal(rootPackageJson.scripts.doctor, undefined);
+  assert.equal(rootPackageJson.scripts["security:secrets"], undefined);
+
+  const packageJson = readWorkspacePackageJson(target);
+  assert.equal(packageJson.scripts["ai:check"], undefined); // gate はパッケージ側に置かない（INV-02）
+  assert.equal(packageJson.scripts.doctor, "npx -y react-doctor@latest . --fail-on warning");
+  assert.equal(packageJson.scripts.deadcode, "knip");
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
+  assert.equal(packageJson.scripts.lint, "eslint .");
+  assert.equal(packageJson.scripts.test, "vitest run");
+  assert.equal(packageJson.scripts["test:unit"], "vitest run --dir tests/unit");
+  assert.equal(packageJson.scripts["test:e2e:smoke"], "playwright test --grep smoke");
+  assert.equal(packageJson.scripts["security:secrets"], "npx -y @secretlint/quick-start \"**/*\"");
+  assert.equal(packageJson.scripts["security:deps"], "pnpm audit --audit-level high");
+  assert.equal(packageJson.scripts["security:sast"], "semgrep scan --config auto");
+
+  // AC-03 / FR-05: state に workspace を記録、schemaVersion は 2 のまま
+  const state = readInstallState(target);
+  assert.equal(state.workspace, "packages/app");
+  assert.equal(state.schemaVersion, 2);
+});
+
+// AC-02 / FR-03: npm — `npm run <step> --workspace <pkg-dir>` 形（<dir> を使う）
+test("init --workspace は npm で run <step> --workspace <dir> 形の gate scripts を書く", (t) => {
+  const target = createWorkspaceFixture(t, { rootMarker: "workspaces" });
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app",
+    "--profile", "react-nextjs", "--package-manager", "npm", "--ci", "none", "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const rootPackageJson = readPackageJson(target);
+  assert.equal(
+    rootPackageJson.scripts["ai:check:fast"],
+    "npm run typecheck --workspace packages/app && npm run lint --workspace packages/app && npm run test:unit --workspace packages/app",
+  );
+  assert.equal(readWorkspacePackageJson(target).scripts["security:deps"], "npm audit --audit-level high");
+});
+
+// AC-02 / FR-03: yarn — `yarn workspace <name> <step>` 形（<name> を使う）
+test("init --workspace は yarn で workspace <name> <step> 形の gate scripts を書く", (t) => {
+  const target = createWorkspaceFixture(t, { rootMarker: "workspaces" });
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app",
+    "--profile", "react-nextjs", "--package-manager", "yarn", "--ci", "none", "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const w = "yarn workspace @fixture/app";
+  assert.equal(readPackageJson(target).scripts["ai:check:fast"], `${w} typecheck && ${w} lint && ${w} test:unit`);
+});
+
+// AC-02 / FR-03: bun — `bun run --filter <name> <step>` 形（Bun v1.1+、tests/cli/workspace.test.mjs のコメント参照）
+test("init --workspace は bun で run --filter <name> <step> 形の gate scripts を書く", (t) => {
+  const target = createWorkspaceFixture(t, { rootMarker: "workspaces" });
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app",
+    "--profile", "react-nextjs", "--package-manager", "bun", "--ci", "none", "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const w = "bun run --filter @fixture/app";
+  assert.equal(readPackageJson(target).scripts["ai:check:fast"], `${w} typecheck && ${w} lint && ${w} test:unit`);
+});
+
+// AC-02 / FR-03: addon step（supabase-rls）も workspace 描画を通る
+test("init --workspace は addon step も --filter 形で ai:check に追記する", (t) => {
+  const target = createWorkspaceFixture(t);
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app",
+    "--profile", "react-nextjs+supabase-rls", "--ci", "none", "--yes",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const f = "pnpm --filter @fixture/app";
+  assert.match(
+    readPackageJson(target).scripts["ai:check"],
+    new RegExp(`${escapeRegExp(`${f} test:db && ${f} test:integration:rls`)}$`),
+  );
+  assert.equal(readWorkspacePackageJson(target).scripts["test:db"], "supabase test db");
+});
+
+// AC-03 / FR-05: --workspace 未指定 init の state に workspace キーが存在しない
+test("init 未指定時は state に workspace キーを書かない", (t) => {
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal("workspace" in readInstallState(target), false);
+});
+
+// FR-08: --workspace と --install-deps の併用は CliError
+test("init は --workspace と --install-deps の併用を CliError にする", (t) => {
+  const target = createWorkspaceFixture(t);
+  const before = snapshotDirectory(target);
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app", "--install-deps", "--ci", "none", "--yes",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--workspace cannot be combined with --install-deps/);
+  assert.deepEqual(snapshotDirectory(target), before);
+});
+
+// FR-01: --workspace の複数指定は CliError（単一指定制限）
+test("init は複数の --workspace 指定を CliError にする", (t) => {
+  const target = createWorkspaceFixture(t);
+  const before = snapshotDirectory(target);
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app", "--workspace", "packages/other", "--ci", "none", "--yes",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /only be specified once/);
+  assert.deepEqual(snapshotDirectory(target), before);
+});
+
+// AC-06(a) / PRE-01: workspace ルートでない target への --workspace は何も書かず CliError
+test("init は workspace ルートでない target への --workspace で何も書き込まない", (t) => {
+  const target = createFixture(t);
+  const before = snapshotDirectory(target);
+  const result = runCli(["init", "--target", target, "--workspace", "packages/app", "--ci", "none", "--yes"]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /pnpm-workspace\.yaml/);
+  assert.deepEqual(snapshotDirectory(target), before);
+});
