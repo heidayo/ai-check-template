@@ -47,3 +47,28 @@ jobs:
       # 例: "ai:check:fast": "pnpm typecheck && pnpm lint && pnpm test:unit"
       - name: Run ai:check:fast
         run: pnpm ai:check:fast
+
+# --- monorepo: paths filter (opt-in) ---
+# 変更パッケージのみで fast check を起動する opt-in 雛形。既定は無効（下記はコメント）。
+# monorepo で対象外パッケージの PR まで fast を回したくない場合に有効化する。
+# 詳細は docs/github-actions.md の monorepo 節を参照。
+#
+# 有効化する場合、上部の `on:` ブロックを次の形に置き換える。
+# SPEC-0061 の `--workspace <pkg-dir>` の対象ディレクトリを paths glob に指定する
+# （例: packages/app）:
+#
+# on:
+#   pull_request:
+#     paths:
+#       - 'packages/app/**'
+#       # 共有設定の変更でも起動したい場合は横断パスも足す:
+#       # - 'package.json'
+#       # - 'pnpm-lock.yaml'
+#
+# 注意（required check が pending のままになる問題）:
+#   paths filter で「対象外パスだけを変更した PR」は全 job がスキップされる。
+#   その job を required status check にしていると never-run のまま pending となり
+#   マージがブロックされる。回避策は「常に成功する fallback job を required に指定する」
+#   等。詳細は docs/github-actions.md の monorepo 節を参照。
+# ※ セキュリティスキャンや matrix の雛形は fast には置かない
+#   （fast の軽量性を保つため、それらは ai-check.yml 側だけに用意する）。

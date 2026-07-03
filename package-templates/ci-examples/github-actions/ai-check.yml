@@ -74,3 +74,121 @@ jobs:
       #   with:
       #     name: ai-check-logs
       #     path: .ai-check/
+
+# --- Semgrep SARIF (opt-in) ---
+# Semgrep の finding を GitHub Code Scanning（Security タブ）に載せる opt-in 雛形。
+# 既定は無効（コメントアウト）。有効化する場合は下記 3 要素をセットでコメント解除する。
+# 詳細な有効化手順は docs/github-actions.md の SARIF opt-in 節を参照。
+#
+# なぜ package script と別経路か:
+#   package script の security:sast は `semgrep scan --config auto`（人が読む標準出力）。
+#   CI SARIF は `--sarif --output` を足した別呼び出しで、security:sast / ai:check:secure は
+#   呼ばない（package script は変えない）。config は同じ `--config auto` を使う。
+#
+# secret 非混入の注意（重要）:
+#   SARIF の finding にはマッチしたコードパスや周辺コードが含まれる。SARIF は
+#   Security タブ経由で閲覧範囲が決まる（public repo では閲覧範囲が広がりうる）。
+#   secret / private value を CI ログや SARIF に載せないのは利用者の責任。
+#   環境変数・secret を Semgrep の出力に流し込まない構成にすること。
+#
+# 有効化手順（3 要素をコメント解除する）:
+#
+# (a) permission — SARIF upload には security-events: write が必須。
+#     付与漏れだと upload ステップが 403 で失敗する。
+#     SARIF を使わない利用者の権限は既定の contents: read のまま広げないこと
+#     （least-privilege）。private repo では actions: read / contents: read も要る。
+#     上部の `permissions:` ブロックを次の形に置き換える:
+#
+#     permissions:
+#       contents: read
+#       security-events: write   # SARIF upload に必須。有効化する場合のみ追加
+#       # actions: read          # private repo で upload-sarif が必要とする
+#
+# (b) scan ステップ — jobs.ai-check.steps 末尾に追加する。
+#     semgrep の install（例: pip install semgrep）は本雛形に含めない。
+#     利用者が有効化時に用意する（scanner の自動 install はしない）:
+#
+#     - name: Run Semgrep (SARIF)
+#       run: semgrep scan --sarif --output=semgrep.sarif --config auto
+#
+# (c) upload ステップ — scan の直後に追加する。
+#     upload-sarif の入力名・バージョンは有効化時に公式ドキュメントで確認すること
+#     （github/codeql-action / Semgrep のフラグは将来変わりうる）。
+#     照合日 2026-07-03: sarif_file 入力・@v4 を確認（v3 も現行サポート）:
+#
+#     - name: Upload SARIF to Code Scanning
+#       if: always()
+#       uses: github/codeql-action/upload-sarif@v4
+#       with:
+#         sarif_file: semgrep.sarif
+
+# --- monorepo: paths filter (opt-in) ---
+# 変更パッケージのみで CI を起動する opt-in 雛形。既定は無効（下記はコメント）。
+# monorepo で全パッケージ横断の CI を毎回回したくない場合に有効化する。
+# 詳細は docs/github-actions.md の monorepo 節を参照。
+#
+# 有効化する場合、上部の `on:` ブロックを次の形に置き換える。
+# SPEC-0061 の `--workspace <pkg-dir>` で対象パッケージを絞っているなら、
+# その対象ディレクトリを paths の glob に指定する（例: packages/app）:
+#
+# on:
+#   pull_request:
+#     paths:
+#       - 'packages/app/**'
+#       # 共有設定の変更でも起動したい場合は横断パスも足す:
+#       # - '.github/workflows/**'
+#       # - 'package.json'
+#       # - 'pnpm-lock.yaml'
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'packages/app/**'
+#
+# 注意（required check が pending のままになる問題）:
+#   paths filter で「対象外パスだけを変更した PR」は全 job がスキップされる。
+#   その job を GitHub の required status check にしていると、never-run のまま
+#   pending 扱いになりマージがブロックされる。回避策:
+#     - paths filter に一致しない PR でも「常に成功する fallback job」を用意し、
+#       それを required check に指定する（下記の例）、または
+#     - job 単位の必須化を避け、branch protection の required check を
+#       この workflow に紐付けない運用にする。
+#   fallback job の例（別 job としてこの workflow に足すか、別 workflow に置く）:
+#
+#   guard:
+#     if: always()
+#     runs-on: ubuntu-latest
+#     steps:
+#       - run: echo "paths filter skip guard (always green)"
+
+# --- monorepo: matrix (opt-in) ---
+# 複数 Node バージョン、または複数 workspace ディレクトリを 1 job で回す opt-in 雛形。
+# 既定は無効（下記はコメント）。既定の単一 job 構成は変えない。
+# 詳細は docs/github-actions.md の monorepo 節を参照。
+#
+# 有効化する場合、jobs.ai-check に `strategy.matrix` を足し、
+# 対応する step の値を matrix 変数に差し替える。
+#
+# (1) 複数 Node バージョンを回す例（matrix.node を node-version に接続）:
+#
+#     strategy:
+#       fail-fast: false   # 1 つ落ちても他バージョンの結果を得たいなら false
+#       matrix:
+#         node: [20, 22]
+#     # steps 内の setup-node を次の形にする:
+#     #   - uses: actions/setup-node@v5
+#     #     with:
+#     #       node-version: ${{ matrix.node }}
+#     #       cache: pnpm
+#
+# (2) 複数 workspace ディレクトリを回す例
+#     （matrix.workspace を working-directory / SPEC-0061 の --workspace 相当に接続）:
+#
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         workspace: [packages/app, packages/api]
+#     # 既存の install step / check step に working-directory を足して
+#     # matrix.workspace のディレクトリで実行させる:
+#     #       working-directory: ${{ matrix.workspace }}
+#     # ※ run の中身（install / ai:check）は既存 step のものを流用する。
+#     #   利用プロジェクトの PM に合わせたコマンドが既に active 側に入っている。
