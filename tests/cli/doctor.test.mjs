@@ -691,3 +691,58 @@ test("doctor reports malformed install state without writing", (t) => {
   assert.match(result.stdout, /invalid-install-state/);
   assert.deepEqual(after, before);
 });
+
+// --- SPEC-0057: local overlay（doctor 不干渉） ---
+
+// overlay ファイル（scripts/ai-check.local.sh と .claude/rules/local/ 配下）を配置する
+function placeOverlayFiles(target) {
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.local.sh"), "export PM=npm\necho \"overlay\"\n");
+  const localRulePath = path.join(target, ".claude", "rules", "local", "my-rule.md");
+  fs.mkdirSync(path.dirname(localRulePath), { recursive: true });
+  fs.writeFileSync(localRulePath, "# my project rule\n");
+}
+
+test("doctor は overlay ファイルの有無で結果が変わらない", (t) => {
+  // AC-04 / FR-05: ai-check.local.sh と .claude/rules/local/ 配下は drift 検査対象外。
+  // overlay 配置前後の doctor --json 出力（status / issues / warnings / managedFiles）が
+  // 同一で、exit code も変わらない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none", "--claude-hooks"]);
+
+  const withoutLocal = runCli(["doctor", "--target", target, "--ci", "none", "--claude-hooks", "--json"]);
+  assert.equal(withoutLocal.status, 0, withoutLocal.stderr);
+
+  placeOverlayFiles(target);
+  const withLocal = runCli(["doctor", "--target", target, "--ci", "none", "--claude-hooks", "--json"]);
+
+  assert.equal(withLocal.status, 0, withLocal.stderr);
+  // AC-04: 結果が local ファイル無しの場合と同一
+  assert.deepEqual(JSON.parse(withLocal.stdout), JSON.parse(withoutLocal.stdout));
+  // FR-05: 出力に local パスが drift 対象として現れない
+  assert.doesNotMatch(withLocal.stdout, /ai-check\.local\.sh/);
+  assert.doesNotMatch(withLocal.stdout, /rules\/local/);
+});
+
+test("strict doctor も overlay ファイルの有無で結果が変わらない", (t) => {
+  // AC-04 / FR-05: --strict でも local 起因の warning / issue が出ない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none", "--claude-hooks"]);
+  mergePackageScripts(target, {
+    typecheck: "tsc --noEmit",
+    lint: "eslint .",
+    test: "vitest run",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:e2e:smoke": "playwright test --grep smoke",
+    doctor: "npx -y react-doctor@latest . --fail-on warning",
+    deadcode: "knip",
+  });
+
+  const withoutLocal = runCli(["doctor", "--target", target, "--ci", "none", "--claude-hooks", "--strict", "--json"]);
+  assert.equal(withoutLocal.status, 0, withoutLocal.stderr);
+
+  placeOverlayFiles(target);
+  const withLocal = runCli(["doctor", "--target", target, "--ci", "none", "--claude-hooks", "--strict", "--json"]);
+
+  assert.equal(withLocal.status, 0, withLocal.stderr);
+  assert.deepEqual(JSON.parse(withLocal.stdout), JSON.parse(withoutLocal.stdout));
+});

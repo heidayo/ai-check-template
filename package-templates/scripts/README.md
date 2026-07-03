@@ -64,6 +64,34 @@ pnpm ai:check:secure
 - 非 Node プロジェクトでも entry point として配置可能
 - 統一 logging プレフィックス（`[ai-check]` / `[ai-check-fast]` / `[ai-check-secure]`）
 
+## local overlay（`ai-check.local.sh`）
+
+3 スクリプトはいずれも、実行時に **自身と同じディレクトリ** に `ai-check.local.sh` が存在すれば、
+PM 委譲コマンドの前にそれを `source` する（呼び出し時の cwd には依存しない）。
+存在しなければ何もしない（opt-in。置かない限り従来と挙動は同一）。
+
+これが overlay の契約であり、プロジェクト固有のカスタマイズは scripts 本体を直接編集せず
+`ai-check.local.sh` に書く。scripts 本体を未改変に保つことで、`ai-check-template update` の
+自動追従（3-way update）が維持される。
+
+```bash
+# scripts/ai-check.local.sh の例（コミットして使う。実ファイルは配布されない）
+# PM を上書き（source 行は PM="${PM:-pnpm}" の後にあるため上書き可能）
+PM=npm
+
+# 追加の事前チェック
+echo "[local] running project-specific pre-check"
+```
+
+注意事項:
+
+- **任意コード実行**: `ai-check.local.sh` はコミットされた内容がそのまま実行される。リポジトリを clone して scripts を実行する時点でリポジトリ内容は信頼境界内（`package.json` scripts と同等）だが、信頼できない変更を混入させないこと
+- **secret 直書き禁止**: secret / token / API key は直書きせず、env var / secret manager 経由で渡す
+- **実行権限（+x）は不要**: `source` は読み取り権限のみで動作する。chmod は不要
+- **失敗は伝播する**: scripts は `set -euo pipefail` 下で source するため、`ai-check.local.sh` の構文エラーや失敗は scripts の非 0 終了になる（silent に無視されない）
+- **installer は管理しない**: `ai-check.local.sh` は init が生成せず、update が上書き・削除せず、doctor が検査しない。完全にユーザー領域
+- script 別の分岐が必要な場合は、単一の `ai-check.local.sh` 内で `$0` 等により分岐する（`ai-check-fast.local.sh` のような script 別 local ファイルはない）
+
 ## package.scripts.fragment.json との関係
 
 `ai:check` / `ai:check:fast` / `ai:check:secure` の中身は `../package.scripts.fragment.json` に定義される。

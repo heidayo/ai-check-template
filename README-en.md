@@ -109,6 +109,24 @@ npx -y ai-check-template update --target . --dry-run
 
 `update` resolves each managed file 3-way against the baseline hash recorded at install time, the local content, and the latest template. Only unmodified files are updated; locally modified files are kept by default (`skip-modified`). Inspect differences with `--diff`, or overwrite with `--force-managed`, which writes a `<file>.bak-<version>` backup first (add `*.bak-*` to `.gitignore`). To roll back, move the `.bak-<version>` file back to its original path. If you need the previous always-overwrite behavior, pin the previous release, e.g. `npx -y ai-check-template@0.4.0`. See [`docs/cli.md`](./docs/cli.md) for details.
 
+### Local overlay — put customizations here, not in managed files
+
+Editing managed files (`scripts/ai-check*.sh`, `.claude/rules/test-rules.md`, ...) directly turns them into `skip-modified` and drops them out of automatic update tracking. Put project-specific customization into the **overlay** instead — the installer (init / update / doctor) never touches it (overlay = first-choice mechanism, skip-modified = the safety net for direct edits):
+
+- `scripts/ai-check.local.sh`: when present, all three distributed scripts source it from their own directory before delegating to the package manager (without it, behavior is unchanged). No execute permission is needed, and failures such as syntax errors propagate as a non-zero exit
+
+  ```bash
+  # scripts/ai-check.local.sh — committed by you, never distributed
+  PM=npm                                       # override the package manager
+  echo "[local] project-specific pre-check"    # extra checks
+  ```
+
+- `.claude/rules/local/`: home for project-specific rules. `init --claude-hooks` seeds a guidance README once; after that the directory is entirely yours
+
+Note: `ai-check.local.sh` runs exactly as committed (arbitrary code execution). Never hardcode secrets / tokens / API keys — pass them via environment variables or a secret manager.
+
+Migrating existing direct edits: inspect with `update --diff`, move the custom parts into `ai-check.local.sh`, then restore managed scripts with `update --yes --force-managed` (a `.bak-<version>` backup is written first, so you can roll back). See the "Local overlay" section in [`docs/cli.md`](./docs/cli.md).
+
 Then run the target project's checks.
 
 ```bash

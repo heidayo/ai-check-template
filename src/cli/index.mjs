@@ -33,6 +33,7 @@ Init options:
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --overwrite          Replace conflicting files/scripts.
+  --json               Print machine-readable JSON output.
 
 Doctor options:
   --target <dir>       Target project directory. Defaults to the current directory.
