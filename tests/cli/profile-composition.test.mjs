@@ -7,6 +7,7 @@ import { parseProfiles, supportedProfiles } from "../../src/cli/profile.mjs";
 import {
   getProfileScripts,
   getProfileSupportScripts,
+  mergeAddonScripts,
 } from "../../src/cli/profile-scripts.mjs";
 import { getProfileDocFiles } from "../../src/cli/profile-docs.mjs";
 import {
@@ -150,7 +151,7 @@ test("AC-02(e): base+addon1+addon2 構文が受理され addons は宣言順を�
 
 // ---------------------------------------------------------------------------
 // FR-02 (a)-(c) 現行挙動 / POST-02: ai:check への addon step 追記と重複排除
-// （競合 CliError 化 = AC-03(c) は TASK-0216 の責務。本タスクでは扱わない）
+// （競合 CliError 化 = AC-03(c) は後段の AC-03 / FR-02(d) セクションで扱う）
 // ---------------------------------------------------------------------------
 
 test("FR-02(c): addon の check step は ai:check の末尾に && 連結で追記される", () => {
@@ -172,6 +173,91 @@ test("FR-02(c): 既に含まれる step は重複追記されない（appendScri
   const steps = once["ai:check"].split(" && ");
   assert.strictEqual(new Set(steps).size, steps.length, "ai:check の step が重複している");
   assert.strictEqual(steps.filter((step) => step === "pnpm test:db").length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// AC-03 / FR-02(d): addon script キー競合検出 (TASK-0216)
+// ---------------------------------------------------------------------------
+
+test("AC-03(a): 現行の全組合せでは script キー競合が発火せず合成が成功する", () => {
+  // AC-03 / FR-02(d): 現行テーブルは非衝突（スナップショット照合が担保する
+  // 内容を、CliError が投げられないことの明示アサーションでも固定する）
+  for (const profile of combinations) {
+    assert.doesNotThrow(() => getProfileScripts(profile, { packageManager: "pnpm" }));
+  }
+});
+
+test("AC-03(b): addon キーが base キーと衝突すると衝突キー名入りの CliError になる", () => {
+  // AC-03 / FR-02(d): 衝突は silent overwrite せず fail fast
+  const scripts = { "ai:check": "pnpm lint" };
+  assert.throws(
+    () => mergeAddonScripts(scripts, { "ai:check": "pnpm conflicting" }, {
+      base: "react-nextjs",
+      addon: "fake-addon",
+    }),
+    (error) =>
+      error instanceof CliError &&
+      error.message.includes('"ai:check"') &&
+      error.message.includes("react-nextjs") &&
+      error.message.includes("fake-addon"),
+  );
+});
+
+test("AC-03(c): 2 番目の addon のキーが先行 addon のキーと衝突すると CliError になる", () => {
+  // AC-03 / FR-02(d): 宣言順マージのため、後から宣言された addon が
+  // エラー主体（addon 名）として報告される
+  const scripts = { "ai:check": "pnpm lint" };
+  mergeAddonScripts(scripts, { "test:db": "pnpm test:db" }, {
+    base: "react-nextjs",
+    addon: "addon-one",
+  });
+  assert.throws(
+    () => mergeAddonScripts(scripts, { "test:db": "pnpm other" }, {
+      base: "react-nextjs",
+      addon: "addon-two",
+    }),
+    (error) =>
+      error instanceof CliError &&
+      error.message.includes('"test:db"') &&
+      error.message.includes("addon-two"),
+  );
+});
+
+test("AC-03(d): 非衝突の複数 addon は宣言順マージで成功する", () => {
+  // AC-03 / FR-02(d): 非衝突キーは宣言順に追記される
+  const scripts = { "ai:check": "pnpm lint" };
+  mergeAddonScripts(scripts, { "test:db": "pnpm test:db" }, {
+    base: "react-nextjs",
+    addon: "addon-one",
+  });
+  const result = mergeAddonScripts(scripts, { "test:e2e": "pnpm test:e2e" }, {
+    base: "react-nextjs",
+    addon: "addon-two",
+  });
+  assert.strictEqual(result, scripts, "mergeAddonScripts は同一オブジェクトを返す");
+  assert.deepStrictEqual(Object.keys(scripts), ["ai:check", "test:db", "test:e2e"]);
+  assert.deepStrictEqual(scripts, {
+    "ai:check": "pnpm lint",
+    "test:db": "pnpm test:db",
+    "test:e2e": "pnpm test:e2e",
+  });
+});
+
+test("SEC-02: 競合エラーメッセージに script のコマンド内容が含まれない", () => {
+  // SEC-02: エラーには識別子（キー名・profile 名）のみを含め、
+  // コマンド内容（機微情報を含み得る）は出力しない
+  const secret = "run --token SECRET-VALUE-XYZ";
+  const scripts = { "ai:check": secret };
+  assert.throws(
+    () => mergeAddonScripts(scripts, { "ai:check": "another SECRET-ADDON-CMD" }, {
+      base: "react-nextjs",
+      addon: "fake-addon",
+    }),
+    (error) =>
+      error instanceof CliError &&
+      !error.message.includes("SECRET-VALUE-XYZ") &&
+      !error.message.includes("SECRET-ADDON-CMD"),
+  );
 });
 
 // ---------------------------------------------------------------------------
