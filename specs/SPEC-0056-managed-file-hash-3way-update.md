@@ -180,7 +180,7 @@
 
 ### Invariants
 - [INV-01] (Gate 2) update は `--force-managed` なしにユーザー改変ファイル（local != baseline かつ local != upstream）の内容を変更しない
-- [INV-02] (Gate 2) init / update（非 dry-run）完了後、install state の `managedFiles` の各 hash は対応ファイルの実内容の SHA-256 と一致する
+- [INV-02] (Gate 2) init / update（非 dry-run）完了後、update が書き込んだ・または未改変の managed ファイルについて、install state の `managedFiles` の各 hash は対応ファイルの実内容の SHA-256 と一致する（skip-modified ファイルは INV-01 を優先して旧 baseline を保持するため対象外。Review FIND-201 反映）
 - [INV-03] (Gate 4) managed ファイルの列挙は単一モジュールに集約され、init / update / doctor はそれを共有する
 - [INV-04] (Gate 2) dry-run はファイルシステムと install state を一切変更しない
 - [INV-05] (Gate 3) `--force-managed` による上書き時、必ず `.bak-<version>` が先に書き込まれてから上書きが行われる
