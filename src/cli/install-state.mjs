@@ -178,13 +178,17 @@ export function installationSummary(installState) {
   return summary;
 }
 
-export function effectiveOptionsSummary(effectiveOptions) {
+export function effectiveOptionsSummary(effectiveOptions, custom = null) {
   return {
-    profile: effectiveOptions.profile.all.join("+"),
+    // SPEC-0065: in custom mode show custom:<name>; the profiles field still
+    // carries the inert built-in placeholder so downstream shape is unchanged.
+    profile: custom ? `custom:${custom.name}` : effectiveOptions.profile.all.join("+"),
     profiles: serializeProfile(effectiveOptions.profile),
     packageManager: effectiveOptions.packageManager,
     // Additive key (SPEC-0061): present only in workspace mode.
     ...(effectiveOptions.workspace ? { workspace: effectiveOptions.workspace } : {}),
+    // Additive key (SPEC-0065): present only in custom mode.
+    ...(custom ? { profileFile: custom.filePath } : {}),
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
     reviewTemplates: effectiveOptions.reviewTemplates,

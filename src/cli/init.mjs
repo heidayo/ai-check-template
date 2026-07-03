@@ -7,6 +7,10 @@ import {
   runDependencyInstall,
 } from "./dependency-installer.mjs";
 import { renderClaudeHookSettings } from "./claude-hooks.mjs";
+import {
+  planCustomDependencyInstall,
+  resolveCustomProfileBundle,
+} from "./custom-profile.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { collectManagedFileHashes, getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
@@ -32,6 +36,9 @@ Usage:
 Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --profile <name>     Base profile, optionally with +supabase-rls. Defaults to react-nextjs.
+                       With --profile-file, pass custom:<name> for a custom profile.
+  --profile-file <path> Custom profile definition file (.ai-check-profile.yaml / .json),
+                       relative to --target. Enables custom mode; requires --profile custom:<name>.
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun. Defaults to target detection.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
@@ -57,7 +64,6 @@ export async function runInit(argv, io = {}) {
     throw new CliError("Refusing to write without --yes. Use --dry-run to preview.");
   }
 
-  const profile = parseProfiles(options.profile);
   const targetDir = await normalizeTargetDir(options.target);
   const packageJsonPath = path.join(targetDir, "package.json");
   const packageManager = options.explicit.packageManager
@@ -67,15 +73,29 @@ export async function runInit(argv, io = {}) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
   }
 
+  // SPEC-0065 FR-02 / FR-04 / PRE-01: in custom mode all validation (custom flag
+  // form, definition schema, SEC-02/03) completes here, before any write. The
+  // built-in path is entered only when --profile-file is absent (INV-01).
+  const custom = options.profileFile !== null
+    ? await resolveCustomProfileBundle(targetDir, {
+      profileValue: options.profile,
+      profileFile: options.profileFile,
+      packageManager,
+    })
+    : null;
+  const profile = custom ? custom.docProfile : parseProfiles(options.profile);
+
   // SPEC-0061 PRE-01: all workspace validation (FR-02 / SEC-01 / SEC-02) is
   // completed here, before any write is planned or performed.
   const workspaceInfo = options.workspace
     ? await resolveWorkspace(targetDir, options.workspace)
     : null;
-  const writeOptions = { ...options, packageManager, workspaceInfo };
+  const writeOptions = { ...options, packageManager, workspaceInfo, custom };
 
   const dependencyInstallPlan = writeOptions.installDeps
-    ? await planDependencyInstall(packageJsonPath, profile, writeOptions.packageManager)
+    ? custom
+      ? await planCustomDependencyInstall(packageJsonPath, custom.definition, writeOptions.packageManager)
+      : await planDependencyInstall(packageJsonPath, profile, writeOptions.packageManager)
     : null;
 
   if (dependencyInstallPlan && !writeOptions.dryRun) {
@@ -95,6 +115,8 @@ export async function runInit(argv, io = {}) {
   await writeInitInstallState(targetDir, profile, writeOptions, operations);
   await maybeInstallDependencies(targetDir, dependencyInstallPlan, writeOptions, operations);
 
+  const profileLabel = custom ? `custom:${custom.name}` : profile.all.join("+");
+
   if (writeOptions.json) {
     writeLine(
       io.stdout,
@@ -102,9 +124,10 @@ export async function runInit(argv, io = {}) {
         {
           status: writeOptions.dryRun ? "dry-run" : "completed",
           target: targetDir,
-          profile: profile.all.join("+"),
+          profile: profileLabel,
           packageManager: writeOptions.packageManager,
           ...(workspaceInfo ? { workspace: workspaceInfo.dir } : {}),
+          ...(custom ? { profileFile: custom.filePath } : {}),
           operations,
         },
         null,
@@ -116,7 +139,7 @@ export async function runInit(argv, io = {}) {
 
   writeLine(io.stdout, `ai-check-template init ${writeOptions.dryRun ? "dry-run" : "completed"}`);
   writeLine(io.stdout, `target: ${targetDir}`);
-  writeLine(io.stdout, `profile: ${profile.all.join("+")}`);
+  writeLine(io.stdout, `profile: ${profileLabel}`);
   writeLine(io.stdout, `package-manager: ${writeOptions.packageManager}`);
   if (workspaceInfo) {
     writeLine(io.stdout, `workspace: ${workspaceInfo.dir}`);
@@ -144,8 +167,10 @@ function parseInitArgs(argv, cwd) {
     json: false,
     help: false,
     workspace: null,
+    profileFile: null,
     explicit: {
       packageManager: false,
+      profileFile: false,
     },
   };
 
@@ -199,6 +224,16 @@ function parseInitArgs(argv, cwd) {
 
     if (arg === "--target") {
       options.target = resolveTarget(readFlagValue(argv, (index += 1), arg), cwd);
+      continue;
+    }
+
+    if (arg.startsWith("--profile-file=")) {
+      setProfileFileOption(options, arg.slice("--profile-file=".length));
+      continue;
+    }
+
+    if (arg === "--profile-file") {
+      setProfileFileOption(options, readFlagValue(argv, (index += 1), arg));
       continue;
     }
 
@@ -259,6 +294,13 @@ function parseInitArgs(argv, cwd) {
     );
   }
 
+  // SPEC-0065 (v1 scope): custom profiles use single-package placement. The
+  // workspace gate/step split is a built-in concern and is not composed with
+  // custom profiles in v1.
+  if (options.profileFile && options.workspace) {
+    throw new CliError("--profile-file (custom profile) cannot be combined with --workspace in this version.");
+  }
+
   return options;
 }
 
@@ -268,6 +310,15 @@ function setWorkspaceOption(options, value) {
     throw new CliError("--workspace can only be specified once (single workspace support)");
   }
   options.workspace = value;
+}
+
+// SPEC-0065 FR-01: --profile-file accepts a single value only.
+function setProfileFileOption(options, value) {
+  if (options.profileFile !== null) {
+    throw new CliError("--profile-file can only be specified once (single custom profile support)");
+  }
+  options.profileFile = value;
+  options.explicit.profileFile = true;
 }
 
 function readFlagValue(argv, index, flagName) {
@@ -291,6 +342,19 @@ async function normalizeTargetDir(target) {
 }
 
 async function mergePackageScripts(targetDir, packageJsonPath, profile, options, operations) {
+  // SPEC-0065 FR-04 / INV-03: custom scripts come from the definition file, never
+  // the built-in tables. Custom mode is single-package (no workspace split).
+  if (options.custom) {
+    await mergeScriptsInto(
+      packageJsonPath,
+      options.custom.gateScripts,
+      options.custom.supportScripts,
+      options,
+      operations,
+    );
+    return;
+  }
+
   const expectedScripts = getProfileScripts(profile, {
     packageManager: options.packageManager,
     ...(options.workspaceInfo ? { workspace: options.workspaceInfo } : {}),
@@ -374,6 +438,15 @@ async function copyManagedFiles(targetDir, profile, options, operations) {
 
     if (file.kind === "ci-workflow") {
       operations.push(await copyTextFileSafe(await file.render(), targetPath, options));
+      continue;
+    }
+
+    // SPEC-0065 境界ケース1 / ASM-02: custom profiles have no bundled README in
+    // package-templates; skip a profile doc whose source template is missing
+    // (the CLI never generates custom READMEs). Built-in READMEs always exist,
+    // so this never fires for built-in profiles (INV-01).
+    if (file.kind === "profile-doc" && !(await pathExists(file.sourcePath))) {
+      operations.push({ action: "skip", reason: "custom profile doc not bundled", targetPath });
       continue;
     }
 
@@ -498,6 +571,9 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
   });
 
   const managedFileOptions = {
+    // Managed file hashing uses the doc profile so custom-<name>/README.md (if
+    // present in templates) is tracked; the state's profile field below stays a
+    // valid built-in placeholder since custom names are not parseProfiles-valid.
     profile,
     packageManager: options.packageManager,
     ci: options.ci,
@@ -509,6 +585,12 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     targetDir,
     {
       ...managedFileOptions,
+      // SPEC-0065 FR-06: in custom mode the required profile field holds an inert
+      // built-in placeholder and the real custom profile is recorded additively.
+      // doctor / update read customProfile and ignore this placeholder (INV-03).
+      ...(options.custom
+        ? { profile: parseProfiles("react-nextjs"), customProfile: options.custom.stateSnapshot }
+        : {}),
       // SPEC-0061 FR-05: the workspace field is only present in workspace mode.
       ...(options.workspaceInfo ? { workspace: options.workspaceInfo.dir } : {}),
       // Hash the files as written on disk so baselines stay truthful even for

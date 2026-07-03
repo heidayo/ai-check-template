@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { DEFAULT_PACKAGE_MANAGER, scriptCommand, validatePackageManager } from "./package-manager.mjs";
-import { CliError } from "./utils.mjs";
+import { CliError, readJson } from "./utils.mjs";
 
 // SPEC-0065: custom profile definition file. Opt-in via `--profile-file`, read
 // on a path that branches BEFORE the built-in profile tables (profile.mjs /
@@ -32,6 +32,9 @@ const BUILT_IN_PROFILE_NAMES = new Set([
   "node-cli",
   "supabase-rls",
 ]);
+
+// FR-02: the `--profile custom:<name>` form. Group 1 is the <name>.
+const CUSTOM_PROFILE_FLAG_PATTERN = /^custom:([a-z][a-z0-9-]*)$/;
 
 const YAML_SUBSET_HINT =
   "The .ai-check-profile.yaml parser supports only a minimal YAML subset "
@@ -101,6 +104,73 @@ export function resolveCustomProfilePath(targetDir, profileFilePath) {
   }
 
   return resolvedPath;
+}
+
+// FR-02 / 想定エラー3 / 境界ケース2: parse `--profile custom:<name>` when
+// `--profile-file` is set. A built-in name (or the default react-nextjs left
+// unchanged) combined with --profile-file is a CliError — --profile-file is
+// custom-mode-only. Returns the <name> (custom: prefix stripped).
+export function parseCustomProfileFlag(profileValue) {
+  const match = typeof profileValue === "string" ? CUSTOM_PROFILE_FLAG_PATTERN.exec(profileValue) : null;
+  if (match) {
+    return match[1];
+  }
+
+  if (BUILT_IN_PROFILE_NAMES.has(profileValue)) {
+    throw new CliError(
+      `--profile-file is for custom profiles only and cannot be combined with the built-in profile "${profileValue}". `
+        + `Pass --profile custom:<name> (matching the definition file's profile.name), or drop --profile-file.`,
+    );
+  }
+
+  throw new CliError(
+    `--profile-file requires --profile custom:<name> (name must match [a-z][a-z0-9-]*). Got: ${JSON.stringify(profileValue)}`,
+  );
+}
+
+// ASM-02: docs / managed files for a custom profile use the generic path builder
+// in profile-docs.mjs. A pre-parsed pseudo-profile keeps the string out of
+// parseProfiles (which only knows built-in names), so getProfileDocFiles /
+// getManagedFiles build profiles/custom-<name>/README.md without a CliError.
+export function customDocProfile(name) {
+  const label = `custom-${name}`;
+  return { base: label, addons: [], all: [label] };
+}
+
+// FR-02 / FR-04 / FR-05 / PRE-01: the shared custom-mode resolution used by
+// init / update / doctor. Loads and validates the definition file, checks the
+// --profile custom:<name> form matches profile.name, and returns everything the
+// commands need: rendered scripts, deps, the doc pseudo-profile, and the state
+// snapshot. All failures are CliError before any write (INV-03 / INV-06).
+export async function resolveCustomProfileBundle(targetDir, { profileValue, profileFile, packageManager }) {
+  const flagName = parseCustomProfileFlag(profileValue);
+  const loaded = await loadCustomProfile(targetDir, profileFile);
+
+  if (loaded.name !== flagName) {
+    throw new CliError(
+      `--profile custom:${flagName} does not match the definition file's profile.name "${loaded.name}" (${profileFile}).`,
+    );
+  }
+
+  const { gateScripts, supportScripts } = resolveCustomProfileScripts(loaded.definition, { packageManager });
+  const devDependencies = resolveCustomProfileDevDependencies(loaded.definition);
+
+  return {
+    name: loaded.name,
+    filePath: loaded.filePath,
+    definition: loaded.definition,
+    docProfile: customDocProfile(loaded.name),
+    gateScripts,
+    supportScripts,
+    devDependencies,
+    // FR-06: the resolved / rendered snapshot recorded in install state so
+    // doctor can compare it against the target package.json and the file.
+    stateSnapshot: {
+      name: loaded.name,
+      filePath: loaded.filePath,
+      definition: { gateScripts, supportScripts, devDependencies },
+    },
+  };
 }
 
 function customProfileParserFor(fileName) {
@@ -311,6 +381,50 @@ export function resolveCustomProfileScripts(definition, options = {}) {
 // consults the built-in dependency table — INV-03).
 export function resolveCustomProfileDevDependencies(definition) {
   return [...definition.devDependencies];
+}
+
+const DEPENDENCY_SECTIONS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+
+// FR-05: build an install plan for the custom definition's devDependencies,
+// shaped like dependency-installer.mjs plans so the shared preflight / run /
+// operation helpers consume it unchanged. Custom never reads the built-in
+// dependency table (INV-03); the dependency list is the definition's own.
+export async function planCustomDependencyInstall(packageJsonPath, definition, packageManagerInput) {
+  const packageJson = await readJson(packageJsonPath);
+  const packageManager = validatePackageManager(packageManagerInput);
+  const dependencies = resolveCustomProfileDevDependencies(definition);
+  const missingDependencies = dependencies.filter((dependency) => !isDependencyDeclared(packageJson, dependency));
+  const args = installArgs(packageManager, missingDependencies);
+
+  return {
+    packageManager,
+    dependencies,
+    missingDependencies,
+    command: packageManager,
+    args,
+    commandText: [packageManager, ...args].join(" "),
+  };
+}
+
+function installArgs(packageManager, dependencies) {
+  if (dependencies.length === 0) {
+    return [];
+  }
+  if (packageManager === "pnpm") {
+    return ["add", "-D", ...dependencies];
+  }
+  if (packageManager === "npm") {
+    return ["install", "--save-dev", ...dependencies];
+  }
+  return ["add", "--dev", ...dependencies];
+}
+
+function isDependencyDeclared(packageJson, dependency) {
+  return DEPENDENCY_SECTIONS.some((section) => (
+    packageJson[section]
+    && typeof packageJson[section] === "object"
+    && Object.hasOwn(packageJson[section], dependency)
+  ));
 }
 
 // Mirrors profile-scripts.mjs renderScriptCommand: rewrites `pnpm <script>`
