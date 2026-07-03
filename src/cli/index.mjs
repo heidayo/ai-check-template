@@ -27,7 +27,8 @@ Commands:
 
 Init options:
   --target <dir>       Target project directory. Defaults to the current directory.
-  --profile <name>     Profile name. Defaults to react-nextjs.
+  --profile <name>     Profile name. Defaults to react-nextjs. With --profile-file, use custom:<name>.
+  --profile-file <path> Custom profile definition file (.ai-check-profile.yaml / .json), relative to --target.
   --package-manager <name> Package manager: pnpm, npm, yarn, or bun.
   --ci <mode>          CI mode: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Copy Claude hook rule and merge hook settings.
