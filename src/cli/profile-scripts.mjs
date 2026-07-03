@@ -1,5 +1,6 @@
 import { parseProfiles } from "./profile.mjs";
 import { DEFAULT_PACKAGE_MANAGER, scriptCommand } from "./package-manager.mjs";
+import { CliError } from "./utils.mjs";
 
 const SECURITY_CHECK_STEPS = [
   "security:secrets",
@@ -77,7 +78,7 @@ export function getProfileScripts(input = "react-nextjs", options = {}) {
   const scripts = { ...BASE_PROFILE_SCRIPTS[profile.base] };
 
   for (const addon of profile.addons) {
-    Object.assign(scripts, ADDON_PROFILE_SCRIPTS[addon] ?? {});
+    mergeAddonScripts(scripts, ADDON_PROFILE_SCRIPTS[addon] ?? {}, { base: profile.base, addon });
     for (const step of ADDON_CHECK_STEPS[addon] ?? []) {
       scripts["ai:check"] = appendScriptStep(scripts["ai:check"], scriptCommand(packageManager, step));
     }
@@ -105,6 +106,21 @@ function getSecuritySupportScripts(packageManager) {
 
 function securityCheckScript(packageManager) {
   return SECURITY_CHECK_STEPS.map((step) => scriptCommand(packageManager, step)).join(" && ");
+}
+
+// Exported for direct table-injection tests (SPEC-0060 FR-02 (d) / AC-03 (c));
+// the public CLI surface is unchanged. Conflicts fail fast instead of being
+// silently overwritten, so partially merged scripts never reach callers.
+export function mergeAddonScripts(scripts, addonScripts, { base, addon }) {
+  for (const key of Object.keys(addonScripts)) {
+    if (Object.hasOwn(scripts, key)) {
+      throw new CliError(
+        `Script key conflict: "${key}" from addon profile "${addon}" already exists in base profile "${base}" or a preceding addon.`,
+      );
+    }
+    scripts[key] = addonScripts[key];
+  }
+  return scripts;
 }
 
 function appendScriptStep(command, step) {
