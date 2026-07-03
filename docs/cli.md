@@ -51,7 +51,8 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | `--ci <mode>` | `direct` | `direct` writes package-manager-aware `ai-check.yml` and `ai-check-fast.yml`; `reusable` writes `ai-quality-reusable.yml` plus a package-manager-aware `ai-quality-call.yml`; `none` skips workflows. |
 | `--claude-hooks` | off | Copies `.claude/rules/test-rules.md` and merges package-manager-aware hook commands into `.claude/settings.json`. |
 | `--review-templates` | off | Copies `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` for the human Review gate. |
-| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
+| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. Cannot be combined with `--workspace`. |
+| `--workspace <pkg-dir>` | off | Targets one workspace package in a monorepo. See [Workspace mode](#workspace-mode---workspace). |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
 | `--overwrite` | off | Replaces conflicting files or scripts. Without this flag, conflicts are skipped. |
@@ -67,6 +68,7 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | `--ci <mode>` | `direct` | Checks `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Checks `.claude/rules/test-rules.md` and required hook keys in `.claude/settings.json`. |
 | `--review-templates` | install state or off | Checks `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` against packaged reviewability templates. |
+| `--workspace <pkg-dir>` | install state or off | Workspace package to diagnose. Defaults to the `workspace` recorded in the install state. See [Workspace mode](#workspace-mode---workspace). |
 | `--strict` | off | Treats profile diagnostics warnings as a failing result while keeping them in `warnings`. |
 | `--json` | off | Prints `{ status, target, strict, installation, effectiveOptions, warnings, issues }` for automation. |
 
@@ -80,13 +82,53 @@ node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test
 | `--ci <mode>` | `direct` | Updates package-manager-aware `direct`, `reusable`, or no workflow files. |
 | `--claude-hooks` | off | Updates `.claude/rules/test-rules.md` and managed package-manager-aware hook keys in `.claude/settings.json`. |
 | `--review-templates` | install state or off | Updates `.github/PULL_REQUEST_TEMPLATE.md` and `worksheet/ai-code-understanding.md` from packaged reviewability templates. |
-| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. |
+| `--install-deps` | off | Installs missing npm dev dependencies for generated package scripts. With `--dry-run`, prints the command without executing it. Cannot be combined with `--workspace` (explicit or state-resolved). |
+| `--workspace <pkg-dir>` | install state or off | Workspace package to update. Defaults to the `workspace` recorded in the install state. See [Workspace mode](#workspace-mode---workspace). |
 | `--keep-local` | on (default behavior) | Keeps locally modified managed files. This is the default; the flag makes the choice explicit in scripts and CI. Mutually exclusive with `--force-managed`. |
 | `--force-managed` | off | Overwrites locally modified managed files. The previous content is saved as `<file>.bak-<packageVersion>` before the overwrite. |
 | `--diff` | off | Read-only mode: prints a unified diff for each locally modified managed file, writes nothing, and exits non-zero when modifications exist. Does not require `--yes`. Mutually exclusive with `--keep-local` / `--force-managed`. |
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` or `--diff` is used. |
 | `--json` | off | Prints `{ status, target, installation, effectiveOptions, operations, notes }` for automation (`diffs` is added with `--diff`). |
+
+## Workspace mode (`--workspace`)
+
+`init`, `update`, and `doctor` accept `--workspace <pkg-dir>` (or `--workspace=<pkg-dir>`) to target one package inside a monorepo. The value is a relative path from `--target` (the workspace root). Exactly one workspace can be specified: passing the flag twice is an error (single-workspace support). Absolute paths, `..` segments, `--workspace .`, and shell metacharacters are rejected.
+
+```bash
+npx -y ai-check-template init --target . --workspace packages/app --yes
+```
+
+Preconditions (validated before anything is written; failures exit non-zero):
+
+- `--target` must be a workspace root: either `pnpm-workspace.yaml` exists, or the root `package.json` has a `workspaces` field (array or `{ "packages": [...] }`).
+- `<target>/<pkg-dir>` must be an existing directory containing a `package.json` with a non-empty `name`.
+
+Placement rule:
+
+- **Gate scripts** (`ai:check`, `ai:check:fast`, `ai:check:secure`) are merged into the **workspace root** `package.json`, with each step rendered as a workspace-scoped invocation per package manager:
+
+  | Package manager | Step invocation |
+  |---|---|
+  | pnpm | `pnpm --filter <name> <step>` |
+  | npm | `npm run <step> --workspace <pkg-dir>` |
+  | yarn | `yarn workspace <name> <step>` |
+  | bun | `bun run --filter <name> <step>` (requires a bun version with `--filter` support, v1.0.16+) |
+
+- **Step scripts** (`doctor`, `deadcode`, `test:e2e:smoke`, addon scripts, and support scripts such as `typecheck` / `lint` / `test`) are merged into the **target package** `package.json`.
+- Managed files (docs, hooks, CI workflows, config) and the install state stay at the workspace root, unchanged from single-package mode.
+
+The install state records `"workspace": "<pkg-dir>"`, so a later `update` or `doctor` without the flag resolves the same package (an explicit `--workspace` takes precedence over the state). `doctor` re-runs the preconditions as diagnostics: if the package was deleted after init, it reports an `invalid-workspace` issue and exits non-zero, and `update` refuses to write.
+
+Relationship to [`.ai-check.yaml`](#step-config-ai-checkyaml--ai-checkjson): the config file remains the authoritative override for `run` gate steps. Workspace mode only changes the generated script scaffold and its diagnosis — if a `.ai-check.yaml` defines steps, those still win at run time, and this scaffold merely provides their initial values.
+
+Constraints:
+
+- Single workspace only. To gate multiple packages, define combined steps in `.ai-check.yaml`.
+- `--install-deps` cannot be combined with workspace mode; install dev dependencies in the package manually or via your package manager.
+- Compatibility: workspace mode requires ai-check-template v0.5.0 or later. Older CLI versions ignore the `workspace` field in the install state and may misreport the root gate scripts as drift.
+
+Rollback: workspace mode is opt-in. To revert, remove the generated gate scripts from the root `package.json`, remove the step scripts from the package, and delete the `workspace` field from `.ai-check-template.json` (or re-run `init` without `--workspace`).
 
 ## Run options
 
