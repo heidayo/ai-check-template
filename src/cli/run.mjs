@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { CliError, pathExists, readJson, resolveTarget, writeLine } from "./utils.mjs";
+import { loadCheckConfig, resolveGate, stepsForGate } from "./check-config.mjs";
 
 const RUN_USAGE = `ai-check-template run
 
@@ -12,7 +13,13 @@ Options:
   --target <dir>       Target project directory. Defaults to the current directory.
   --script <name>      Package script to run. Defaults to ai:check.
   --json               Print machine-readable JSON output.
-  --output <file>      Write the JSON result to a file.`;
+  --output <file>      Write the JSON result to a file.
+
+Config:
+  If .ai-check.yaml or .ai-check.json exists in the target directory, steps for
+  the matching gate (ai:check=full, ai:check:fast=fast, ai:check:secure=secure)
+  are resolved from the config instead of splitting the package script.
+  See docs/cli.md for the schema. Without a config file, behavior is unchanged.`;
 
 const SECRET_PATTERNS = [
   /\b(AKIA|ASIA)[A-Z0-9]{16}\b/g,
@@ -42,7 +49,38 @@ export async function runStructuredCheck(argv, io = {}) {
     throw new CliError(`Missing package script: ${options.script}`);
   }
 
-  const result = executeScript({ targetDir, script: options.script, command });
+  // FR-03: config は 3 ゲート script のときだけ参照する。validation 失敗は
+  // loadCheckConfig() が CliError を投げ、ステップ実行前に非 0 終了する（FR-07 / INV-03）。
+  const gate = resolveGate(options.script);
+  let stepDefinitions = null;
+  let configPath = null;
+  if (gate) {
+    const config = await loadCheckConfig(targetDir);
+    if (config) {
+      const gateSteps = stepsForGate(config.steps, gate);
+      // FR-05: 該当 gate の step が無ければ package script 分割へフォールバック。
+      if (gateSteps.length > 0) {
+        stepDefinitions = gateSteps.map((step) => ({
+          name: step.name,
+          command: resolveStepCommand(step, packageJson, config.fileName),
+          enabled: step.enabled,
+          source: "config",
+        }));
+        configPath = path.relative(targetDir, config.configPath) || config.fileName;
+      }
+    }
+  }
+
+  if (stepDefinitions === null) {
+    stepDefinitions = splitCommandChain(command).map((stepCommand, index) => ({
+      name: `step-${index + 1}`,
+      command: stepCommand,
+      enabled: true,
+      source: "default",
+    }));
+  }
+
+  const result = executeScript({ targetDir, script: options.script, command, stepDefinitions, configPath });
 
   if (options.output) {
     await fs.mkdir(path.dirname(options.output), { recursive: true });
@@ -126,11 +164,27 @@ async function normalizeTargetDir(target) {
   }
 }
 
-function executeScript({ targetDir, script, command }) {
+// 想定エラー2: command 省略 step は package script 名参照。無ければ黙って skip せずエラー。
+function resolveStepCommand(step, packageJson, configFileName) {
+  if (step.command !== null) {
+    return step.command;
+  }
+  const scriptCommand = packageJson.scripts?.[step.name];
+  if (typeof scriptCommand !== "string" || scriptCommand.trim().length === 0) {
+    throw new CliError(
+      `${configFileName}: step "${step.name}" has no command and package script "${step.name}" does not exist`,
+    );
+  }
+  return scriptCommand;
+}
+
+function executeScript({ targetDir, script, command, stepDefinitions, configPath }) {
   const startedAt = Date.now();
-  const steps = splitCommandChain(command).map((stepCommand, index) => ({
+  const steps = stepDefinitions.map((definition, index) => ({
     index: index + 1,
-    command: stepCommand,
+    name: definition.name,
+    source: definition.source,
+    command: definition.command,
     status: "SKIPPED",
     exitCode: null,
     durationMs: 0,
@@ -139,8 +193,9 @@ function executeScript({ targetDir, script, command }) {
   }));
 
   let failed = false;
-  for (const step of steps) {
-    if (failed) {
+  for (const [position, step] of steps.entries()) {
+    // FR-04 / 境界ケース1: enabled: false の step は実行せず SKIPPED のまま記録する。
+    if (failed || !stepDefinitions[position].enabled) {
       continue;
     }
 
@@ -166,6 +221,7 @@ function executeScript({ targetDir, script, command }) {
     command,
     startedAt: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
+    configPath: configPath ?? null,
     steps,
   };
 }
