@@ -31,7 +31,7 @@ const PACKAGE_MANAGER_SUBCOMMANDS = new Set([
   "why",
 ]);
 
-export function diagnoseProfileScripts(profile, packageJson) {
+export function diagnoseProfileScripts(profile, packageJson, options = {}) {
   const scripts = packageJson?.scripts && typeof packageJson.scripts === "object"
     ? packageJson.scripts
     : {};
@@ -73,7 +73,13 @@ export function diagnoseProfileScripts(profile, packageJson) {
     }
   }
 
-  warnings.push(...missingReferencedScriptWarnings(scripts));
+  // SPEC-0061 FR-06: workspace-mode gate scripts embed flags like
+  // "--filter <name>" that the regex extraction below would misread as script
+  // names. Workspace mode relies on the exact expected-script comparison in
+  // doctor instead, so the reference scan stays limited to single-package mode.
+  if (!options.workspace) {
+    warnings.push(...missingReferencedScriptWarnings(scripts));
+  }
 
   return warnings;
 }

@@ -16,7 +16,8 @@ import {
 } from "./install-state.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
-import { getProfileScripts } from "./profile-scripts.mjs";
+import { getProfileScripts, getProfileSupportScripts, splitGateScripts } from "./profile-scripts.mjs";
+import { resolveWorkspace } from "./workspace.mjs";
 import {
   CliError,
   pathExists,
@@ -37,6 +38,8 @@ Options:
   --ci <mode>          CI mode to check: direct, reusable, or none. Defaults to direct.
   --claude-hooks       Check Claude rule and hook settings.
   --review-templates   Check PR template and AI code understanding worksheet.
+  --workspace <pkg-dir> Target workspace package (relative path, single). Defaults to the
+                       install state.
   --strict             Treat warnings as failures.
   --json               Print machine-readable JSON output.`;
 
@@ -55,9 +58,27 @@ export async function runDoctor(argv, io = {}) {
   const installState = await loadInstallState(targetDir);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
   const baseline = installState.state?.managedFiles ?? {};
-  const result = await diagnoseTarget(targetDir, effectiveOptions, baseline);
+
+  // SPEC-0061 FR-06: doctor runs the FR-02 workspace validation as a diagnosis
+  // (issue + exit 1) instead of failing fast, e.g. when the package was deleted
+  // after init (境界ケース1). Script checks are skipped while unresolved.
+  let workspaceInfo = null;
+  let workspaceIssue = null;
+  if (effectiveOptions.workspace) {
+    try {
+      workspaceInfo = await resolveWorkspace(targetDir, effectiveOptions.workspace);
+    } catch (error) {
+      workspaceIssue = issue("invalid-workspace", effectiveOptions.workspace, error.message);
+    }
+  }
+
+  const result = await diagnoseTarget(targetDir, { ...effectiveOptions, workspaceInfo }, baseline);
   const stateIssue = installStateIssue(installState);
-  const issues = stateIssue ? [stateIssue, ...result.issues] : result.issues;
+  const issues = [
+    ...(stateIssue ? [stateIssue] : []),
+    ...(workspaceIssue ? [workspaceIssue] : []),
+    ...result.issues,
+  ];
   const failed = issues.length > 0 || (options.strict && result.warnings.length > 0);
   const output = {
     status: failed ? "fail" : "pass",
@@ -96,12 +117,14 @@ function parseDoctorArgs(argv, cwd) {
     strict: false,
     json: false,
     help: false,
+    workspace: null,
     explicit: {
       profile: false,
       packageManager: false,
       ci: false,
       claudeHooks: false,
       reviewTemplates: false,
+      workspace: false,
     },
   };
 
@@ -181,12 +204,31 @@ function parseDoctorArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--workspace=")) {
+      setWorkspaceOption(options, arg.slice("--workspace=".length));
+      continue;
+    }
+
+    if (arg === "--workspace") {
+      setWorkspaceOption(options, readFlagValue(argv, (index += 1), arg));
+      continue;
+    }
+
     throw new CliError(`Unknown doctor option: ${arg}\n\n${DOCTOR_USAGE}`);
   }
 
   validateCiMode(options.ci);
 
   return options;
+}
+
+// SPEC-0061 FR-01: --workspace accepts a single value only.
+function setWorkspaceOption(options, value) {
+  if (options.workspace !== null) {
+    throw new CliError("--workspace can only be specified once (single workspace support)");
+  }
+  options.workspace = value;
+  options.explicit.workspace = true;
 }
 
 function readFlagValue(argv, index, flagName) {
@@ -233,7 +275,17 @@ async function diagnoseTarget(targetDir, options, baseline) {
     return { issues, warnings, managedFiles };
   }
 
-  checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
+  // SPEC-0061 FR-06: in workspace mode the gate scripts are checked against
+  // the root package.json and the step scripts against the target package.
+  // While the configured workspace fails FR-02 validation (already reported as
+  // an issue by the caller), script diagnosis is skipped entirely.
+  let profileWarnings = [];
+  if (options.workspaceInfo) {
+    profileWarnings = await checkWorkspaceScripts(targetDir, packageJson, options, issues);
+  } else if (!options.workspace) {
+    checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
+    profileWarnings = diagnoseProfileScripts(options.profile, packageJson);
+  }
 
   for (const file of getManagedFiles(options)) {
     const baselineHash = baseline[normalizeRelative(file.relativePath)]?.hash ?? null;
@@ -253,7 +305,7 @@ async function diagnoseTarget(targetDir, options, baseline) {
     await checkClaudeSettings(targetDir, issues);
   }
 
-  warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...warnings, ...ciWarnings];
+  warnings = [...profileWarnings, ...warnings, ...ciWarnings];
 
   return { issues, warnings, managedFiles };
 }
@@ -311,16 +363,58 @@ async function checkManagedFile(targetDir, file, baselineHash, issues, warnings,
 
 function checkPackageScripts(packageJson, profile, issues, packageManager) {
   const expectedScripts = getProfileScripts(profile, { packageManager });
-  const scripts = packageJson.scripts ?? {};
+  compareExpectedScripts(packageJson.scripts ?? {}, expectedScripts, "package.json", issues);
+}
 
+// SPEC-0061 FR-06: expected scripts are compared by exact match in both
+// locations, reusing the existing missing-script / drift issue codes with the
+// path indicating which package.json is affected.
+async function checkWorkspaceScripts(targetDir, rootPackageJson, options, issues) {
+  const expectedScripts = getProfileScripts(options.profile, {
+    packageManager: options.packageManager,
+    workspace: options.workspaceInfo,
+  });
+  const { gate, step } = splitGateScripts(expectedScripts);
+  const packageRelativePath = `${options.workspaceInfo.dir}/package.json`;
+  const packagePackageJsonPath = path.join(targetDir, ...options.workspaceInfo.dir.split("/"), "package.json");
+
+  compareExpectedScripts(rootPackageJson.scripts ?? {}, gate, "package.json", issues);
+
+  let packagePackageJson;
+  try {
+    packagePackageJson = await readJson(packagePackageJsonPath);
+  } catch (error) {
+    issues.push(issue("invalid-json", packageRelativePath, error.message));
+    return [];
+  }
+
+  compareExpectedScripts(packagePackageJson.scripts ?? {}, step, packageRelativePath, issues);
+
+  // Support scripts (typecheck / lint / ...) are user-owned commands: only
+  // their presence is required, since the root gate scripts invoke them in the
+  // package (FR-04). This replaces the disabled script-reference scan (FR-06).
+  const supportScripts = getProfileSupportScripts(options.profile, { packageManager: options.packageManager });
+  for (const name of Object.keys(supportScripts)) {
+    if (!packagePackageJson.scripts?.[name]) {
+      issues.push(issue("missing-script", packageRelativePath, `Missing package script: ${name}`));
+    }
+  }
+
+  // Advice heuristics inspect the package that owns the step scripts; the
+  // script-reference regex scan is disabled in workspace mode (FR-06).
+  return diagnoseProfileScripts(options.profile, packagePackageJson, { workspace: true })
+    .map((entry) => ({ ...entry, path: packageRelativePath }));
+}
+
+function compareExpectedScripts(scripts, expectedScripts, relativePath, issues) {
   for (const [name, expected] of Object.entries(expectedScripts)) {
     if (!scripts[name]) {
-      issues.push(issue("missing-script", "package.json", `Missing package script: ${name}`));
+      issues.push(issue("missing-script", relativePath, `Missing package script: ${name}`));
       continue;
     }
 
     if (scripts[name] !== expected) {
-      issues.push(issue("drift", "package.json", `Package script differs: ${name}`));
+      issues.push(issue("drift", relativePath, `Package script differs: ${name}`));
     }
   }
 }
@@ -400,6 +494,9 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `schema-version: ${output.schemaVersion ?? "none"}`);
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
   writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
+  if (output.effectiveOptions.workspace) {
+    writeLine(stream, `workspace: ${output.effectiveOptions.workspace}`);
+  }
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `review-templates: ${output.effectiveOptions.reviewTemplates}`);
