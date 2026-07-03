@@ -1,4 +1,155 @@
-import { CliError } from "./utils.mjs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { parseExpectationContent, validateExpectation } from "./expect.mjs";
+import { CliError, pathExists, writeLine } from "./utils.mjs";
+
+const REPORT_USAGE = `ai-check-template report
+
+Usage:
+  ai-check-template report --expect <file> --run <file> [options]
+
+Options:
+  --expect <file>      JSON or template-subset YAML AC/Test Matrix file.
+  --run <file>         Run result JSON written by run --output / run --json.
+  --format <name>      Output format: text (default), markdown, or json.
+  --json               Alias for --format json.
+  --strict             Exit non-zero when any AC is FAIL or UNVERIFIED.`;
+
+const REPORT_FORMATS = new Set(["text", "markdown", "json"]);
+
+export async function runReport(argv, io = {}) {
+  const options = parseReportArgs(argv);
+
+  if (options.help) {
+    writeLine(io.stdout, REPORT_USAGE);
+    return;
+  }
+
+  // FR-01: both inputs are mandatory.
+  if (!options.expect) {
+    throw new CliError(`Missing --expect\n\n${REPORT_USAGE}`);
+  }
+  if (!options.run) {
+    throw new CliError(`Missing --run\n\n${REPORT_USAGE}`);
+  }
+
+  // FR-02 / INV-04: reuse the expect validation; fail before any matching output.
+  const expectValue = await loadExpectation(options.expect);
+  const runResult = await readRunResult(options.run);
+  checkRunResult(runResult, options.run);
+
+  const report = buildReport({
+    expectValue,
+    runResult,
+    expectFile: options.expect,
+    runFile: options.run,
+  });
+
+  if (options.format === "json") {
+    writeLine(io.stdout, JSON.stringify(report, null, 2));
+  } else if (options.format === "markdown") {
+    writeLine(io.stdout, formatMarkdown(report));
+  } else {
+    writeTextOutput(io.stdout, report);
+  }
+
+  // FR-07 / POST-01: strict gate evaluated after the report is printed.
+  if (options.strict && (report.summary.failed > 0 || report.summary.unverified > 0)) {
+    throw new CliError(
+      `report --strict: ${report.summary.failed} FAIL / ${report.summary.unverified} UNVERIFIED acceptance criteria`,
+      1,
+    );
+  }
+}
+
+function parseReportArgs(argv) {
+  const options = { expect: null, run: null, format: "text", strict: false, help: false };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--help" || arg === "-h") {
+      options.help = true;
+      continue;
+    }
+    if (arg === "--json") {
+      options.format = "json";
+      continue;
+    }
+    if (arg === "--strict") {
+      options.strict = true;
+      continue;
+    }
+    if (arg.startsWith("--expect=")) {
+      options.expect = arg.slice("--expect=".length);
+      continue;
+    }
+    if (arg === "--expect") {
+      options.expect = readFlagValue(argv, (index += 1), arg);
+      continue;
+    }
+    if (arg.startsWith("--run=")) {
+      options.run = arg.slice("--run=".length);
+      continue;
+    }
+    if (arg === "--run") {
+      options.run = readFlagValue(argv, (index += 1), arg);
+      continue;
+    }
+    if (arg.startsWith("--format=")) {
+      options.format = parseFormat(arg.slice("--format=".length));
+      continue;
+    }
+    if (arg === "--format") {
+      options.format = parseFormat(readFlagValue(argv, (index += 1), arg));
+      continue;
+    }
+    throw new CliError(`Unknown report option: ${arg}\n\n${REPORT_USAGE}`);
+  }
+
+  return options;
+}
+
+function parseFormat(value) {
+  if (!REPORT_FORMATS.has(value)) {
+    throw new CliError(`Unknown report format: ${value}\n\n${REPORT_USAGE}`);
+  }
+  return value;
+}
+
+function readFlagValue(argv, index, flagName) {
+  const value = argv[index];
+  if (!value || value.startsWith("--")) {
+    throw new CliError(`Missing value for ${flagName}`);
+  }
+  return value;
+}
+
+// FR-02: same parse + validation as `expect`; validation issues are reported
+// in the same issue-list form and abort before any matching output (INV-04).
+async function loadExpectation(expectFile) {
+  if (!(await pathExists(expectFile))) {
+    throw new CliError(`Expectation file does not exist: ${expectFile}`);
+  }
+  const content = await fs.readFile(expectFile, "utf8");
+  const parseResult = parseExpectationContent(content, path.extname(expectFile).toLowerCase());
+  const issues = parseResult.issues.length > 0 ? parseResult.issues : validateExpectation(parseResult.value);
+  if (issues.length > 0) {
+    const issueLines = issues.map((entry) => `- ${entry.code}: ${entry.message}`).join("\n");
+    throw new CliError(`Invalid expectation file: ${expectFile}\n${issueLines}`, 1);
+  }
+  return parseResult.value;
+}
+
+async function readRunResult(runFile) {
+  if (!(await pathExists(runFile))) {
+    throw new CliError(`Run result file does not exist: ${runFile}`);
+  }
+  try {
+    return JSON.parse(await fs.readFile(runFile, "utf8"));
+  } catch (error) {
+    throw new CliError(`Invalid run result JSON: ${runFile}\n- ${error.message}\n${REGENERATE_HINT}`, 1);
+  }
+}
 
 // FR-03 (SPEC-0059): hand-written structure check mirroring
 // package-templates/docs/run-result.schema.json (kept in sync by the AC-07
@@ -179,4 +330,40 @@ export function buildReport({ expectValue, runResult, expectFile, runFile }) {
     summary,
     criteria,
   };
+}
+
+function verifiedCount(summary) {
+  // 検証済み = actually measured (PASS or FAIL); UNVERIFIED is unmeasured.
+  return summary.passed + summary.failed;
+}
+
+// FR-06 / POST-02 (SPEC-0059): GFM table (one row per AC) + summary line.
+// SEC-02: only AC id / criterion / step name / command / verdict appear.
+export function formatMarkdown(report) {
+  const escape = (value) => String(value).replace(/\|/g, "\\|");
+  const lines = [
+    "| AC | 宣言内容 | 対応 step / コマンド | 判定 |",
+    "|---|---|---|---|",
+  ];
+  for (const entry of report.criteria) {
+    const target = entry.step ?? `\`${entry.command}\``;
+    lines.push(`| ${escape(entry.id)} | ${escape(entry.criterion)} | ${escape(target)} | ${entry.verdict} |`);
+  }
+  lines.push(`検証済み ${verifiedCount(report.summary)} / 宣言 ${report.summary.total}`);
+  return lines.join("\n");
+}
+
+function writeTextOutput(stream, report) {
+  writeLine(stream, `ai-check-template report ${report.status}`);
+  writeLine(stream, `expect: ${report.expectFile}`);
+  writeLine(stream, `run: ${report.runFile}`);
+  for (const entry of report.criteria) {
+    const target = entry.step ?? entry.command;
+    writeLine(stream, `${entry.id} ${entry.verdict} (${entry.reason}) ${target}`);
+  }
+  const { summary } = report;
+  writeLine(
+    stream,
+    `summary: total ${summary.total}, passed ${summary.passed}, failed ${summary.failed}, unverified ${summary.unverified}`,
+  );
 }
