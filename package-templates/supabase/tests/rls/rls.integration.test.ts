@@ -1,6 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, test } from "vitest";
 
+// --- 設定変数（環境に合わせて編集 / env で注入）---
+// Edit these defaults to match your schema, or override with the matching
+// environment variables (RLS_TABLE / RLS_OWNER_COLUMN). Unset env falls back
+// to the defaults below, keeping the original behavior.
+const TABLE = process.env.RLS_TABLE ?? "app_items";
+const OWNER = process.env.RLS_OWNER_COLUMN ?? "owner_id";
+
 const supabaseUrl = requireEnv("SUPABASE_URL");
 const supabaseAnonKey = requireEnv("SUPABASE_ANON_KEY");
 
@@ -9,17 +16,17 @@ describe("RLS integration", () => {
     const userA = createUserClient("SUPABASE_TEST_USER_A_SESSION");
 
     const ownRows = await userA
-      .from("app_items")
-      .select("id, owner_id")
-      .eq("owner_id", requireEnv("SUPABASE_TEST_USER_A_ID"));
+      .from(TABLE)
+      .select(`id, ${OWNER}`)
+      .eq(OWNER, requireEnv("SUPABASE_TEST_USER_A_ID"));
 
     expect(ownRows.error).toBeNull();
     expect(ownRows.data?.length).toBeGreaterThan(0);
 
     const otherRows = await userA
-      .from("app_items")
-      .select("id, owner_id")
-      .eq("owner_id", requireEnv("SUPABASE_TEST_USER_B_ID"));
+      .from(TABLE)
+      .select(`id, ${OWNER}`)
+      .eq(OWNER, requireEnv("SUPABASE_TEST_USER_B_ID"));
 
     expect(otherRows.error).toBeNull();
     expect(otherRows.data).toEqual([]);
@@ -29,9 +36,9 @@ describe("RLS integration", () => {
     const userA = createUserClient("SUPABASE_TEST_USER_A_SESSION");
 
     const updateResult = await userA
-      .from("app_items")
+      .from(TABLE)
       .update({ updated_at: new Date().toISOString() })
-      .eq("owner_id", requireEnv("SUPABASE_TEST_USER_B_ID"))
+      .eq(OWNER, requireEnv("SUPABASE_TEST_USER_B_ID"))
       .select("id");
 
     expect(updateResult.error).toBeNull();
