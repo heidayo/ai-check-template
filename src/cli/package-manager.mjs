@@ -59,7 +59,7 @@ export function scriptCommand(packageManager, scriptName) {
 // - pnpm: `pnpm --filter <name> <script>` (pnpm.io/filtering)
 // - npm:  `npm run <script> --workspace <dir>` (docs.npmjs.com/cli/using-npm/workspaces)
 // - yarn: `yarn workspace <name> <script>` (yarnpkg.com/cli/workspace; classic v1 identical)
-// - bun:  `bun run --filter <name> <script>` (bun.sh/docs/cli/filter, supported since bun v1.0.16)
+// - bun:  `bun run --filter <name> <script>` (bun.sh/docs/cli/filter, supported since bun v1.1.4)
 export function workspaceScriptCommand(packageManager, workspace, scriptName) {
   const validated = validatePackageManager(packageManager);
 

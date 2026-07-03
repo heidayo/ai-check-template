@@ -7,16 +7,43 @@ import { CliError, pathExists, readJson } from "./utils.mjs";
 // names and workspace-relative directories both fit this conservative set.
 const SAFE_SCRIPT_VALUE_PATTERN = /^[A-Za-z0-9@/._-]+$/;
 
+// SEC-WS-01: a leading "-" makes a token look like a package-manager flag once
+// it is spliced into `pnpm --filter <name> <step>` (or `--filter <dir>`). npm
+// names never begin with "-"/"."/"_", so reject the "-" prefix outright to
+// prevent option injection at the invocation boundary.
+function startsWithDash(token) {
+  return token.startsWith("-");
+}
+
+// SEC-01 / SEC-WS-01: a relative "/"-separated workspace path is accepted only
+// when every segment stays inside the target and no segment could be mistaken
+// for a package-manager flag. Shared by normalizeWorkspaceDir (throws) and
+// isValidWorkspaceStatePath (boolean) so both honor the same acceptance set.
+function isAcceptableWorkspacePath(value) {
+  if (typeof value !== "string" || value.length === 0) {
+    return false;
+  }
+
+  if (path.isAbsolute(value) || !SAFE_SCRIPT_VALUE_PATTERN.test(value)) {
+    return false;
+  }
+
+  // The character check above excludes "\\", so "/" is the only separator.
+  const segments = value.split("/").filter((segment) => segment !== "" && segment !== ".");
+
+  if (segments.length === 0) {
+    // "." (or "./") resolves to the target itself, not a package inside it.
+    return false;
+  }
+
+  return !segments.some((segment) => segment === ".." || startsWithDash(segment));
+}
+
 // FR-05 / SEC-01: an install-state (or flag) workspace path must be a relative
-// "/"-separated path that stays inside the target directory.
+// "/"-separated path that stays inside the target directory. Same acceptance
+// set as normalizeWorkspaceDir (BC-06), but returns a boolean per its contract.
 export function isValidWorkspaceStatePath(value) {
-  return (
-    typeof value === "string"
-    && value.length > 0
-    && !path.isAbsolute(value)
-    && SAFE_SCRIPT_VALUE_PATTERN.test(value)
-    && !value.split("/").includes("..")
-  );
+  return isAcceptableWorkspacePath(value);
 }
 
 // SEC-01: normalize and validate the --workspace value before any filesystem
@@ -49,6 +76,16 @@ function normalizeWorkspaceDir(pkgDir) {
     throw new CliError(
       "--workspace must point to a package inside the target, not the target itself. "
         + "For a single-package project, drop --workspace.",
+    );
+  }
+
+  // SEC-WS-01: a "-"-prefixed segment could be spliced into the package-manager
+  // invocation as a flag (e.g. `pnpm --filter --foo <step>`). npm names/dirs
+  // never start with "-", so reject to keep the invocation boundary clean.
+  const dashSegment = segments.find((segment) => startsWithDash(segment));
+  if (dashSegment) {
+    throw new CliError(
+      `--workspace segments must not start with "-" (a leading dash is mistaken for a package-manager flag): ${dashSegment}`,
     );
   }
 
@@ -121,6 +158,15 @@ export async function resolveWorkspace(targetDir, pkgDir) {
     throw new CliError(
       `Workspace package name contains characters that cannot be embedded in scripts `
         + `(allowed: letters, digits, "@/._-"): ${name}`,
+    );
+  }
+
+  // SEC-WS-01: a "-"-prefixed name (e.g. "--evil") is spliced into
+  // `pnpm --filter <name> <step>` and would be read as a package-manager flag.
+  // npm names never start with "-"/"."/"_", so reject the leading dash here.
+  if (startsWithDash(name)) {
+    throw new CliError(
+      `Workspace package name must not start with "-" (a leading dash is mistaken for a package-manager flag): ${name}`,
     );
   }
 
