@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// --- 設定変数（環境に合わせて編集 / env で注入）---
+// Override with the matching environment variables, or edit the defaults
+// below. Unset env falls back to the defaults, keeping the original behavior.
 const mailApiUrl = process.env.SUPABASE_LOCAL_MAIL_API_URL ?? "http://127.0.0.1:54324/api/v1";
 const testEmail = process.env.SUPABASE_TEST_EMAIL ?? "user@example.test";
 
