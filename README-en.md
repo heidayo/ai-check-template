@@ -107,6 +107,8 @@ npx -y ai-check-template doctor --target .
 npx -y ai-check-template update --target . --dry-run
 ```
 
+`update` resolves each managed file 3-way against the baseline hash recorded at install time, the local content, and the latest template. Only unmodified files are updated; locally modified files are kept by default (`skip-modified`). Inspect differences with `--diff`, or overwrite with `--force-managed`, which writes a `<file>.bak-<version>` backup first (add `*.bak-*` to `.gitignore`). To roll back, move the `.bak-<version>` file back to its original path. If you need the previous always-overwrite behavior, pin the previous release, e.g. `npx -y ai-check-template@0.4.0`. See [`docs/cli.md`](./docs/cli.md) for details.
+
 Then run the target project's checks.
 
 ```bash

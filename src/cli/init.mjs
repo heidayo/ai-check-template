@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { ciWorkflowFiles, ciWorkflowRelativePath, renderedCiWorkflow } from "./ci-workflows.mjs";
 import {
   dependencyInstallOperation,
   planDependencyInstall,
@@ -9,8 +8,8 @@ import {
 } from "./dependency-installer.mjs";
 import { renderClaudeHookSettings } from "./claude-hooks.mjs";
 import { installStatePath, writeInstallState } from "./install-state.mjs";
+import { collectManagedFileHashes, getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
-import { getProfileDocFiles } from "./profile-docs.mjs";
 import { parseProfiles } from "./profile.mjs";
 import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
 import {
@@ -76,16 +75,10 @@ export async function runInit(argv, io = {}) {
   const operations = [];
 
   await mergePackageScripts(packageJsonPath, profile, writeOptions, operations);
-  await copyScripts(targetDir, writeOptions, operations);
-  await copyProfileDocs(targetDir, profile, writeOptions, operations);
-  await copyCiFiles(targetDir, writeOptions, operations);
+  await copyManagedFiles(targetDir, profile, writeOptions, operations);
 
   if (writeOptions.claudeHooks) {
-    await copyClaudeHooks(targetDir, writeOptions, operations);
-  }
-
-  if (writeOptions.reviewTemplates) {
-    await copyReviewTemplates(targetDir, writeOptions, operations);
+    await mergeClaudeSettings(targetDir, writeOptions, operations);
   }
 
   await writeInitInstallState(targetDir, profile, writeOptions, operations);
@@ -286,26 +279,21 @@ async function mergePackageScripts(packageJsonPath, profile, options, operations
   }
 }
 
-async function copyScripts(targetDir, options, operations) {
-  for (const fileName of ["ai-check.sh", "ai-check-fast.sh", "ai-check-secure.sh"]) {
-    operations.push(
-      await copyFileSafe(
-        fromTemplates("scripts", fileName),
-        path.join(targetDir, "scripts", fileName),
-        options,
-      ),
-    );
-  }
-}
+async function copyManagedFiles(targetDir, profile, options, operations) {
+  for (const file of getManagedFiles({ ...options, profile })) {
+    const targetPath = path.join(targetDir, file.relativePath);
 
-async function copyCiFiles(targetDir, options, operations) {
-  for (const fileName of ciWorkflowFiles(options.ci)) {
-    const relativePath = ciWorkflowRelativePath(fileName);
-    operations.push(await copyTextFileSafe(
-      await renderedCiWorkflow(fileName, options.packageManager),
-      path.join(targetDir, relativePath),
-      options,
-    ));
+    if (file.kind === "ci-workflow") {
+      operations.push(await copyTextFileSafe(await file.render(), targetPath, options));
+      continue;
+    }
+
+    const operation = await copyFileSafe(file.sourcePath, targetPath, options);
+    operations.push(
+      file.detail
+        ? { ...operation, reason: operation.reason === "exists" ? `${file.detail} exists` : file.detail }
+        : operation,
+    );
   }
 }
 
@@ -327,53 +315,6 @@ async function copyTextFileSafe(content, targetPath, options = {}) {
   }
 
   return { action: dryRun ? "would-copy" : "copy", targetPath };
-}
-
-async function copyProfileDocs(targetDir, profile, options, operations) {
-  for (const file of getProfileDocFiles(profile)) {
-    const operation = await copyFileSafe(
-      file.sourcePath,
-      path.join(targetDir, file.relativePath),
-      options,
-    );
-    operations.push({
-      ...operation,
-      reason: operation.reason === "exists" ? "profile doc exists" : "profile doc",
-    });
-  }
-}
-
-async function copyClaudeHooks(targetDir, options, operations) {
-  operations.push(
-    await copyFileSafe(
-      fromTemplates(".claude", "rules", "test-rules.md"),
-      path.join(targetDir, ".claude", "rules", "test-rules.md"),
-      options,
-    ),
-  );
-
-  await mergeClaudeSettings(targetDir, options, operations);
-}
-
-async function copyReviewTemplates(targetDir, options, operations) {
-  for (const file of [
-    {
-      sourcePath: fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
-      targetPath: path.join(targetDir, ".github", "PULL_REQUEST_TEMPLATE.md"),
-      reason: "review PR template",
-    },
-    {
-      sourcePath: fromTemplates("worksheet", "ai-code-understanding.md"),
-      targetPath: path.join(targetDir, "worksheet", "ai-code-understanding.md"),
-      reason: "review worksheet",
-    },
-  ]) {
-    const operation = await copyFileSafe(file.sourcePath, file.targetPath, options);
-    operations.push({
-      ...operation,
-      reason: operation.reason === "exists" ? `${file.reason} exists` : file.reason,
-    });
-  }
 }
 
 async function mergeClaudeSettings(targetDir, options, operations) {
@@ -427,14 +368,22 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     targetPath,
   });
 
+  const managedFileOptions = {
+    profile,
+    packageManager: options.packageManager,
+    ci: options.ci,
+    claudeHooks: options.claudeHooks,
+    reviewTemplates: options.reviewTemplates,
+  };
+
   await writeInstallState(
     targetDir,
     {
-      profile,
-      packageManager: options.packageManager,
-      ci: options.ci,
-      claudeHooks: options.claudeHooks,
-      reviewTemplates: options.reviewTemplates,
+      ...managedFileOptions,
+      // Hash the files as written on disk so baselines stay truthful even for
+      // files init skipped because they already existed (INV-02). Dry runs do
+      // not read or record anything (INV-04).
+      managedFiles: options.dryRun ? {} : await collectManagedFileHashes(targetDir, managedFileOptions),
     },
     { dryRun: options.dryRun },
   );

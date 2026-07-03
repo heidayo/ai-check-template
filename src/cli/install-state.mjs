@@ -10,7 +10,10 @@ import {
 } from "./utils.mjs";
 
 export const INSTALL_STATE_FILE = ".ai-check-template.json";
-export const INSTALL_STATE_SCHEMA_VERSION = 1;
+export const INSTALL_STATE_SCHEMA_VERSION = 2;
+
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, INSTALL_STATE_SCHEMA_VERSION]);
+const MANAGED_FILE_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 const PACKAGE_NAME = "ai-check-template";
 const VALID_CI_MODES = new Set(["direct", "reusable", "none"]);
@@ -25,6 +28,7 @@ export async function buildInstallState({
   claudeHooks,
   reviewTemplates,
   packageManager = DEFAULT_PACKAGE_MANAGER,
+  managedFiles = {},
 }) {
   const packageJson = await readJson(path.join(repoRoot, "package.json"));
   const parsedProfile = normalizeProfile(profile);
@@ -39,6 +43,7 @@ export async function buildInstallState({
     ci,
     claudeHooks: Boolean(claudeHooks),
     reviewTemplates: Boolean(reviewTemplates),
+    managedFiles: validateManagedFiles(managedFiles),
     managedBy: PACKAGE_NAME,
   };
 }
@@ -158,7 +163,16 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state must be a JSON object");
   }
 
-  if (state.schemaVersion !== INSTALL_STATE_SCHEMA_VERSION) {
+  if (typeof state.schemaVersion === "number" && state.schemaVersion > INSTALL_STATE_SCHEMA_VERSION) {
+    return invalidState(
+      "unsupported-install-state",
+      `Unsupported install state schemaVersion: ${String(state.schemaVersion)}. `
+        + `This install state was written by a newer ai-check-template. `
+        + `Upgrade the CLI (npx -y ai-check-template@latest) instead of editing the state file.`,
+    );
+  }
+
+  if (!SUPPORTED_SCHEMA_VERSIONS.has(state.schemaVersion)) {
     return invalidState(
       "unsupported-install-state",
       `Unsupported install state schemaVersion: ${String(state.schemaVersion)}`,
@@ -202,6 +216,15 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state reviewTemplates must be a boolean");
   }
 
+  // v1 states carry no managedFiles; migrate to an empty map in memory. The
+  // migration is persisted (as schemaVersion 2) on the next state write (FR-05).
+  let managedFiles;
+  try {
+    managedFiles = state.schemaVersion === 1 ? {} : validateManagedFiles(state.managedFiles ?? {});
+  } catch (error) {
+    return invalidState("invalid-install-state", error.message);
+  }
+
   return {
     source: "state",
     state: {
@@ -213,10 +236,28 @@ function validateInstallState(state) {
       ci: state.ci,
       claudeHooks: state.claudeHooks,
       reviewTemplates,
+      managedFiles,
       managedBy: state.managedBy,
     },
     error: null,
   };
+}
+
+function validateManagedFiles(managedFiles) {
+  if (!managedFiles || typeof managedFiles !== "object" || Array.isArray(managedFiles)) {
+    throw new CliError("Install state managedFiles must be a JSON object");
+  }
+
+  const normalized = {};
+
+  for (const [relativePath, entry] of Object.entries(managedFiles)) {
+    if (!entry || typeof entry !== "object" || !MANAGED_FILE_HASH_PATTERN.test(entry.hash ?? "")) {
+      throw new CliError(`Install state managedFiles entry is invalid: ${relativePath}`);
+    }
+    normalized[relativePath] = { hash: entry.hash };
+  }
+
+  return normalized;
 }
 
 function normalizeProfile(profile) {

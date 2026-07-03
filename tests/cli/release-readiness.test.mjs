@@ -69,9 +69,27 @@ test("release readiness lifecycle covers init, doctor, update, and strict doctor
   assert.equal(updateOutput.operations.some(
     (operation) => operation.action === "update" && operation.path === "package.json",
   ), true);
+  // AC-03 / FR-02 / INV-01: baseline から改変された managed ファイルは
+  // デフォルトの update では上書きされず skip-modified になる
   assert.equal(updateOutput.operations.some(
-    (operation) => operation.action === "update" && operation.path === "scripts/ai-check.sh",
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
   ), true);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "changed\n");
+
+  // FR-06: 改変ファイルが残る間、strict doctor は modified-local warning で失敗する
+  const modifiedStrictDoctor = runCli(["doctor", "--target", target, "--strict", "--json"]);
+  assert.notEqual(modifiedStrictDoctor.status, 0);
+  assert.equal(JSON.parse(modifiedStrictDoctor.stdout).warnings.some(
+    (warning) => warning.code === "modified-local" && warning.path === "scripts/ai-check.sh",
+  ), true);
+
+  // AC-04 / FR-03: --force-managed で上書きし .bak-<version> を生成して解消する
+  const forced = runCli(["update", "--target", target, "--force-managed", "--yes", "--json"]);
+  assert.equal(forced.status, 0, forced.stderr);
+  assert.equal(JSON.parse(forced.stdout).operations.some(
+    (operation) => operation.action === "overwrite-forced" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh.bak-0.4.0"), "utf8"), "changed\n");
 
   const strictDoctor = runCli(["doctor", "--target", target, "--strict", "--json"]);
   assert.equal(strictDoctor.status, 0, strictDoctor.stderr);

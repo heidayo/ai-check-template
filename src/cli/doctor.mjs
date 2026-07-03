@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
-  ciWorkflowFiles,
   ciWorkflowRelativePath,
   inactiveCiWorkflowFiles,
   isManagedCiWorkflowContent,
-  renderedCiWorkflow,
 } from "./ci-workflows.mjs";
+import { getManagedFiles, hashContent } from "./managed-files.mjs";
 import {
   effectiveOptionsSummary,
   installationSummary,
@@ -20,7 +19,6 @@ import { diagnoseProfileScripts } from "./profile-diagnostics.mjs";
 import { getProfileScripts } from "./profile-scripts.mjs";
 import {
   CliError,
-  fromTemplates,
   pathExists,
   readJson,
   resolveTarget,
@@ -56,7 +54,8 @@ export async function runDoctor(argv, io = {}) {
     : await detectPackageManager(targetDir);
   const installState = await loadInstallState(targetDir);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
-  const result = await diagnoseTarget(targetDir, effectiveOptions);
+  const baseline = installState.state?.managedFiles ?? {};
+  const result = await diagnoseTarget(targetDir, effectiveOptions, baseline);
   const stateIssue = installStateIssue(installState);
   const issues = stateIssue ? [stateIssue, ...result.issues] : result.issues;
   const failed = issues.length > 0 || (options.strict && result.warnings.length > 0);
@@ -64,8 +63,10 @@ export async function runDoctor(argv, io = {}) {
     status: failed ? "fail" : "pass",
     target: targetDir,
     strict: options.strict,
+    schemaVersion: installState.state?.schemaVersion ?? null,
     installation: installationSummary(installState),
     effectiveOptions: effectiveOptionsSummary(effectiveOptions),
+    managedFiles: result.managedFiles,
     warnings: result.warnings,
     issues,
   };
@@ -208,14 +209,16 @@ async function normalizeTargetDir(target) {
   }
 }
 
-async function diagnoseTarget(targetDir, options) {
+async function diagnoseTarget(targetDir, options, baseline) {
   const issues = [];
   let warnings = [];
+  const managedFiles = [];
   const packageJsonPath = path.join(targetDir, "package.json");
 
   if (!(await pathExists(packageJsonPath))) {
     return {
       warnings,
+      managedFiles,
       issues: [
         issue("missing-file", "package.json", "Target project must contain package.json"),
       ],
@@ -227,44 +230,83 @@ async function diagnoseTarget(targetDir, options) {
     packageJson = await readJson(packageJsonPath);
   } catch (error) {
     issues.push(issue("invalid-json", "package.json", error.message));
-    return { issues, warnings };
+    return { issues, warnings, managedFiles };
   }
 
   checkPackageScripts(packageJson, options.profile, issues, options.packageManager);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check.sh"), "scripts/ai-check.sh", issues);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-fast.sh"), "scripts/ai-check-fast.sh", issues);
-  await checkTemplateFile(targetDir, fromTemplates("scripts", "ai-check-secure.sh"), "scripts/ai-check-secure.sh", issues);
-  await checkCi(targetDir, options.ci, options.packageManager, issues);
+
+  for (const file of getManagedFiles(options)) {
+    const baselineHash = baseline[normalizeRelative(file.relativePath)]?.hash ?? null;
+
+    // Profile docs are only drift-checked when a baseline hash exists; manual
+    // (state-less) installs are not required to carry them.
+    if (file.kind === "profile-doc" && !baselineHash) {
+      continue;
+    }
+
+    await checkManagedFile(targetDir, file, baselineHash, issues, warnings, managedFiles);
+  }
+
   const ciWarnings = await diagnoseInactiveCi(targetDir, options.ci);
 
   if (options.claudeHooks) {
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates(".claude", "rules", "test-rules.md"),
-      ".claude/rules/test-rules.md",
-      issues,
-    );
     await checkClaudeSettings(targetDir, issues);
   }
 
-  if (options.reviewTemplates) {
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates(".github", "PULL_REQUEST_TEMPLATE.md"),
-      ".github/PULL_REQUEST_TEMPLATE.md",
-      issues,
-    );
-    await checkTemplateFile(
-      targetDir,
-      fromTemplates("worksheet", "ai-code-understanding.md"),
-      "worksheet/ai-code-understanding.md",
-      issues,
-    );
+  warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...warnings, ...ciWarnings];
+
+  return { issues, warnings, managedFiles };
+}
+
+// Per-file status distinction (SPEC-0056 FR-06):
+// - ok             local matches the rendered template
+// - drift-upstream local matches the recorded baseline but the template moved on (update pending)
+// - modified-local local differs from the recorded baseline (user customization)
+// - drift          local differs and no baseline hash is recorded (byte-comparison fallback)
+// - missing        the managed file does not exist
+async function checkManagedFile(targetDir, file, baselineHash, issues, warnings, managedFiles) {
+  const relativePath = normalizeRelative(file.relativePath);
+  const targetPath = path.join(targetDir, file.relativePath);
+
+  if (!(await pathExists(targetPath))) {
+    managedFiles.push({ path: relativePath, status: "missing" });
+
+    if (baselineHash) {
+      warnings.push(warning("missing-managed-file", relativePath, "Tracked managed file is missing; update will regenerate it"));
+    } else {
+      issues.push(issue("missing-file", relativePath, "Expected template file is missing"));
+    }
+    return;
   }
 
-  warnings = [...diagnoseProfileScripts(options.profile, packageJson), ...ciWarnings];
+  const actual = await fs.readFile(targetPath, "utf8");
+  const expected = await file.render();
 
-  return { issues, warnings };
+  if (actual === expected) {
+    managedFiles.push({ path: relativePath, status: "ok" });
+    return;
+  }
+
+  if (!baselineHash) {
+    managedFiles.push({ path: relativePath, status: "drift" });
+    issues.push(issue("drift", relativePath, "Template-managed file differs (no baseline hash recorded)"));
+    return;
+  }
+
+  if (hashContent(actual) === baselineHash) {
+    managedFiles.push({ path: relativePath, status: "drift-upstream" });
+    issues.push(issue("drift-upstream", relativePath, "Managed file is unmodified but behind the template; run update"));
+    return;
+  }
+
+  managedFiles.push({ path: relativePath, status: "modified-local" });
+  warnings.push(
+    warning(
+      "modified-local",
+      relativePath,
+      "Managed file has local modifications; update keeps it (use update --diff / --force-managed to resolve)",
+    ),
+  );
 }
 
 function checkPackageScripts(packageJson, profile, issues, packageManager) {
@@ -280,17 +322,6 @@ function checkPackageScripts(packageJson, profile, issues, packageManager) {
     if (scripts[name] !== expected) {
       issues.push(issue("drift", "package.json", `Package script differs: ${name}`));
     }
-  }
-}
-
-async function checkCi(targetDir, ciMode, packageManager, issues) {
-  for (const fileName of ciWorkflowFiles(ciMode)) {
-    await checkExpectedFileContent(
-      targetDir,
-      await renderedCiWorkflow(fileName, packageManager),
-      ciWorkflowRelativePath(fileName),
-      issues,
-    );
   }
 }
 
@@ -313,39 +344,6 @@ async function diagnoseInactiveCi(targetDir, ciMode) {
   }
 
   return warnings;
-}
-
-async function checkExpectedFileContent(targetDir, expected, relativePath, issues) {
-  const targetPath = path.join(targetDir, relativePath);
-
-  if (!(await pathExists(targetPath))) {
-    issues.push(issue("missing-file", normalizeRelative(relativePath), "Expected template file is missing"));
-    return;
-  }
-
-  const actual = await fs.readFile(targetPath, "utf8");
-
-  if (actual !== expected) {
-    issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
-  }
-}
-
-async function checkTemplateFile(targetDir, expectedPath, relativePath, issues) {
-  const targetPath = path.join(targetDir, relativePath);
-
-  if (!(await pathExists(targetPath))) {
-    issues.push(issue("missing-file", normalizeRelative(relativePath), "Expected template file is missing"));
-    return;
-  }
-
-  const [actual, expected] = await Promise.all([
-    fs.readFile(targetPath, "utf8"),
-    fs.readFile(expectedPath, "utf8"),
-  ]);
-
-  if (actual !== expected) {
-    issues.push(issue("drift", normalizeRelative(relativePath), "Template-managed file differs"));
-  }
 }
 
 async function matchesManagedCiWorkflow(targetDir, fileName, relativePath) {
@@ -399,12 +397,18 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `ai-check-template doctor ${output.status}`);
   writeLine(stream, `target: ${output.target}`);
   writeLine(stream, `install-state: ${output.installation.source}`);
+  writeLine(stream, `schema-version: ${output.schemaVersion ?? "none"}`);
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
   writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `review-templates: ${output.effectiveOptions.reviewTemplates}`);
   writeLine(stream, `strict: ${output.strict}`);
+
+  writeLine(stream, `managed-files: ${output.managedFiles.length}`);
+  for (const managedFile of output.managedFiles) {
+    writeLine(stream, `- ${managedFile.status}: ${managedFile.path}`);
+  }
 
   writeLine(stream, `issues: ${output.issues.length}`);
   for (const currentIssue of output.issues) {

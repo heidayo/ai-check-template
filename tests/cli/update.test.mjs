@@ -178,11 +178,21 @@ test("update uses install state defaults and refreshes state", (t) => {
   fs.writeFileSync(path.join(target, ".github", "workflows", "ai-quality-call.yml"), "changed\n");
   fs.writeFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "changed\n");
 
-  const update = runCli(["update", "--target", target, "--yes"]);
+  const update = runCli(["update", "--target", target, "--yes", "--json"]);
 
   assert.equal(update.status, 0, update.stderr);
+  // AC-03 / FR-02 / INV-01: baseline から改変された managed ファイルは
+  // デフォルトで上書きされず skip-modified として報告される
+  const updateOutput = JSON.parse(update.stdout);
+  assert.equal(updateOutput.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === ".github/PULL_REQUEST_TEMPLATE.md",
+  ), true);
+  assert.equal(updateOutput.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === ".github/workflows/ai-quality-call.yml",
+  ), true);
+  assert.equal(fs.readFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "utf8"), "changed\n");
+  // FR-06: modified-local は warning なので非 strict doctor は pass する
   assert.equal(doctor(target).status, 0);
-  assert.match(fs.readFileSync(path.join(target, ".github", "PULL_REQUEST_TEMPLATE.md"), "utf8"), /AI-Generated Code Review/);
   const state = readInstallState(target);
   assert.equal(state.profile.base, "react-nextjs");
   assert.deepEqual(state.profile.addons, ["supabase-rls"]);
@@ -225,6 +235,8 @@ test("update repairs scripts using install state package manager", (t) => {
   assert.equal(doctor(target).status, 0);
 });
 
+// AC-03 / FR-02: 3-way の update 分岐（local == baseline かつ upstream が変化）は
+// 現行どおり upstream で更新される
 test("update migrates managed direct CI workflows to explicit package manager", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--package-manager", "pnpm", "--ci", "direct"]);
@@ -381,11 +393,12 @@ test("update creates missing profile docs without overwriting existing docs", (t
 
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
+  // FR-04: baseline hash なし（install state なし）で差分がある既存ファイルは
+  // 上書きせず skip-modified として報告される（安全側フォールバック）
   assert.equal(output.operations.some(
     (operation) => (
-      operation.action === "keep" &&
-      operation.path === "docs/ai-check-template/docs/test-design-template.md" &&
-      operation.detail === "profile doc"
+      operation.action === "skip-modified" &&
+      operation.path === "docs/ai-check-template/docs/test-design-template.md"
     ),
   ), true);
   assert.equal(output.operations.some(
@@ -685,6 +698,7 @@ test("update rejects target without package.json", (t) => {
   assert.match(result.stderr, /package\.json/);
 });
 
+// 異常系3: install state の JSON 破損 → validation エラーで停止（silent 破壊をしない）
 test("update rejects malformed install state before writing", (t) => {
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
@@ -697,6 +711,260 @@ test("update rejects malformed install state before writing", (t) => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Invalid install state/);
   assert.deepEqual(after, before);
+});
+
+// --- SPEC-0056: managed ファイル hash 記録と 3-way update ---
+
+function writeInstallState(target, state) {
+  fs.writeFileSync(path.join(target, ".ai-check-template.json"), `${JSON.stringify(state, null, 2)}\n`);
+}
+
+function toV1State(target) {
+  const state = readInstallState(target);
+  delete state.managedFiles;
+  writeInstallState(target, { ...state, schemaVersion: 1 });
+}
+
+test("v1 install state で update がエラーなく完走し v2 に migration される", (t) => {
+  // AC-05 / FR-05 / POST-01: schemaVersion 1 の state は自動 migration され、
+  // update 完了後の state は常に schemaVersion 2 で managedFiles hash を持つ
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  toV1State(target);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readInstallState(target);
+  assert.equal(state.schemaVersion, 2);
+  assert.equal(Object.hasOwn(state.managedFiles, "scripts/ai-check.sh"), true);
+  assert.match(state.managedFiles["scripts/ai-check.sh"].hash, /^sha256:[0-9a-f]{64}$/);
+});
+
+test("schemaVersion が 2 より大きい state は明確なエラーで停止する", (t) => {
+  // 異常系2 / FR-05 / PRE-01: 未知の schemaVersion (>2) は silent に読み進めず停止
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const state = readInstallState(target);
+  writeInstallState(target, { ...state, schemaVersion: 3 });
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /schemaVersion/);
+  assert.deepEqual(after, before);
+});
+
+test("改変された managed ファイルは update で上書きされず skip-modified になる", (t) => {
+  // AC-03 / FR-02 / INV-01: local != baseline かつ local != upstream の
+  // ファイルはデフォルトで上書きされない（3-way: skip-modified 分岐）
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const baselineHash = readInstallState(target).managedFiles["scripts/ai-check.sh"].hash;
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+  // 改変ファイルの baseline hash は維持され、次回 update でも改変扱いになる（INV-01）
+  assert.equal(readInstallState(target).managedFiles["scripts/ai-check.sh"].hash, baselineHash);
+  // リスク2 軽減策: skip 時に解決フラグの案内を表示する
+  assert.equal(output.notes.some((note) => /--force-managed/.test(note) && /--diff/.test(note)), true);
+});
+
+test("--keep-local はデフォルトの skip-modified 動作を明示する", (t) => {
+  // FR-02: --keep-local は改変ファイル保持（デフォルト動作の明示）
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--keep-local", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+});
+
+test("--force-managed は改変ファイルを上書きし .bak-<version> を先に生成する", (t) => {
+  // AC-04 / FR-03: overwrite-forced 分岐。上書き前の内容が
+  // <file>.bak-<packageVersion> として保存される
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--force-managed", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "overwrite-forced" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  const backupPath = path.join(target, "scripts", "ai-check.sh.bak-0.4.0");
+  assert.equal(fs.readFileSync(backupPath, "utf8"), "my custom check\n");
+  assert.notEqual(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+  // SEC-02: .bak 生成時に .gitignore への追加検討を案内する
+  assert.equal(output.notes.some((note) => /\.gitignore/.test(note)), true);
+  // 上書き後は doctor が pass する（upstream と一致）
+  assert.equal(doctor(target, ["--ci", "none"]).status, 0);
+});
+
+test(".bak 書き込みに失敗した場合は元ファイルが無傷のまま残る", (t) => {
+  // INV-05: .bak-<version> が先に書き込まれてから上書きが行われる。
+  // .bak 書込失敗（同名ディレクトリ）時は元ファイルの内容が変更されない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+  fs.mkdirSync(path.join(target, "scripts", "ai-check.sh.bak-0.4.0"));
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--force-managed", "--yes"]);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+});
+
+test("managedFiles 記録があるのにファイルが欠落している場合は再生成される", (t) => {
+  // 異常系1: 記録あり + ファイル削除 → update は create（再生成）で報告する
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.rmSync(path.join(target, "scripts", "ai-check.sh"));
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "create" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(fs.existsSync(path.join(target, "scripts", "ai-check.sh")), true);
+});
+
+test("baseline hash なし + 差分ありは警告付きで keep され hash は記録されない", (t) => {
+  // FR-04: v1 state（baseline なし）からの migration 直後はバイト比較に
+  // フォールバックし、差分ありでも上書きしない。差分あり skip したファイルは
+  // baseline hash を記録せず、フォールバック警告を継続する（差分なしのみ
+  // hash 記録して 3-way に移行）
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  toV1State(target);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+  const state = readInstallState(target);
+  assert.equal(state.schemaVersion, 2);
+  // FR-04: 差分あり skip では baseline hash を記録しない
+  assert.equal(state.managedFiles["scripts/ai-check.sh"]?.hash, undefined);
+});
+
+test("baseline なし + 改変は 2 回目の update でも skip-modified で内容が保持される", (t) => {
+  // INV-01 / FR-04: FIND-001 回帰。差分あり skip 時に upstream hash を記録して
+  // しまうと 2 回目の update で「baseline == local 扱い」となりユーザー改変が
+  // 上書きされる。差分あり skip では hash を記録しないため、2 回目以降も
+  // skip-modified が継続しユーザー内容が失われない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  toV1State(target);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+
+  const first = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(JSON.parse(first.stdout).operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+
+  const second = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(second.status, 0, second.stderr);
+  assert.equal(JSON.parse(second.stdout).operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  // INV-01: ユーザー内容がデータ喪失せず保持される
+  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
+});
+
+test("local == upstream だが baseline と異なる場合は keep して hash を更新する", (t) => {
+  // 境界ケース1: ユーザーが手動で upstream を先行適用 → keep + hash を upstream 値に更新
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  const state = readInstallState(target);
+  const upstreamHash = state.managedFiles["scripts/ai-check.sh"].hash;
+  const staleHash = `sha256:${"0".repeat(64)}`;
+  state.managedFiles["scripts/ai-check.sh"] = { hash: staleHash };
+  writeInstallState(target, state);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "keep" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.equal(readInstallState(target).managedFiles["scripts/ai-check.sh"].hash, upstreamHash);
+});
+
+test("--diff は改変ファイルの unified diff を表示し非ゼロで終了、書き込みしない", (t) => {
+  // FR-02 解決フラグ: --diff は diff 表示 + 終了コード通知、ファイルは変更しない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+  fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
+  const before = snapshotDirectory(target);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--diff"]);
+  const after = snapshotDirectory(target);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /scripts\/ai-check\.sh/);
+  assert.match(result.stdout, /-my custom check/);
+  assert.deepEqual(after, before);
+});
+
+test("--diff は改変ファイルがなければゼロで終了する", (t) => {
+  // FR-02: 改変なしの --diff は成功終了（CI での改変検知用途）
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--diff"]);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("未改変プロジェクトの update → doctor は冪等に pass する", (t) => {
+  // AC-06 / POST-02: 未改変プロジェクトで update → doctor PASS（冪等性）。
+  // operations は全 managed ファイルについて action を含む
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+
+  const first = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(doctor(target, ["--ci", "none"]).status, 0);
+
+  const second = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+  assert.equal(second.status, 0, second.stderr);
+  const output = JSON.parse(second.stdout);
+  // POST-02: shell script 3 ファイルすべてに action が報告される
+  for (const scriptPath of ["scripts/ai-check.sh", "scripts/ai-check-fast.sh", "scripts/ai-check-secure.sh"]) {
+    assert.equal(output.operations.some((operation) => operation.path === scriptPath), true, scriptPath);
+  }
+  // 冪等性: 2 回目の update で managed ファイルは keep のみ
+  assert.equal(output.operations.some(
+    (operation) => operation.path.startsWith("scripts/") && operation.action !== "keep",
+  ), false);
+  assert.equal(doctor(target, ["--ci", "none"]).status, 0);
 });
 
 test("update rejects invalid profile before writing", (t) => {
