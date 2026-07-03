@@ -79,7 +79,7 @@ SPEC-0056 は managed ファイルのユーザー改変を 3-way 判定（baseli
 | 新規 | `package-templates/.claude/rules/local/README.md`（init が配布する案内 README のテンプレート） |
 | 変更（配布テンプレート） | `package-templates/scripts/ai-check.sh`, `package-templates/scripts/ai-check-fast.sh`, `package-templates/scripts/ai-check-secure.sh`, `package-templates/scripts/README.md`, `package-templates/.claude/README.md` |
 | 変更（CLI） | `src/cli/init.mjs`（`.claude/rules/local/` + README 作成）, `src/cli/index.mjs`（usage ヘルプ追記が必要な場合のみ） |
-| テスト | `tests/cli/init.test.mjs`, `tests/cli/update.test.mjs`, `tests/cli/doctor.test.mjs`, `tests/cli/managed-files.test.mjs`（local ファイル非管理の検証追加）, `tests/cli/release-readiness.test.mjs`（scripts テンプレート内容変更に伴う期待値更新） |
+| テスト | `tests/cli/init.test.mjs`, `tests/cli/package.test.mjs`（AC-08 の pack 内容検査）, `tests/cli/update.test.mjs`, `tests/cli/doctor.test.mjs`, `tests/cli/managed-files.test.mjs`（local ファイル非管理の検証追加）, `tests/cli/release-readiness.test.mjs`（scripts テンプレート内容変更に伴う期待値更新） |
 | ドキュメント | `docs/cli.md`, `README.md`, `README-ja.md`, `README-en.md` |
 
 上記以外への変更は本 SPEC のスコープ外。`src/cli/managed-files.mjs` は**変更しない**（managed 一覧に local ファイルを追加しないことが要件であり、既存一覧の変更も不要。scripts テンプレートの内容変更は managed 一覧の hash 対象内容が変わるだけで一覧定義は不変）。
@@ -117,7 +117,7 @@ SPEC-0056 は managed ファイルのユーザー改変を 3-way 判定（baseli
 
 ## 契約
 
-- API: なし（CLI フラグ追加なし。init の既存 `--claude-hooks` の出力ファイルが 1 件増えるのみ）
+- API: CLI フラグ追加: init `--json`（OPS-01 の operations 出力用。update/doctor の既存 `--json` と同型）。init の既存 `--claude-hooks` の出力ファイルが 1 件増える
 - DB: なし
 - イベント: なし（配布 scripts の「同 dir の `ai-check.local.sh` を source する」挙動が実質の契約。`package-templates/scripts/README.md` に明文化する）
 
