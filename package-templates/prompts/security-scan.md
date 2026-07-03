@@ -10,6 +10,10 @@ security repair from normal feature test repair.
 
 - `pnpm ai:check:secure` failed
 - `semgrep scan --config auto` reported a finding
+- The optional `supabase/semgrep/authz-rules.yml` rules were applied as an
+  extra `--config` and reported a finding. Those rules are opt-in
+  starting-point examples that may be false positives, so triage them with the
+  same steps below — do not treat their output as an automatic verdict.
 - CodeQL, dependency audit, or another SAST tool produced output that needs triage
 - A reviewer wants a security-focused repair plan before accepting a PR
 
