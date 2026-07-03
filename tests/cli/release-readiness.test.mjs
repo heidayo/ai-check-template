@@ -8,6 +8,7 @@ import test from "node:test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const binPath = path.join(repoRoot, "bin", "ai-check-template.mjs");
+const PKG_VERSION = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")).version;
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [binPath, ...args], {
@@ -199,7 +200,7 @@ test("release readiness lifecycle covers init, doctor, update, and strict doctor
   assert.equal(JSON.parse(forced.stdout).operations.some(
     (operation) => operation.action === "overwrite-forced" && operation.path === "scripts/ai-check.sh",
   ), true);
-  assert.equal(fs.readFileSync(path.join(target, "scripts", "ai-check.sh.bak-0.4.0"), "utf8"), "changed\n");
+  assert.equal(fs.readFileSync(path.join(target, "scripts", `ai-check.sh.bak-${PKG_VERSION}`), "utf8"), "changed\n");
 
   const strictDoctor = runCli(["doctor", "--target", target, "--strict", "--json"]);
   assert.equal(strictDoctor.status, 0, strictDoctor.stderr);

@@ -44,6 +44,7 @@
 
 - 作成: なし
 - 変更: `src/cli/init.mjs`, `src/cli/update.mjs`, `src/cli/doctor.mjs`, `tests/cli/init.test.mjs`, `tests/cli/update.test.mjs`, `tests/cli/doctor.test.mjs`
+- 変更（Review F1 修正、TASK-0233 と共有）: `src/cli/install-state.mjs`（`resolveEffectiveOptions` を custom モードで placeholder 化 — doctor/update の明示 `--profile custom:<name> --profile-file` が `parseProfiles` で crash する非対称バグ F1 の修正。commit 468d2b5）, `tests/cli/custom-profile.test.mjs`（F1 回帰テスト。commit 9a7057d）— SCOPE-01 として RUN-0010 に記録。install-state.mjs は本来 TASK-0233 の File Scope だが F1 修正が resolveEffectiveOptions（install-state.mjs 内）に及んだため両 TASK で共有
 - 削除: なし
 
 ## 禁止事項（Forbidden Shortcuts 転記）

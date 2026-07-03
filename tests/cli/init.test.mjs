@@ -9,6 +9,7 @@ import test from "node:test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const binPath = path.join(repoRoot, "bin", "ai-check-template.mjs");
+const PKG_VERSION = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")).version;
 const PNPM_SECURE_SCRIPT = "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast";
 const NPM_SECURE_SCRIPT = "npm run security:secrets && npm run security:deps && npm run security:supply-chain && npm run security:sast";
 const YARN_SECURE_SCRIPT = "yarn security:secrets && yarn security:deps && yarn security:supply-chain && yarn security:sast";
@@ -239,7 +240,7 @@ test("init writes deterministic install state", (t) => {
   assert.deepEqual(rest, {
     schemaVersion: 2,
     packageName: "ai-check-template",
-    packageVersion: "0.4.0",
+    packageVersion: PKG_VERSION,
     profile: {
       base: "react-nextjs",
       addons: ["supabase-rls"],

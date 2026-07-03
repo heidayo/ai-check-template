@@ -9,6 +9,7 @@ import test from "node:test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const binPath = path.join(repoRoot, "bin", "ai-check-template.mjs");
+const PKG_VERSION = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")).version;
 const PNPM_SECURE_SCRIPT = "pnpm security:secrets && pnpm security:deps && pnpm security:supply-chain && pnpm security:sast";
 const NPM_SECURE_SCRIPT = "npm run security:secrets && npm run security:deps && npm run security:supply-chain && npm run security:sast";
 
@@ -810,7 +811,7 @@ test("--force-managed は改変ファイルを上書きし .bak-<version> を先
   assert.equal(output.operations.some(
     (operation) => operation.action === "overwrite-forced" && operation.path === "scripts/ai-check.sh",
   ), true);
-  const backupPath = path.join(target, "scripts", "ai-check.sh.bak-0.4.0");
+  const backupPath = path.join(target, "scripts", `ai-check.sh.bak-${PKG_VERSION}`);
   assert.equal(fs.readFileSync(backupPath, "utf8"), "my custom check\n");
   assert.notEqual(fs.readFileSync(path.join(target, "scripts", "ai-check.sh"), "utf8"), "my custom check\n");
   // SEC-02: .bak 生成時に .gitignore への追加検討を案内する
@@ -825,7 +826,7 @@ test(".bak 書き込みに失敗した場合は元ファイルが無傷のまま
   const target = createFixture(t);
   initFixture(target, ["--ci", "none"]);
   fs.writeFileSync(path.join(target, "scripts", "ai-check.sh"), "my custom check\n");
-  fs.mkdirSync(path.join(target, "scripts", "ai-check.sh.bak-0.4.0"));
+  fs.mkdirSync(path.join(target, "scripts", `ai-check.sh.bak-${PKG_VERSION}`));
 
   const result = runCli(["update", "--target", target, "--ci", "none", "--force-managed", "--yes"]);
 
@@ -1281,7 +1282,7 @@ test("--force-managed は改変済み CI テンプレを .bak-<version> 生成�
   assert.equal(output.operations.some(
     (operation) => operation.action === "overwrite-forced" && operation.path === ".github/workflows/ai-check.yml",
   ), true);
-  const backupPath = path.join(target, ".github", "workflows", "ai-check.yml.bak-0.4.0");
+  const backupPath = path.join(target, ".github", "workflows", `ai-check.yml.bak-${PKG_VERSION}`);
   assert.equal(fs.readFileSync(backupPath, "utf8"), "name: my custom ci\n");
   const after = fs.readFileSync(workflowPath, "utf8");
   assert.notEqual(after, "name: my custom ci\n");
