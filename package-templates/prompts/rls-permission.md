@@ -99,7 +99,7 @@ Row Level Security（RLS）や権限制御で、「見えるべき / 見えて�
 | role（テスト対象ユーザー） | test user の session / id（`SUPABASE_TEST_USER_A_SESSION` 等の env、SQL は `set_config('app.test_user_a', ...)`） |
 | policy（許可 / 拒否の各セル） | テスト本文の許可アサーション（`isnt_empty` / `lives_ok`）/ 拒否アサーション（`is_empty` / `throws_ok`） |
 
-- マトリクスの resource（テーブル）と所有者列は、各テンプレ冒頭の設定変数ブロックに書き込む（または env で注入する）。SQL の識別子は `:"table_name"`（ダブルクォート = 識別子展開）で参照し、`:'...'`（リテラル文字列展開）と取り違えない
+- マトリクスの resource（テーブル）と所有者列は、各テンプレ冒頭の設定変数ブロックに書き込む（または env で注入する）。SQL の識別子はドル引用符 `$$...$$` 内では psql 変数展開が効かないため、`format('%I', :'table_name')`（値展開 `:'var'` を format() の外から渡し、`%I` で安全に識別子化）で参照する
 - マトリクスの各 OK / NG セルは、テスト本文のアサーション 1 つに対応させ、セル数と `plan(...)` の件数を合わせる
 - `service_role` は RLS を bypass するため、どの role の検証でも使わない（実ユーザー session で検証する）
 
