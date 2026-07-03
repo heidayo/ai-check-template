@@ -92,6 +92,8 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "package-templates/docs/ac-test-matrix.example.json",
     "package-templates/docs/ac-test-matrix.example.yaml",
     "package-templates/scripts/ai-check.sh",
+    // SPEC-0057 AC-08: overlay 案内 README テンプレートは pack に含まれる
+    "package-templates/.claude/rules/local/README.md",
     "package-templates/ci-examples/github-actions/ai-check.yml",
     "package-templates/.claude/settings.hook-fragment.json",
     "package-templates/playwright/README.md",
@@ -110,6 +112,9 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
   }
 
   for (const filePath of files) {
+    // SPEC-0057 AC-08 / FR-02: ai-check.local.sh 実ファイルは配布物に含めない
+    // （overlay はユーザーが作成する。example は README 内コードブロックのみ）
+    assert.equal(filePath.endsWith("ai-check.local.sh"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("specs/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("plans/"), false, `${filePath} should not be packed`);
     assert.equal(filePath.startsWith("tasks/"), false, `${filePath} should not be packed`);

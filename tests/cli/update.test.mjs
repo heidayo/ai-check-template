@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -965,6 +966,124 @@ test("未改変プロジェクトの update → doctor は冪等に pass する"
     (operation) => operation.path.startsWith("scripts/") && operation.action !== "keep",
   ), false);
   assert.equal(doctor(target, ["--ci", "none"]).status, 0);
+});
+
+// --- SPEC-0057: local overlay（installer 不干渉領域） ---
+
+function sha256Content(content) {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
+// overlay ファイル（scripts/ai-check.local.sh と .claude/rules/local/ 配下）を配置する
+function placeOverlayFiles(target) {
+  const localScriptPath = path.join(target, "scripts", "ai-check.local.sh");
+  const localRulePath = path.join(target, ".claude", "rules", "local", "my-rule.md");
+  fs.writeFileSync(localScriptPath, "export PM=npm\necho \"overlay\"\n");
+  fs.mkdirSync(path.dirname(localRulePath), { recursive: true });
+  fs.writeFileSync(localRulePath, "# my project rule\n");
+  return { localScriptPath, localRulePath };
+}
+
+function overlaySnapshot(target, paths) {
+  const snapshot = {};
+  for (const filePath of paths) {
+    snapshot[path.relative(target, filePath)] = fs.readFileSync(filePath, "utf8");
+  }
+  return snapshot;
+}
+
+test("update は overlay ファイルを変更・削除せず operations にも含めない", (t) => {
+  // AC-03 / FR-02 / FR-04 / INV-02: ai-check.local.sh と .claude/rules/local/
+  // 配下のユーザーファイル（README 含む）は update の書き込み・削除対象にならず、
+  // operations に managed 対象として現れない
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none", "--claude-hooks"]);
+  const readmePath = path.join(target, ".claude", "rules", "local", "README.md");
+  assert.equal(fs.existsSync(readmePath), true);
+  const { localScriptPath, localRulePath } = placeOverlayFiles(target);
+  const overlayPaths = [localScriptPath, localRulePath, readmePath];
+  const before = overlaySnapshot(target, overlayPaths);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  // FR-02 / FR-04: operations に local 系パスが一切現れない
+  for (const operation of output.operations) {
+    const operationPath = operation.path ?? operation.targetPath ?? "";
+    assert.doesNotMatch(operationPath, /ai-check\.local\.sh/, JSON.stringify(operation));
+    assert.doesNotMatch(operationPath, /[/\\]rules[/\\]local(?:[/\\]|$)/, JSON.stringify(operation));
+  }
+  // INV-02: update 前後で overlay ファイルの内容・存在が不変
+  assert.deepEqual(overlaySnapshot(target, overlayPaths), before);
+  // FR-02: install state（managedFiles）にも記録されない
+  const managedKeys = Object.keys(readInstallState(target).managedFiles);
+  assert.equal(managedKeys.some((key) => key.includes("ai-check.local.sh")), false);
+  assert.equal(managedKeys.some((key) => key.startsWith(".claude/rules/local/")), false);
+});
+
+test("overlay ファイルがあっても update → doctor の冪等性が保たれる", (t) => {
+  // AC-06（依頼スコープ）/ INV-02 / INV-03: overlay 配置状態でも
+  // update → doctor pass → 再 update は keep のみ（冪等）
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none", "--claude-hooks"]);
+  placeOverlayFiles(target);
+
+  const first = runCli(["update", "--target", target, "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(doctor(target, ["--ci", "none", "--claude-hooks"]).status, 0);
+
+  const second = runCli(["update", "--target", target, "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+  assert.equal(second.status, 0, second.stderr);
+  const output = JSON.parse(second.stdout);
+  // 冪等性: 2 回目の update で managed scripts は keep のみ
+  assert.equal(output.operations.some(
+    (operation) => (operation.path ?? "").startsWith("scripts/") && operation.action !== "keep",
+  ), false);
+  assert.equal(doctor(target, ["--ci", "none", "--claude-hooks"]).status, 0);
+});
+
+test("旧テンプレート scripts は未改変なら source 行入りへ自動更新され改変済みは skip-modified になる", (t) => {
+  // AC-06 / NFR-01 / ASM-03: 旧テンプレート（source 行なし）+ v2 install state
+  // （旧内容の baseline hash）で update すると、local == baseline の scripts は
+  // 3-way 判定により新テンプレート（ai-check.local.sh source 入り）へ自動更新され、
+  // 改変済み scripts は skip-modified でユーザー内容が保持される
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "none"]);
+
+  // 旧テンプレートを模擬: 現行テンプレートから overlay ブロックを取り除いた内容
+  const scriptPath = path.join(target, "scripts", "ai-check.sh");
+  const current = fs.readFileSync(scriptPath, "utf8");
+  const blockStart = current.indexOf("# local overlay:");
+  const blockEnd = current.indexOf("\nfi\n", blockStart) + "\nfi\n".length;
+  assert.notEqual(blockStart, -1);
+  const oldContent = current.slice(0, blockStart) + current.slice(blockEnd);
+  assert.doesNotMatch(oldContent, /ai-check\.local\.sh/);
+  fs.writeFileSync(scriptPath, oldContent);
+
+  // 改変済み script を用意（baseline は現行 hash のまま → local != baseline != upstream）
+  const modifiedPath = path.join(target, "scripts", "ai-check-fast.sh");
+  fs.writeFileSync(modifiedPath, "my custom fast check\n");
+
+  // v2 install state: ai-check.sh の baseline を旧内容の hash に書き換え（local == baseline）
+  const state = readInstallState(target);
+  state.managedFiles["scripts/ai-check.sh"] = { hash: sha256Content(oldContent) };
+  writeInstallState(target, state);
+
+  const result = runCli(["update", "--target", target, "--ci", "none", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  // NFR-01: 未改変（local == baseline）は upstream へ自動更新
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "update" && operation.path === "scripts/ai-check.sh",
+  ), true);
+  assert.match(fs.readFileSync(scriptPath, "utf8"), /ai-check\.local\.sh/);
+  // NFR-01: 改変済みは skip-modified で保持
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === "scripts/ai-check-fast.sh",
+  ), true);
+  assert.equal(fs.readFileSync(modifiedPath, "utf8"), "my custom fast check\n");
 });
 
 test("update rejects invalid profile before writing", (t) => {

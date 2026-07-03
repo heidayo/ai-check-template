@@ -73,6 +73,53 @@ test("getManagedFiles はオプション無効時に該当ファイルを含め�
   assert.equal(paths.includes(".github/PULL_REQUEST_TEMPLATE.md"), false);
 });
 
+test("getManagedFiles はいかなる profile / オプション組合せでも local overlay パスを含まない", () => {
+  // SPEC-0057 AC-07 / FR-02 / INV-01: `ai-check.local.sh` と `.claude/rules/local/`
+  // 配下は installer 不干渉の overlay 領域であり、managed 一覧に決して現れない
+  // （リスク3 の回帰ガード。全 profile / オプション組合せを網羅する）
+  const profiles = [
+    "react-nextjs",
+    "react-vanilla",
+    "node-cli",
+    "expo-rn",
+    "react-nextjs+supabase-rls",
+    "react-vanilla+supabase-rls",
+    "node-cli+supabase-rls",
+    "expo-rn+supabase-rls",
+  ];
+  const ciModes = ["none", "direct", "reusable"];
+
+  for (const profile of profiles) {
+    for (const ci of ciModes) {
+      for (const claudeHooks of [false, true]) {
+        for (const reviewTemplates of [false, true]) {
+          const combo = `profile=${profile} ci=${ci} claudeHooks=${claudeHooks} reviewTemplates=${reviewTemplates}`;
+          const paths = getManagedFiles({
+            profile,
+            packageManager: "pnpm",
+            ci,
+            claudeHooks,
+            reviewTemplates,
+          }).map((file) => managedFileStateKey(file.relativePath));
+
+          // INV-01: ai-check.local.sh はどのディレクトリ配下でも managed にしない
+          assert.equal(
+            paths.some((filePath) => filePath.endsWith("ai-check.local.sh")),
+            false,
+            `ai-check.local.sh must not be managed (${combo})`,
+          );
+          // INV-01: .claude/rules/local/ 配下（README.md 含む）を managed にしない
+          assert.equal(
+            paths.some((filePath) => filePath.startsWith(".claude/rules/local/") || filePath === ".claude/rules/local"),
+            false,
+            `.claude/rules/local/* must not be managed (${combo})`,
+          );
+        }
+      }
+    }
+  }
+});
+
 test("各 managed ファイルの render は文字列内容を返す", async () => {
   // FR-02 の前提: 3-way 比較に使う upstream 内容がレンダリング可能であること
   for (const file of getManagedFiles({ profile: "react-nextjs", packageManager: "pnpm", ci: "direct" })) {

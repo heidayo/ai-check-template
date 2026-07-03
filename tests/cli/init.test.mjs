@@ -612,6 +612,84 @@ test("Claude hooks preserve existing groups unless overwrite is requested", (t) 
   assert.deepEqual(claudeHookCommands(readClaudeSettings(target)), ["npm run ai:check:fast", "npm run ai:check"]);
 });
 
+function localReadmeOperations(output) {
+  return output.operations.filter((operation) => (
+    operation.targetPath.endsWith(path.join(".claude", "rules", "local", "README.md"))
+  ));
+}
+
+function sha256File(filePath) {
+  return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+test("--claude-hooks 付き init は .claude/rules/local/README.md を create し再 init で skip する", (t) => {
+  // SPEC-0057 AC-05 / FR-03 / INV-05 / POST-01 / POST-02 / OPS-01:
+  // 初回 init は overlay README を create、再 init は skip で内容不変
+  // （SHA-256 一致で検証）。--json 出力に create / skip が各 1 件現れる
+  const target = createFixture(t);
+  const readmePath = path.join(target, ".claude", "rules", "local", "README.md");
+
+  const first = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(fs.existsSync(readmePath), true); // POST-01
+  const firstOps = localReadmeOperations(JSON.parse(first.stdout));
+  assert.equal(firstOps.length, 1); // POST-02: create または skip のいずれか 1 件
+  assert.equal(firstOps[0].action, "create");
+  const hashAfterCreate = sha256File(readmePath);
+
+  const second = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+  assert.equal(second.status, 0, second.stderr);
+  const secondOps = localReadmeOperations(JSON.parse(second.stdout));
+  assert.equal(secondOps.length, 1); // POST-02
+  assert.equal(secondOps[0].action, "skip");
+  // AC-05 / INV-05: 再 init 前後で README の内容が SHA-256 一致（不変）
+  assert.equal(sha256File(readmePath), hashAfterCreate);
+});
+
+test("--claude-hooks なしの init は .claude/rules/local/ を作成しない", (t) => {
+  // FR-03: overlay README の配置は --claude-hooks 指定時のみ
+  const target = createFixture(t);
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--yes"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(target, ".claude", "rules", "local")), false);
+});
+
+test("ユーザー編集済みの .claude/rules/local/README.md は再 init でも上書きされない", (t) => {
+  // INV-05 / FR-04 の init 側保証: 既存 README（ユーザー改変済み）の内容を変更しない
+  const target = createFixture(t);
+  const readmePath = path.join(target, ".claude", "rules", "local", "README.md");
+  fs.mkdirSync(path.dirname(readmePath), { recursive: true });
+  fs.writeFileSync(readmePath, "user customized overlay guide\n");
+
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const ops = localReadmeOperations(JSON.parse(result.stdout));
+  assert.equal(ops.length, 1);
+  assert.equal(ops[0].action, "skip");
+  assert.equal(fs.readFileSync(readmePath, "utf8"), "user customized overlay guide\n");
+});
+
+test(".claude/rules/local が同名ファイルの場合は破壊せず skip + 警告 reason を報告する", (t) => {
+  // 想定エラー3 / FR-03: local がディレクトリでなくファイルとして存在する場合、
+  // 上書き・削除せず skip し、reason で警告する（ユーザー領域を破壊しない）
+  const target = createFixture(t);
+  const localPath = path.join(target, ".claude", "rules", "local");
+  fs.mkdirSync(path.dirname(localPath), { recursive: true });
+  fs.writeFileSync(localPath, "user file named local\n");
+
+  const result = runCli(["init", "--target", target, "--profile", "react-nextjs", "--ci", "none", "--claude-hooks", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const ops = localReadmeOperations(JSON.parse(result.stdout));
+  assert.equal(ops.length, 1);
+  assert.equal(ops[0].action, "skip");
+  assert.match(ops[0].reason, /exists as a file/);
+  // 想定エラー3: 同名ファイルはそのまま残る（破壊しない）
+  assert.equal(fs.readFileSync(localPath, "utf8"), "user file named local\n");
+});
+
 test("existing files and scripts are not overwritten by default", (t) => {
   const target = createFixture(t, {
     name: "fixture",
