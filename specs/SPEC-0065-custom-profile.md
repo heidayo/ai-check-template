@@ -273,7 +273,7 @@ T1 → T2 → T3 は直列（定義解決モジュール → state additive → 
 
 ## 関連ID
 
-- PLAN-ID: （計画フェーズで記入）
-- TASK-ID: （分割フェーズで記入）
-- Done Definition: （分割フェーズで記入）
+- PLAN-ID: [PLAN-0065](../plans/PLAN-0065-custom-profile.md)
+- TASK-ID: TASK-0232（custom-profile.mjs 定義解決モジュール）, TASK-0233（install-state customProfile additive）, TASK-0234（init/update/doctor --profile-file 統合）, TASK-0235（docs/cli.md custom profile 節）
+- Done Definition: [tasks/done-def-SPEC-0065-round-1.md](../tasks/done-def-SPEC-0065-round-1.md)
 - 参考: SPEC-0060（profile 合成規則 + 8 組合せスナップショット固定 — 「custom profile の外部定義（依頼 #6）」を明示スコープ外化。本 SPEC がその継続で、8 組合せの不変性を守る）, SPEC-0058（`.ai-check.yaml` config — `parseConfigYaml` / JSON escape hatch = 新規依存ゼロで定義ファイルを読む前例。信頼境界 SEC-01 の共有）, SPEC-0056（install state schema v2 + managed file hash 3-way — `customProfile` を additive 追加する土台）, SPEC-0061（`--workspace` opt-in + state additive フィールド — opt-in の別経路 + state additive の同型パターン）, SPEC-0005（profiles の出自 — built-in base 4 種の内部テーブル）, SPEC-0020（install state / `resolveEffectiveOptions` の解決規則）
