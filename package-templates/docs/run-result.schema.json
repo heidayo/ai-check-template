@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/heidayo/ai-check-template/package-templates/docs/run-result.schema.json",
+  "title": "ai-check-template run result",
+  "type": "object",
+  "required": ["status", "script", "command", "startedAt", "durationMs", "configPath", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "status": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "script": { "type": "string", "minLength": 1 },
+    "command": { "type": "string", "minLength": 1 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "configPath": { "type": ["string", "null"] },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "name", "source", "command", "status", "exitCode", "durationMs", "stdout", "stderr"],
+        "additionalProperties": false,
+        "properties": {
+          "index": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "enum": ["config", "default"] },
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["PASS", "FAIL", "SKIPPED"] },
+          "exitCode": { "type": ["integer", "null"] },
+          "durationMs": { "type": "number", "minimum": 0 },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" }
+        }
+      }
+    }
+  }
+}

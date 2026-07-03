@@ -136,9 +136,12 @@ pnpm ai:check
 pnpm ai:check:secure
 npx -y ai-check-template run --target . --script ai:check --json
 npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
+npx -y ai-check-template report --expect docs/ac-test-matrix.json --run .ai-check/run-result.json --strict
 ```
 
-`run` / `expect` は repository-current CLI の追加機能です。次回 npm publish 前に試す場合は、この repository の checkout か `npm pack` した tarball から実行してください。
+`report` は宣言した AC（`expect` と同じ AC/Test Matrix ファイル）と `run --output` の実測 JSON を機械照合し、AC ごとに PASS / FAIL / UNVERIFIED を判定します。照合は明示キーのみ（AC の任意フィールド `step` と run step `name` の完全一致、`step` 省略時は command の trim 後完全一致がちょうど 1 件の場合のみ。同一 command が複数 step にある場合は `ambiguous-command` で UNVERIFIED になるため、`step` を明示してください）。`step` の typo も UNVERIFIED になるため、CI に `--strict`（FAIL / UNVERIFIED が 1 件以上で exit 1）を入れると typo も検出されます。`--format markdown` の表は PR 本文の Verification 節にそのまま貼れます。詳細は [`docs/cli.md`](./docs/cli.md) の「Report options」を参照。
+
+`run` / `expect` / `report` は repository-current CLI の追加機能です。次回 npm publish 前に試す場合は、この repository の checkout か `npm pack` した tarball から実行してください。
 
 `run` のステップ構成は、project root に `.ai-check.yaml`（または `.ai-check.json`）を置くことで gate（fast / full / secure）ごとに宣言的に差し替え・無効化できます（opt-in・ユーザー所有で installer 非管理。ファイルが無ければ従来動作、削除すれば元の動作に完全復旧）。`--json` の各 step には由来を示す `name` / `source`（`config` / `default`）とルートの `configPath` が記録されます。config の `command` はコミット内容がそのまま実行されるため、secret / token / API key は直書きせず env var / secret manager 経由で渡してください。スキーマと完成例は [`docs/cli.md`](./docs/cli.md) の「Step config」を参照。
 

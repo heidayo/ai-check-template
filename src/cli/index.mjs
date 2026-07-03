@@ -1,6 +1,7 @@
 import { runDoctor } from "./doctor.mjs";
 import { runExpect } from "./expect.mjs";
 import { runInit } from "./init.mjs";
+import { runReport } from "./report.mjs";
 import { runStructuredCheck } from "./run.mjs";
 import { runUpdate } from "./update.mjs";
 import { CliError, writeLine } from "./utils.mjs";
@@ -14,11 +15,13 @@ Usage:
   ai-check-template update [options]
   ai-check-template run [options]
   ai-check-template expect [options]
+  ai-check-template report [options]
 
 Commands:
   doctor  Diagnose an existing ai-check-template installation.
   expect  Validate a structured AC/Test Matrix JSON or YAML file.
   init    Copy ai-check templates into an existing project.
+  report  Match declared acceptance criteria against a run result JSON.
   run     Execute a package script with structured PASS/FAIL/SKIPPED output.
   update  Update template-managed files in an existing installation.
 
@@ -71,13 +74,21 @@ Expect options:
   --file <path>        JSON or template-subset YAML AC/Test Matrix file.
   --json               Print machine-readable JSON output.
 
+Report options:
+  --expect <file>      JSON or template-subset YAML AC/Test Matrix file.
+  --run <file>         Run result JSON written by run --output / run --json.
+  --format <name>      Output format: text (default), markdown, or json.
+  --json               Alias for --format json.
+  --strict             Exit non-zero when any AC is FAIL or UNVERIFIED.
+
 Examples:
   ai-check-template init --target . --profile react-nextjs --review-templates --yes
   ai-check-template init --target . --profile react-nextjs+supabase-rls --ci reusable --dry-run
   ai-check-template doctor --target . --ci direct --json
   ai-check-template update --target . --ci direct --dry-run
   ai-check-template run --target . --script ai:check --json
-  ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json`;
+  ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
+  ai-check-template report --expect docs/ac-test-matrix.json --run .ai-check/run-result.json --strict`;
 
 export async function main(argv = process.argv.slice(2), io = {}) {
   const args = [...argv];
@@ -111,6 +122,11 @@ export async function main(argv = process.argv.slice(2), io = {}) {
 
   if (command === "expect") {
     await runExpect(args, io);
+    return;
+  }
+
+  if (command === "report") {
+    await runReport(args, io);
     return;
   }
 

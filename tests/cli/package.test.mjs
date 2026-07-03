@@ -90,6 +90,9 @@ test("npm pack dry-run includes runtime files and excludes repository-only files
     "src/cli/utils.mjs",
     "docs/cli.md",
     "package-templates/package.scripts.fragment.json",
+    // SPEC-0059 AC-09: report コマンドと run 結果 schema は pack に含まれる
+    "src/cli/report.mjs",
+    "package-templates/docs/run-result.schema.json",
     "package-templates/docs/ac-test-matrix.schema.json",
     "package-templates/docs/ac-test-matrix.example.json",
     "package-templates/docs/ac-test-matrix.example.yaml",

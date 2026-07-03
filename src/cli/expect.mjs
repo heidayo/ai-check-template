@@ -70,7 +70,8 @@ function readFlagValue(argv, index, flagName) {
   return value;
 }
 
-async function validateExpectationFile(filePath) {
+// FR-02 (SPEC-0059): report also consumes this validation, so it is exported.
+export async function validateExpectationFile(filePath) {
   if (!(await pathExists(filePath))) {
     throw new CliError(`Expectation file does not exist: ${filePath}`);
   }
@@ -88,7 +89,9 @@ async function validateExpectationFile(filePath) {
   };
 }
 
-function parseExpectationContent(content, extension) {
+// FR-02 (SPEC-0059): exported so report can reuse the same parse step and
+// also access the parsed value (validateExpectationFile only returns issues).
+export function parseExpectationContent(content, extension) {
   try {
     if (extension === ".json") {
       return { value: JSON.parse(content), issues: [] };
@@ -103,7 +106,8 @@ function parseExpectationContent(content, extension) {
   return { value: null, issues: [issue("unsupported-extension", "Expected .json, .yaml, or .yml")] };
 }
 
-function validateExpectation(value) {
+// FR-02 (SPEC-0059): exported for reuse by report.
+export function validateExpectation(value) {
   const issues = [];
   const requirement = value?.requirement;
   if (!requirement || typeof requirement !== "object") {
@@ -133,6 +137,10 @@ function validateExpectation(value) {
     requireString(criterion, "id", pathLabel, issues);
     requireString(criterion, "criterion", pathLabel, issues);
     requireString(criterion, "command", pathLabel, issues);
+    // FR-08 (SPEC-0059): step is optional; when present it must be a non-empty string.
+    if (criterion?.step !== undefined && (typeof criterion.step !== "string" || criterion.step.trim().length === 0)) {
+      issues.push(issue("invalid-step", `${pathLabel}.step must be a non-empty string when present`));
+    }
     if (criterion?.id) {
       if (acIds.has(criterion.id)) {
         issues.push(issue("duplicate-ac", `Duplicate AC id: ${criterion.id}`));

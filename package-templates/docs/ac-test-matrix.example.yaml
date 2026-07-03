@@ -15,6 +15,7 @@ acceptanceCriteria:
     criterion: The full quality gate passes before PR review
     command: pnpm ai:check
     layer: full gate
+    step: unit
 testMatrix:
   - id: T-001
     ac: AC-01

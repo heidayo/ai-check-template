@@ -27,7 +27,8 @@
           "id": { "type": "string", "pattern": "^AC-[0-9]{2,}$" },
           "criterion": { "type": "string", "minLength": 1 },
           "command": { "type": "string", "minLength": 1 },
-          "layer": { "type": "string" }
+          "layer": { "type": "string" },
+          "step": { "type": "string", "minLength": 1 }
         }
       }
     },
