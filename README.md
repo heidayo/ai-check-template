@@ -111,6 +111,24 @@ npx -y ai-check-template update --target . --dry-run
 
 `update` は各 managed ファイルを「インストール時の baseline hash / ローカル内容 / 最新テンプレート」の 3-way で判定します。未改変ファイルだけを更新し、ローカルで改変したファイルはデフォルトで保持します（`skip-modified`）。差分の確認は `--diff`、テンプレートでの上書きは `--force-managed`（上書き前に `<file>.bak-<version>` バックアップを作成。`.gitignore` への `*.bak-*` 追加を推奨）。復元は `.bak-<version>` ファイルを元のパスに戻すだけです。以前の「常に上書き」挙動が必要な場合は `npx -y ai-check-template@0.4.0` のように前バージョンに pin 留めしてください。詳細は [`docs/cli.md`](./docs/cli.md)。
 
+### Local overlay / カスタマイズは overlay へ
+
+managed ファイル（`scripts/ai-check*.sh` や `.claude/rules/test-rules.md` 等）を直接編集すると `skip-modified` となり update の自動追従から外れます。プロジェクト固有のカスタマイズは、installer（init / update / doctor）が絶対に触らない **overlay** に書いてください（overlay = 一次手段、skip-modified = 直接編集してしまった場合の安全網）。
+
+- `scripts/ai-check.local.sh`: 存在すれば配布 scripts 3 本が PM 委譲前に `source` する（置かなければ挙動は従来どおり）。実行権限は不要で、構文エラー等の失敗は scripts の非 0 終了として伝播します
+
+  ```bash
+  # scripts/ai-check.local.sh の例（コミットして使う。配布はされない）
+  PM=npm                                       # package manager の上書き
+  echo "[local] project-specific pre-check"    # 追加チェック
+  ```
+
+- `.claude/rules/local/`: プロジェクト固有ルールの置き場。`init --claude-hooks` が案内 README を一度だけ置き、以後は完全にユーザー領域
+
+注意: `ai-check.local.sh` はコミット内容がそのまま実行されます（任意コード実行）。secret / token / API key は直書きせず env var / secret manager 経由で渡してください。
+
+既に managed ファイルを直接編集済みの場合の移行手順: `update --diff` で差分確認 → 改変内容を `ai-check.local.sh` へ移動 → `update --yes --force-managed` で scripts を新テンプレートへ戻す（`.bak-<version>` バックアップが作成されるためロールバック可能）。詳細は [`docs/cli.md`](./docs/cli.md) の「Local overlay」を参照。
+
 導入後は target project 側の script を走らせます。
 
 ```bash

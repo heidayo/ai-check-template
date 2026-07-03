@@ -54,6 +54,7 @@ node ../ai-check-template/bin/ai-check-template.mjs expect --file docs/ai-check-
 | `--dry-run` | off | Prints planned operations without writing files. |
 | `--yes` | off | Confirms non-interactive writes. Required unless `--dry-run` is used. |
 | `--overwrite` | off | Replaces conflicting files or scripts. Without this flag, conflicts are skipped. |
+| `--json` | off | Prints machine-readable JSON output including the `operations` list. |
 
 ## Doctor options
 
@@ -271,6 +272,7 @@ These defaults are intentionally conservative:
 - Copies `package-templates/scripts/ai-check.sh`, `ai-check-fast.sh`, and `ai-check-secure.sh`
 - Writes package-manager-aware GitHub Actions workflows for the selected `--ci` mode
 - Optionally copies Claude Code rules and merges package-manager-aware hook settings when `--claude-hooks` is set
+- Optionally seeds `.claude/rules/local/README.md` (overlay guidance) once when `--claude-hooks` is set; an existing README is skipped and never overwritten
 - Optionally copies the Review gate PR template and AI code understanding worksheet when `--review-templates` is set
 - Writes `.ai-check-template.json` with install metadata
 
@@ -346,6 +348,47 @@ mv scripts/ai-check.sh.bak-0.4.0 scripts/ai-check.sh
 ```
 
 After restoring, the next `update` reports the file as `skip-modified` again and keeps it. Backup files can contain project-specific content (including secrets embedded in customized scripts); add `*.bak-*` to `.gitignore` and do not commit them.
+
+## Local overlay (installer-untouched customization)
+
+Instead of editing managed files directly — which turns them into `skip-modified` and drops them out of automatic `update` tracking — put project-specific customization into the local overlay. The overlay is the first-choice mechanism; the 3-way `skip-modified` handling above is the safety net for files that were edited directly anyway.
+
+Two overlay locations exist, and the installer (`init` / `update` / `doctor`) never manages either of them: they are not in the managed file list, `update` never writes or deletes them, and `doctor` never reports drift for them.
+
+### `scripts/ai-check.local.sh`
+
+Each distributed script (`scripts/ai-check.sh`, `ai-check-fast.sh`, `ai-check-secure.sh`) sources `ai-check.local.sh` from its own directory (independent of the caller's cwd) before delegating to the package manager, when the file exists. Without the file, behavior is unchanged (opt-in).
+
+```bash
+# scripts/ai-check.local.sh — committed by you, never distributed or managed
+# Override the package manager (the source line runs after PM="${PM:-pnpm}")
+PM=npm
+
+# Add a project-specific pre-check
+echo "[local] running project-specific pre-check"
+```
+
+Notes:
+
+- The file is sourced under `set -euo pipefail`: syntax errors or failures make the script exit non-zero — they are never silently ignored.
+- No execute permission is needed; `source` only requires read access.
+- The committed content runs as-is (arbitrary code execution at the same trust level as `package.json` scripts). Do not hardcode secrets / tokens / API keys; pass them via environment variables or a secret manager.
+- There is one shared local file for all three scripts; branch on `$0` inside it if needed.
+
+### `.claude/rules/local/`
+
+Project-specific Claude Code rules go into `.claude/rules/local/` as separate files, instead of editing the distributed `.claude/rules/test-rules.md`. `init --claude-hooks` seeds a guidance `README.md` there once (reported as `create` in operations, `skip` when it already exists); after that the directory is entirely user territory.
+
+### Migrating existing customizations
+
+If you previously edited managed scripts directly (they show up as `modified-local` in `doctor` / `skip-modified` in `update`):
+
+1. Inspect your changes: `npx -y ai-check-template update --target . --diff`
+2. Move the custom parts into `scripts/ai-check.local.sh` (and rule additions into `.claude/rules/local/`)
+3. Restore the managed files to the current template: `npx -y ai-check-template update --target . --yes --force-managed` (a `<file>.bak-<version>` backup is written first)
+4. Verify with `doctor`: the scripts should report `ok` again, and future updates follow upstream automatically
+
+To roll back, restore the backup (`mv scripts/ai-check.sh.bak-<version> scripts/ai-check.sh`) or simply delete `ai-check.local.sh`; without it the scripts behave exactly as before.
 
 ## Safety behavior
 
