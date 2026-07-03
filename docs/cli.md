@@ -382,6 +382,31 @@ The manual `package-templates/package.scripts.fragment.json` remains a generic c
 
 `ai:check` and `ai:check:secure` are intentionally separate. Use `ai:check` for functional quality evidence and `ai:check:secure` for security-oriented evidence. The CLI does not install Semgrep, Secretlint, or organization-specific security tools; target projects own scanner availability and rule tuning.
 
+## Profile composition
+
+This section defines the profile composition rules. `--profile` accepts one base profile plus zero or more addon profiles, joined with `+` or `,` (the separators are equivalent):
+
+```bash
+--profile react-nextjs
+--profile react-nextjs+supabase-rls
+--profile react-nextjs,supabase-rls
+--profile base+addon1+addon2   # multiple addons, merged in declaration order
+```
+
+Grammar rules:
+
+- Exactly one base profile is required (`react-nextjs`, `react-vanilla`, `expo-rn`, or `node-cli`). Zero or two base profiles is an error.
+- Addons are optional. Currently available addon: `supabase-rls`.
+- Duplicate profile names and unknown profile names are rejected with an error before any target write.
+
+Merge rules (see "Profile-aware scripts" above for what each profile contributes):
+
+- Scripts are composed starting from the base profile, then each addon is merged in declaration order.
+- An addon's check steps (for `supabase-rls`: `test:db` and `test:integration:rls`) are appended to the end of `ai:check` with `&&`; steps already present are not appended twice.
+- If an addon defines a script key with the same name as the base profile or a preceding addon, the CLI fails with an error naming the conflicting key and profiles. Scripts are never silently overwritten. No current addon combination triggers this.
+- Addons do not contribute support scripts; support scripts come from the base profile plus the package-manager-specific security scripts only (see "Support script defaults" below).
+- Copied profile docs are the common docs, the base profile README, then addon READMEs in declaration order (see "Profile document migrations" below).
+
 ## Profile document migrations
 
 `init` and `update` copy profile guidance into the target project under `docs/ai-check-template/`.
