@@ -11,7 +11,8 @@ import { installStatePath, writeInstallState } from "./install-state.mjs";
 import { collectManagedFileHashes, getManagedFiles } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
-import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
+import { getProfileScripts, getProfileSupportScripts, splitGateScripts } from "./profile-scripts.mjs";
+import { resolveWorkspace } from "./workspace.mjs";
 import {
   CliError,
   copyFileSafe,
@@ -36,6 +37,9 @@ Options:
   --claude-hooks       Copy Claude hook rule and merge hook settings.
   --review-templates   Copy PR template and AI code understanding worksheet.
   --install-deps       Install missing dev dependencies for generated package scripts.
+  --workspace <pkg-dir> Target workspace package (relative path, single). Gate scripts
+                       (ai:check*) go to the workspace root package.json; step scripts go
+                       to the package. Cannot be combined with --install-deps.
   --dry-run            Print planned operations without writing files.
   --yes                Confirm non-interactive writes.
   --overwrite          Replace conflicting files/scripts.
@@ -59,11 +63,16 @@ export async function runInit(argv, io = {}) {
   const packageManager = options.explicit.packageManager
     ? options.packageManager
     : await detectPackageManager(targetDir);
-  const writeOptions = { ...options, packageManager };
-
   if (!(await pathExists(packageJsonPath))) {
     throw new CliError(`Target project must contain package.json: ${packageJsonPath}`);
   }
+
+  // SPEC-0061 PRE-01: all workspace validation (FR-02 / SEC-01 / SEC-02) is
+  // completed here, before any write is planned or performed.
+  const workspaceInfo = options.workspace
+    ? await resolveWorkspace(targetDir, options.workspace)
+    : null;
+  const writeOptions = { ...options, packageManager, workspaceInfo };
 
   const dependencyInstallPlan = writeOptions.installDeps
     ? await planDependencyInstall(packageJsonPath, profile, writeOptions.packageManager)
@@ -75,7 +84,7 @@ export async function runInit(argv, io = {}) {
 
   const operations = [];
 
-  await mergePackageScripts(packageJsonPath, profile, writeOptions, operations);
+  await mergePackageScripts(targetDir, packageJsonPath, profile, writeOptions, operations);
   await copyManagedFiles(targetDir, profile, writeOptions, operations);
 
   if (writeOptions.claudeHooks) {
@@ -95,6 +104,7 @@ export async function runInit(argv, io = {}) {
           target: targetDir,
           profile: profile.all.join("+"),
           packageManager: writeOptions.packageManager,
+          ...(workspaceInfo ? { workspace: workspaceInfo.dir } : {}),
           operations,
         },
         null,
@@ -108,6 +118,9 @@ export async function runInit(argv, io = {}) {
   writeLine(io.stdout, `target: ${targetDir}`);
   writeLine(io.stdout, `profile: ${profile.all.join("+")}`);
   writeLine(io.stdout, `package-manager: ${writeOptions.packageManager}`);
+  if (workspaceInfo) {
+    writeLine(io.stdout, `workspace: ${workspaceInfo.dir}`);
+  }
   for (const operation of operations) {
     writeLine(
       io.stdout,
@@ -130,6 +143,7 @@ function parseInitArgs(argv, cwd) {
     overwrite: false,
     json: false,
     help: false,
+    workspace: null,
     explicit: {
       packageManager: false,
     },
@@ -220,6 +234,16 @@ function parseInitArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--workspace=")) {
+      setWorkspaceOption(options, arg.slice("--workspace=".length));
+      continue;
+    }
+
+    if (arg === "--workspace") {
+      setWorkspaceOption(options, readFlagValue(argv, (index += 1), arg));
+      continue;
+    }
+
     throw new CliError(`Unknown init option: ${arg}\n\n${INIT_USAGE}`);
   }
 
@@ -227,7 +251,23 @@ function parseInitArgs(argv, cwd) {
     throw new CliError("--ci must be one of: direct, reusable, none");
   }
 
+  if (options.workspace && options.installDeps) {
+    throw new CliError(
+      "--workspace cannot be combined with --install-deps. "
+        + "Install dev dependencies in the workspace package manually or via your package manager, "
+        + "and use .ai-check.yaml to override run steps if needed.",
+    );
+  }
+
   return options;
+}
+
+// SPEC-0061 FR-01: --workspace accepts a single value only.
+function setWorkspaceOption(options, value) {
+  if (options.workspace !== null) {
+    throw new CliError("--workspace can only be specified once (single workspace support)");
+  }
+  options.workspace = value;
 }
 
 function readFlagValue(argv, index, flagName) {
@@ -250,11 +290,34 @@ async function normalizeTargetDir(target) {
   }
 }
 
-async function mergePackageScripts(packageJsonPath, profile, options, operations) {
+async function mergePackageScripts(targetDir, packageJsonPath, profile, options, operations) {
+  const expectedScripts = getProfileScripts(profile, {
+    packageManager: options.packageManager,
+    ...(options.workspaceInfo ? { workspace: options.workspaceInfo } : {}),
+  });
+  const supportScripts = getProfileSupportScripts(profile, { packageManager: options.packageManager });
+
+  if (!options.workspaceInfo) {
+    await mergeScriptsInto(packageJsonPath, expectedScripts, supportScripts, options, operations);
+    return;
+  }
+
+  // SPEC-0061 FR-03 / FR-04: gate scripts (ai:check*) go to the workspace root
+  // package.json; step scripts and support scripts go to the target package.
+  const { gate, step } = splitGateScripts(expectedScripts);
+  const packagePackageJsonPath = path.join(
+    targetDir,
+    ...options.workspaceInfo.dir.split("/"),
+    "package.json",
+  );
+
+  await mergeScriptsInto(packageJsonPath, gate, {}, options, operations);
+  await mergeScriptsInto(packagePackageJsonPath, step, supportScripts, options, operations);
+}
+
+async function mergeScriptsInto(packageJsonPath, expectedScripts, supportScripts, options, operations) {
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
-  const expectedScripts = getProfileScripts(profile, { packageManager: options.packageManager });
-  const supportScripts = getProfileSupportScripts(profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 
@@ -446,6 +509,8 @@ async function writeInitInstallState(targetDir, profile, options, operations) {
     targetDir,
     {
       ...managedFileOptions,
+      // SPEC-0061 FR-05: the workspace field is only present in workspace mode.
+      ...(options.workspaceInfo ? { workspace: options.workspaceInfo.dir } : {}),
       // Hash the files as written on disk so baselines stay truthful even for
       // files init skipped because they already existed (INV-02). Dry runs do
       // not read or record anything (INV-04).

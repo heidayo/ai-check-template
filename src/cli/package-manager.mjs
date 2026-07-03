@@ -54,6 +54,30 @@ export function scriptCommand(packageManager, scriptName) {
   return `${validated} ${scriptName}`;
 }
 
+// Workspace-scoped invocation per package manager (SPEC-0061 FR-03), verified
+// against the official docs on 2026-07-03:
+// - pnpm: `pnpm --filter <name> <script>` (pnpm.io/filtering)
+// - npm:  `npm run <script> --workspace <dir>` (docs.npmjs.com/cli/using-npm/workspaces)
+// - yarn: `yarn workspace <name> <script>` (yarnpkg.com/cli/workspace; classic v1 identical)
+// - bun:  `bun run --filter <name> <script>` (bun.sh/docs/cli/filter, supported since bun v1.1.4)
+export function workspaceScriptCommand(packageManager, workspace, scriptName) {
+  const validated = validatePackageManager(packageManager);
+
+  if (validated === "npm") {
+    return `npm run ${scriptName} --workspace ${workspace.dir}`;
+  }
+
+  if (validated === "yarn") {
+    return `yarn workspace ${workspace.name} ${scriptName}`;
+  }
+
+  if (validated === "bun") {
+    return `bun run --filter ${workspace.name} ${scriptName}`;
+  }
+
+  return `pnpm --filter ${workspace.name} ${scriptName}`;
+}
+
 async function packageManagerFromPackageJson(targetDir) {
   const packageJsonPath = path.join(targetDir, "package.json");
 

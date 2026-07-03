@@ -746,3 +746,144 @@ test("strict doctor も overlay ファイルの有無で結果が変わらない
   assert.equal(withLocal.status, 0, withLocal.stderr);
   assert.deepEqual(JSON.parse(withLocal.stdout), JSON.parse(withoutLocal.stdout));
 });
+
+// --- SPEC-0061 workspace mode ------------------------------------------------
+
+function createWorkspaceFixture(t) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-check-template-doctor-ws-"));
+  fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    `${JSON.stringify({ name: "root-fixture", private: true, scripts: {} }, null, 2)}\n`,
+  );
+  fs.mkdirSync(path.join(dir, "packages", "app"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "packages", "app", "package.json"),
+    `${JSON.stringify({ name: "@fixture/app", scripts: {} }, null, 2)}\n`,
+  );
+  t.after(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  return dir;
+}
+
+function initWorkspaceFixture(target) {
+  const result = runCli([
+    "init", "--target", target, "--workspace", "packages/app", "--profile", "react-nextjs", "--ci", "none", "--yes",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+}
+
+function doctorJson(target, args = []) {
+  const result = runCli(["doctor", "--target", target, "--json", ...args]);
+  return { result, output: JSON.parse(result.stdout) };
+}
+
+function editWorkspacePackageJson(target, mutate) {
+  const packageJsonPath = path.join(target, "packages", "app", "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  mutate(packageJson);
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
+// AC-04 / POST-01 / FR-06: doctor（フラグなし）は state 経由で workspace を認識して pass する
+test("doctor は state の workspace を認識して workspace モードで pass する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+
+  const { result, output } = doctorJson(target);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(output.status, "pass");
+  assert.equal(output.effectiveOptions.workspace, "packages/app");
+  assert.deepEqual(output.issues, []);
+});
+
+// AC-04 / FR-06: workspace 形 gate script の "--filter" を script 名と誤抽出した偽 warning を出さない
+test("doctor は workspace gate script の --filter を missing script と誤認しない", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+
+  const { result, output } = doctorJson(target, ["--strict"]);
+
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const serialized = JSON.stringify([...output.warnings, ...output.issues]);
+  assert.equal(serialized.includes("--filter"), false, serialized);
+  assert.equal(serialized.includes("@fixture/app"), false, serialized);
+});
+
+// AC-04 / FR-06: root gate script の drift を issue として検出する（path はルート package.json）
+test("doctor は root gate script の drift を workspace モードで検出する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  mergePackageScripts(target, { "ai:check": "echo drifted" });
+
+  const { result, output } = doctorJson(target);
+
+  assert.equal(result.status, 1);
+  assert.ok(
+    output.issues.some((entry) => entry.code === "drift" && entry.path === "package.json" && entry.message.includes("ai:check")),
+    JSON.stringify(output.issues),
+  );
+});
+
+// AC-04 / FR-04 / FR-06: 対象パッケージの step script 欠落を issue として検出する（path はパッケージ側）
+test("doctor は対象パッケージの missing step script を検出する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  editWorkspacePackageJson(target, (packageJson) => {
+    delete packageJson.scripts.typecheck;
+    delete packageJson.scripts.deadcode;
+  });
+
+  const { result, output } = doctorJson(target);
+
+  assert.equal(result.status, 1);
+  const missing = output.issues.filter((entry) => entry.code === "missing-script" && entry.path === "packages/app/package.json");
+  const names = missing.map((entry) => entry.message.replace("Missing package script: ", "")).sort();
+  assert.deepEqual(names, ["deadcode", "typecheck"]);
+});
+
+// AC-04 / AC-06 / 境界ケース1: パッケージ削除済み → invalid-workspace issue + exit 1
+test("doctor はパッケージ削除済み workspace を invalid-workspace issue にする", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  fs.rmSync(path.join(target, "packages", "app"), { recursive: true, force: true });
+
+  const { result, output } = doctorJson(target);
+
+  assert.equal(result.status, 1);
+  assert.ok(
+    output.issues.some((entry) => entry.code === "invalid-workspace" && entry.path === "packages/app"),
+    JSON.stringify(output.issues),
+  );
+});
+
+// AC-03 / 想定エラー5: state の workspace が不正（null）なら invalid-install-state issue + exit 1
+test("doctor は state の不正な workspace を invalid-install-state issue にする", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+  const statePath = path.join(target, ".ai-check-template.json");
+  const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  state.workspace = null;
+  fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
+
+  const { result, output } = doctorJson(target);
+
+  assert.equal(result.status, 1);
+  assert.ok(
+    output.issues.some((entry) => entry.code === "invalid-install-state"),
+    JSON.stringify(output.issues),
+  );
+});
+
+// FR-06 / PRE-02: 明示 --workspace は state より優先される（state なしの手動導入でも診断可能）
+test("doctor は明示 --workspace フラグで workspace モードを診断する", (t) => {
+  const target = createWorkspaceFixture(t);
+  initWorkspaceFixture(target);
+
+  const { result, output } = doctorJson(target, ["--workspace", "packages/app"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(output.effectiveOptions.workspace, "packages/app");
+});

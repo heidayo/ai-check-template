@@ -24,7 +24,8 @@ import {
 } from "./install-state.mjs";
 import { collectManagedFileHashes, getManagedFiles, hashContent } from "./managed-files.mjs";
 import { DEFAULT_PACKAGE_MANAGER, detectPackageManager, validatePackageManager } from "./package-manager.mjs";
-import { getProfileScripts, getProfileSupportScripts } from "./profile-scripts.mjs";
+import { getProfileScripts, getProfileSupportScripts, splitGateScripts } from "./profile-scripts.mjs";
+import { resolveWorkspace } from "./workspace.mjs";
 import {
   CliError,
   fromTemplates,
@@ -49,6 +50,8 @@ Options:
   --claude-hooks       Update Claude rule and hook settings.
   --review-templates   Update PR template and AI code understanding worksheet.
   --install-deps       Install missing dev dependencies for generated package scripts.
+  --workspace <pkg-dir> Target workspace package (relative path, single). Defaults to the
+                       install state. Cannot be combined with --install-deps.
   --keep-local         Keep locally modified managed files (explicit default behavior).
   --force-managed      Overwrite locally modified managed files. A <file>.bak-<version> backup is written first.
   --diff               Print unified diffs for locally modified managed files without writing, and exit non-zero if any.
@@ -81,6 +84,22 @@ export async function runUpdate(argv, io = {}) {
   const installState = await loadInstallState(targetDir);
   assertWritableInstallState(installState);
   const effectiveOptions = resolveEffectiveOptions(options, installState);
+
+  // SPEC-0061 FR-08: covers both the explicit flag and a state-recorded
+  // workspace — dependency installation targets the root package.json only.
+  if (effectiveOptions.workspace && options.installDeps) {
+    throw new CliError(
+      "--workspace cannot be combined with --install-deps. "
+        + "Install dev dependencies in the workspace package manually or via your package manager, "
+        + "and use .ai-check.yaml to override run steps if needed.",
+    );
+  }
+
+  // SPEC-0061 PRE-01: workspace validation (FR-02 / SEC-01 / SEC-02) completes
+  // before any write. A deleted workspace package fails here (境界ケース1).
+  const workspaceInfo = effectiveOptions.workspace
+    ? await resolveWorkspace(targetDir, effectiveOptions.workspace)
+    : null;
   const writeOptions = {
     ...options,
     // --diff is a read-only reporting mode: no files or state are written.
@@ -90,6 +109,7 @@ export async function runUpdate(argv, io = {}) {
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
     reviewTemplates: effectiveOptions.reviewTemplates,
+    workspaceInfo,
   };
   const dependencyInstallPlan = writeOptions.installDeps
     ? await planDependencyInstall(packageJsonPath, writeOptions.profile, writeOptions.packageManager)
@@ -185,12 +205,14 @@ function parseUpdateArgs(argv, cwd) {
     yes: false,
     json: false,
     help: false,
+    workspace: null,
     explicit: {
       profile: false,
       packageManager: false,
       ci: false,
       claudeHooks: false,
       reviewTemplates: false,
+      workspace: false,
     },
   };
 
@@ -295,6 +317,16 @@ function parseUpdateArgs(argv, cwd) {
       continue;
     }
 
+    if (arg.startsWith("--workspace=")) {
+      setWorkspaceOption(options, arg.slice("--workspace=".length));
+      continue;
+    }
+
+    if (arg === "--workspace") {
+      setWorkspaceOption(options, readFlagValue(argv, (index += 1), arg));
+      continue;
+    }
+
     throw new CliError(`Unknown update option: ${arg}\n\n${UPDATE_USAGE}`);
   }
 
@@ -309,6 +341,15 @@ function parseUpdateArgs(argv, cwd) {
   }
 
   return options;
+}
+
+// SPEC-0061 FR-01: --workspace accepts a single value only.
+function setWorkspaceOption(options, value) {
+  if (options.workspace !== null) {
+    throw new CliError("--workspace can only be specified once (single workspace support)");
+  }
+  options.workspace = value;
+  options.explicit.workspace = true;
 }
 
 function readFlagValue(argv, index, flagName) {
@@ -332,16 +373,35 @@ async function normalizeTargetDir(target) {
 }
 
 async function updatePackageScripts(targetDir, packageJsonPath, options, operations) {
+  const expectedScripts = getProfileScripts(options.profile, {
+    packageManager: options.packageManager,
+    ...(options.workspaceInfo ? { workspace: options.workspaceInfo } : {}),
+  });
+  const supportScripts = getProfileSupportScripts(options.profile, { packageManager: options.packageManager });
+
+  if (!options.workspaceInfo) {
+    await updateScriptsIn(packageJsonPath, "package.json", expectedScripts, supportScripts, options, operations);
+    return;
+  }
+
+  // SPEC-0061 FR-03 / FR-04 / POST-02: same placement rule as init — gate
+  // scripts to the workspace root, step + support scripts to the package.
+  const { gate, step } = splitGateScripts(expectedScripts);
+  const packageRelativePath = `${options.workspaceInfo.dir}/package.json`;
+  const packagePackageJsonPath = path.join(targetDir, ...options.workspaceInfo.dir.split("/"), "package.json");
+
+  await updateScriptsIn(packageJsonPath, "package.json", gate, {}, options, operations);
+  await updateScriptsIn(packagePackageJsonPath, packageRelativePath, step, supportScripts, options, operations);
+}
+
+async function updateScriptsIn(packageJsonPath, relativePath, expectedScripts, supportScripts, options, operations) {
   const packageJson = await readJson(packageJsonPath);
   const existingScripts = packageJson.scripts ?? {};
-  const expectedScripts = getProfileScripts(options.profile, { packageManager: options.packageManager });
-  const supportScripts = getProfileSupportScripts(options.profile, { packageManager: options.packageManager });
   const nextScripts = { ...existingScripts };
   let changed = false;
 
   for (const [name, expected] of Object.entries(expectedScripts)) {
     const current = existingScripts[name];
-    const relativePath = "package.json";
 
     if (current === expected) {
       operations.push(operation("keep", relativePath, `script ${name}`));
@@ -361,7 +421,6 @@ async function updatePackageScripts(targetDir, packageJsonPath, options, operati
 
   for (const [name, expected] of Object.entries(supportScripts)) {
     const current = nextScripts[name];
-    const relativePath = "package.json";
 
     if (current) {
       operations.push(operation("keep", relativePath, `support script ${name}`));
@@ -555,6 +614,8 @@ async function updateInstallState(targetDir, effectiveOptions, options, operatio
       ci: effectiveOptions.ci,
       claudeHooks: effectiveOptions.claudeHooks,
       reviewTemplates: effectiveOptions.reviewTemplates,
+      // SPEC-0061 POST-02: the workspace field is preserved across updates.
+      ...(options.workspaceInfo ? { workspace: options.workspaceInfo.dir } : {}),
       // Record baselines from the on-disk content after all writes so kept
       // files (e.g. local == upstream) get their hash refreshed too (INV-02).
       // Dry runs do not read or record anything (INV-04).
@@ -664,6 +725,9 @@ function writeHumanOutput(stream, output) {
   writeLine(stream, `install-state: ${output.installation.source}`);
   writeLine(stream, `profile: ${output.effectiveOptions.profile}`);
   writeLine(stream, `package-manager: ${output.effectiveOptions.packageManager}`);
+  if (output.effectiveOptions.workspace) {
+    writeLine(stream, `workspace: ${output.effectiveOptions.workspace}`);
+  }
   writeLine(stream, `ci: ${output.effectiveOptions.ci}`);
   writeLine(stream, `claude-hooks: ${output.effectiveOptions.claudeHooks}`);
   writeLine(stream, `review-templates: ${output.effectiveOptions.reviewTemplates}`);

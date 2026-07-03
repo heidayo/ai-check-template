@@ -1,5 +1,5 @@
 import { parseProfiles } from "./profile.mjs";
-import { DEFAULT_PACKAGE_MANAGER, scriptCommand } from "./package-manager.mjs";
+import { DEFAULT_PACKAGE_MANAGER, scriptCommand, workspaceScriptCommand } from "./package-manager.mjs";
 import { CliError } from "./utils.mjs";
 
 const SECURITY_CHECK_STEPS = [
@@ -72,19 +72,71 @@ const BASE_PROFILE_SUPPORT_SCRIPTS = {
   "node-cli": COMMON_SUPPORT_SCRIPTS,
 };
 
+// Gate scripts live in the workspace root package.json in workspace mode;
+// everything else goes to the target package (SPEC-0061 FR-04). This is the
+// single definition of the gate/step split shared by init / update / doctor.
+export const GATE_SCRIPT_NAMES = ["ai:check", "ai:check:fast", "ai:check:secure"];
+
+export function splitGateScripts(scripts) {
+  const gate = {};
+  const step = {};
+
+  for (const [name, command] of Object.entries(scripts)) {
+    (GATE_SCRIPT_NAMES.includes(name) ? gate : step)[name] = command;
+  }
+
+  return { gate, step };
+}
+
 export function getProfileScripts(input = "react-nextjs", options = {}) {
   const profile = typeof input === "string" ? parseProfiles(input) : input;
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER;
+  const workspace = options.workspace ?? null;
   const scripts = { ...BASE_PROFILE_SCRIPTS[profile.base] };
 
   for (const addon of profile.addons) {
     mergeAddonScripts(scripts, ADDON_PROFILE_SCRIPTS[addon] ?? {}, { base: profile.base, addon });
     for (const step of ADDON_CHECK_STEPS[addon] ?? []) {
-      scripts["ai:check"] = appendScriptStep(scripts["ai:check"], scriptCommand(packageManager, step));
+      // In workspace mode addon steps stay in the canonical `pnpm <step>` form
+      // so the gate renderer below builds every step from its name in one pass
+      // (SPEC-0061 FR-03: no double regex substitution).
+      scripts["ai:check"] = appendScriptStep(
+        scripts["ai:check"],
+        workspace ? scriptCommand(DEFAULT_PACKAGE_MANAGER, step) : scriptCommand(packageManager, step),
+      );
     }
   }
 
-  return renderPackageManagerScripts(scripts, packageManager);
+  if (!workspace) {
+    return renderPackageManagerScripts(scripts, packageManager);
+  }
+
+  // Workspace rendering changes only the gate step invocations; the step set,
+  // order, and every non-gate script are identical to single-package mode
+  // (SPEC-0061 INV-03 — the SPEC-0060 composition contract is preserved).
+  return Object.fromEntries(
+    Object.entries(scripts).map(([name, command]) => [
+      name,
+      GATE_SCRIPT_NAMES.includes(name)
+        ? renderWorkspaceGateScript(command, packageManager, workspace)
+        : renderScriptCommand(command, packageManager),
+    ]),
+  );
+}
+
+// Rebuilds each `pnpm <step>` part of a gate script directly via
+// workspaceScriptCommand instead of layering regex substitutions (FR-03).
+function renderWorkspaceGateScript(command, packageManager, workspace) {
+  return command
+    .split(" && ")
+    .map((part) => {
+      const match = /^pnpm ([a-zA-Z0-9:_-]+)$/.exec(part.trim());
+      if (!match) {
+        throw new CliError(`Gate script step is not in canonical form: ${part.trim()}`);
+      }
+      return workspaceScriptCommand(packageManager, workspace, match[1]);
+    })
+    .join(" && ");
 }
 
 export function getProfileSupportScripts(input = "react-nextjs", options = {}) {

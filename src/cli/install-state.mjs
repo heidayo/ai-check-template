@@ -1,6 +1,7 @@
 import path from "node:path";
 import { DEFAULT_PACKAGE_MANAGER, validatePackageManager } from "./package-manager.mjs";
 import { parseProfiles } from "./profile.mjs";
+import { isValidWorkspaceStatePath } from "./workspace.mjs";
 import {
   CliError,
   pathExists,
@@ -29,10 +30,17 @@ export async function buildInstallState({
   reviewTemplates,
   packageManager = DEFAULT_PACKAGE_MANAGER,
   managedFiles = {},
+  workspace = null,
 }) {
   const packageJson = await readJson(path.join(repoRoot, "package.json"));
   const parsedProfile = normalizeProfile(profile);
   const normalizedPackageManager = validatePackageManager(packageManager);
+
+  // SPEC-0061 FR-05 / INV-05: the workspace field is either present and valid
+  // or absent entirely — null/empty values are never written.
+  if (workspace !== null && !isValidWorkspaceStatePath(workspace)) {
+    throw new CliError(`Install state workspace must be a relative path without ".." segments: ${String(workspace)}`);
+  }
 
   return {
     schemaVersion: INSTALL_STATE_SCHEMA_VERSION,
@@ -40,6 +48,7 @@ export async function buildInstallState({
     packageVersion: packageJson.version ?? "0.0.0",
     profile: serializeProfile(parsedProfile),
     packageManager: normalizedPackageManager,
+    ...(workspace !== null ? { workspace } : {}),
     ci,
     claudeHooks: Boolean(claudeHooks),
     reviewTemplates: Boolean(reviewTemplates),
@@ -91,6 +100,10 @@ export function resolveEffectiveOptions(options, installState) {
     reviewTemplates: options.explicit.reviewTemplates
       ? options.reviewTemplates
       : state?.reviewTemplates ?? options.reviewTemplates,
+    // SPEC-0061 FR-06 / PRE-02: explicit --workspace > install state > null.
+    workspace: options.explicit.workspace
+      ? options.workspace
+      : state?.workspace ?? null,
   };
 }
 
@@ -119,6 +132,8 @@ export function installationSummary(installState) {
       packageVersion: installState.state.packageVersion,
       profile: installState.state.profile,
       packageManager: installState.state.packageManager,
+      // Additive key (SPEC-0061): present only when the state records one.
+      ...(installState.state.workspace !== undefined ? { workspace: installState.state.workspace } : {}),
       ci: installState.state.ci,
       claudeHooks: installState.state.claudeHooks,
       reviewTemplates: installState.state.reviewTemplates,
@@ -140,6 +155,8 @@ export function effectiveOptionsSummary(effectiveOptions) {
     profile: effectiveOptions.profile.all.join("+"),
     profiles: serializeProfile(effectiveOptions.profile),
     packageManager: effectiveOptions.packageManager,
+    // Additive key (SPEC-0061): present only in workspace mode.
+    ...(effectiveOptions.workspace ? { workspace: effectiveOptions.workspace } : {}),
     ci: effectiveOptions.ci,
     claudeHooks: effectiveOptions.claudeHooks,
     reviewTemplates: effectiveOptions.reviewTemplates,
@@ -211,6 +228,15 @@ function validateInstallState(state) {
     return invalidState("invalid-install-state", "Install state claudeHooks must be a boolean");
   }
 
+  // SPEC-0061 FR-05: workspace is optional and validated only when present.
+  // A missing key means single-package mode; null/empty are never valid (INV-05).
+  if (state.workspace !== undefined && !isValidWorkspaceStatePath(state.workspace)) {
+    return invalidState(
+      "invalid-install-state",
+      `Install state workspace must be a relative path without ".." segments: ${String(state.workspace)}`,
+    );
+  }
+
   const reviewTemplates = state.reviewTemplates === undefined ? false : state.reviewTemplates;
   if (typeof reviewTemplates !== "boolean") {
     return invalidState("invalid-install-state", "Install state reviewTemplates must be a boolean");
@@ -233,6 +259,7 @@ function validateInstallState(state) {
       packageVersion: state.packageVersion,
       profile: serializeProfile(profile),
       packageManager,
+      ...(state.workspace !== undefined ? { workspace: state.workspace } : {}),
       ci: state.ci,
       claudeHooks: state.claudeHooks,
       reviewTemplates,
