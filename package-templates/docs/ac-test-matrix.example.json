@@ -21,7 +21,8 @@
       "id": "AC-03",
       "criterion": "The full quality gate passes before PR review",
       "command": "pnpm ai:check",
-      "layer": "full gate"
+      "layer": "full gate",
+      "step": "unit"
     }
   ],
   "testMatrix": [
