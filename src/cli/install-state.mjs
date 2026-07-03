@@ -23,6 +23,13 @@ const MANAGED_FILE_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
 // smuggle metacharacters back in.
 const CUSTOM_PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+// SPEC-0065 FR-07 (F1): the `--profile custom:<name>` form is not a built-in
+// profile; resolveEffectiveOptions must not route it through parseProfiles. In
+// custom mode it records the same inert built-in placeholder init uses
+// (writeInitInstallState), leaving the real profile to the caller's custom
+// resolution path (resolveDoctorCustomProfile / resolveUpdateCustomProfile).
+const CUSTOM_PROFILE_PLACEHOLDER = "react-nextjs";
+
 const PACKAGE_NAME = "ai-check-template";
 const VALID_CI_MODES = new Set(["direct", "reusable", "none"]);
 
@@ -98,10 +105,6 @@ export async function loadInstallState(targetDir) {
 export function resolveEffectiveOptions(options, installState) {
   const state = installState?.source === "state" ? installState.state : null;
   const stateProfile = state ? serializeProfile(state.profile) : null;
-  const profileInput = options.explicit.profile
-    ? options.profile
-    : stateProfile ?? parseProfiles(options.profile);
-  const profile = normalizeProfile(profileInput);
 
   // SPEC-0065 FR-07 / PRE-02: explicit --profile-file > state customProfile > null.
   // When --profile-file is passed the caller (init/update/doctor) loads the
@@ -111,6 +114,23 @@ export function resolveEffectiveOptions(options, installState) {
   const customProfile = explicitProfileFile !== null
     ? null
     : state?.customProfile ?? null;
+
+  // SPEC-0065 FR-07 (F1): in custom mode the required profile field carries an
+  // inert built-in placeholder — the same react-nextjs stand-in init records
+  // (writeInitInstallState). A `--profile custom:<name>` value is NOT a
+  // parseProfiles-valid built-in, so feeding it to normalizeProfile below would
+  // throw before the caller's custom resolution (resolveDoctorCustomProfile /
+  // resolveUpdateCustomProfile) runs. Custom mode requires an actual definition
+  // source: an explicit --profile-file or a state-recorded customProfile. A bare
+  // custom:<name> with no definition file stays an error (parseProfiles rejects
+  // it), matching pre-F1 behavior.
+  const customMode = explicitProfileFile !== null || customProfile !== null;
+  const profileInput = customMode
+    ? CUSTOM_PROFILE_PLACEHOLDER
+    : options.explicit.profile
+      ? options.profile
+      : stateProfile ?? parseProfiles(options.profile);
+  const profile = normalizeProfile(profileInput);
 
   return {
     profile,
