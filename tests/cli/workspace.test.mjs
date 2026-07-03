@@ -171,6 +171,33 @@ test("resolveWorkspace は '.' を CliError にする", async (t) => {
   await assertCliError(resolveWorkspace(dir, "."), /drop --workspace/);
 });
 
+// --- resolveWorkspace: SEC-02 / SEC-WS-01 先頭ダッシュ拒否 --------------------
+
+// SEC-02 / SEC-WS-01: 対象パッケージ name が "-" 始まりだと `pnpm --filter <name>`
+// でフラグ誤認されるため、埋め込み前に拒否する
+test("resolveWorkspace は '-' 始まりの package name を CliError にする", async (t) => {
+  for (const badName of ["--evil", "-x"]) {
+    const dir = createWorkspaceFixture(t, { packageName: badName });
+    await assertCliError(resolveWorkspace(dir, "packages/app"), /must not start with "-"/);
+  }
+});
+
+// SEC-02 / SEC-WS-01: 正当な @scope/pkg 名（先頭は "@"）は先頭ダッシュ拒否に
+// 巻き込まれず成功し続ける明示ケース
+test("resolveWorkspace は正当な @scope/pkg 名を成功させ続ける", async (t) => {
+  const dir = createWorkspaceFixture(t, { packageName: "@scope/pkg" });
+  assert.deepEqual(await resolveWorkspace(dir, "packages/app"), { dir: "packages/app", name: "@scope/pkg" });
+});
+
+// SEC-WS-01: pkg-dir のセグメントが "-" 始まりだと `--filter <dir>` でフラグ
+// 誤認されるため、normalizeWorkspaceDir（resolveWorkspace 経由）で拒否する
+test("resolveWorkspace は '-' 始まりの pkg-dir セグメントを CliError にする", async (t) => {
+  const dir = createWorkspaceFixture(t);
+  for (const pkgDir of ["-x/app", "packages/-hidden"]) {
+    await assertCliError(resolveWorkspace(dir, pkgDir), /must not start with "-"/);
+  }
+});
+
 // FR-05: dir は "/" 区切りに正規化される（冗長セグメントの除去）
 test("resolveWorkspace は ./packages//app/ を packages/app に正規化する", async (t) => {
   const dir = createWorkspaceFixture(t);
@@ -183,7 +210,7 @@ test("resolveWorkspace は ./packages//app/ を packages/app に正規化する"
 // - pnpm: `pnpm --filter <name> <script>` (pnpm.io/filtering)
 // - npm:  `npm run <script> --workspace <dir>` (docs.npmjs.com/cli/using-npm/workspaces)
 // - yarn: `yarn workspace <name> <script>` (yarnpkg.com/cli/workspace)
-// - bun:  `bun run --filter <name> <script>` — --filter は Bun v1.1 以降でサポート
+// - bun:  `bun run --filter <name> <script>` — --filter は bun v1.1.4 以降でサポート
 //   (bun.sh/docs/cli/filter)。それ以前の bun では動作しない点をここに記録する（AC-02）。
 
 const WORKSPACE = { dir: "packages/app", name: "@fixture/app" };
@@ -203,7 +230,7 @@ test("workspaceScriptCommand は yarn で workspace <name> <step> 形を返す",
   assert.equal(workspaceScriptCommand("yarn", WORKSPACE, "typecheck"), "yarn workspace @fixture/app typecheck");
 });
 
-// AC-02 / FR-03: bun invocation（Bun v1.1+ の --filter、上記コメント参照）
+// AC-02 / FR-03: bun invocation（bun v1.1.4+ の --filter、上記コメント参照）
 test("workspaceScriptCommand は bun で run --filter <name> <step> 形を返す", () => {
   assert.equal(workspaceScriptCommand("bun", WORKSPACE, "typecheck"), "bun run --filter @fixture/app typecheck");
 });
@@ -221,6 +248,45 @@ test("isValidWorkspaceStatePath は相対パスのみ valid にする", () => {
   assert.equal(isValidWorkspaceStatePath("/abs/path"), false);
   assert.equal(isValidWorkspaceStatePath("packages/../outside"), false);
   assert.equal(isValidWorkspaceStatePath("packages/a b"), false);
+});
+
+// BC-06: isValidWorkspaceStatePath の受理集合。"." / "./"（target 自身）と
+// "-x/app"（先頭ダッシュ）/ "packages/../outside"（traversal）は false、
+// "packages/app" / "app" は true
+test("isValidWorkspaceStatePath は '.' '-x/app' 'traversal' を false、'packages/app' 'app' を true にする", () => {
+  assert.equal(isValidWorkspaceStatePath("."), false);
+  assert.equal(isValidWorkspaceStatePath("./"), false);
+  assert.equal(isValidWorkspaceStatePath("-x/app"), false);
+  assert.equal(isValidWorkspaceStatePath("packages/../outside"), false);
+  assert.equal(isValidWorkspaceStatePath("packages/app"), true);
+  assert.equal(isValidWorkspaceStatePath("app"), true);
+});
+
+// BC-06: normalizeWorkspaceDir と isValidWorkspaceStatePath は同一の受理集合を
+// 共有する（isAcceptableWorkspacePath）。代表入力で「両者の判定が揃う」ことを
+// 確認する。normalizeWorkspaceDir は非公開なので、resolveWorkspace 経由で
+// pkg-dir 検証段階の受理/拒否が isValidWorkspaceStatePath と一致することを見る。
+// resolveWorkspace は受理後さらに FS 存在チェックへ進むため、拒否側は必ず
+// CliError、受理側は「pkg-dir 検証を通過して FS 段階のエラーになる（= 受理集合
+// では拒否されない）」ことで一致を確認する。
+test("BC-06: resolveWorkspace の pkg-dir 検証と isValidWorkspaceStatePath の判定が代表入力で揃う", async (t) => {
+  const dir = createWorkspaceFixture(t);
+
+  // 拒否される入力: isValidWorkspaceStatePath=false かつ resolveWorkspace=CliError
+  for (const rejected of [".", "./", "-x/app", "packages/../outside"]) {
+    assert.equal(isValidWorkspaceStatePath(rejected), false, `${rejected} は state path として invalid のはず`);
+    await assertCliError(resolveWorkspace(dir, rejected));
+  }
+
+  // 受理される入力: isValidWorkspaceStatePath=true。pkg-dir 検証を通過するので
+  // resolveWorkspace は受理集合では拒否せず、FS 存在チェック段階まで到達する
+  // （"packages/app" は fixture に存在するので成功、"app" は不在で "does not
+  // exist" になる = 受理集合ではねられていない証拠）。
+  assert.equal(isValidWorkspaceStatePath("packages/app"), true);
+  assert.deepEqual(await resolveWorkspace(dir, "packages/app"), { dir: "packages/app", name: "@fixture/app" });
+
+  assert.equal(isValidWorkspaceStatePath("app"), true);
+  await assertCliError(resolveWorkspace(dir, "app"), /does not exist/);
 });
 
 // --- install state round-trip: AC-03 / FR-05 / 想定エラー5 --------------------
