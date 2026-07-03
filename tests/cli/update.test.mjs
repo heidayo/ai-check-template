@@ -1191,3 +1191,102 @@ test("update は workspace state と --install-deps の併用を CliError にす
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /--workspace cannot be combined with --install-deps/);
 });
+
+// --- SPEC-0062: CI テンプレ（managed file）の 3-way 後方互換 ------------------
+// 期待値は SPEC-0062 FR-06 / FR-07 / POST-01 / POST-02 / AC-05 / AC-06 と
+// SPEC-0056 の 3-way 経路から導出する（AP-07 対策）。CI テンプレは managed file であり、
+// SARIF / paths / matrix のコメント雛形追加で hash が変わる。未改変 = auto-follow /
+// 改変済み = skip-modified の 2 系列を CI file について固定する（既存の scripts 版と同一パターン）。
+
+// 旧テンプレート（本 SPEC 適用前）を模擬: 現行 CI テンプレから opt-in コメント
+// ブロック（`# --- ...(opt-in) ---` 以降）を取り除いた内容。active 構造は共通。
+function stripOptInComments(content) {
+  const marker = content.indexOf("\n# --- ");
+  assert.notEqual(marker, -1, "opt-in コメント区切りが見つからない");
+  return `${content.slice(0, marker)}\n`;
+}
+
+// AC-05 / FR-06 / POST-01: 未改変（local == baseline）の CI テンプレは
+// 新 upstream（コメント雛形入り）へ auto-follow する（コメントが増えるだけ）
+test("未改変の CI テンプレは update で新テンプレ（SARIF/paths/matrix コメント入り）へ auto-follow する", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+
+  // 現行テンプレ（新 upstream）を読み、opt-in コメントを剥がした旧内容を disk に書く
+  const workflowPath = path.join(target, ".github", "workflows", "ai-check.yml");
+  const upstream = fs.readFileSync(workflowPath, "utf8");
+  const oldContent = stripOptInComments(upstream);
+  assert.doesNotMatch(oldContent, /semgrep scan --sarif/, "旧内容には SARIF 雛形がない前提");
+  assert.notEqual(oldContent, upstream, "旧内容と新 upstream が異なる前提");
+  fs.writeFileSync(workflowPath, oldContent);
+
+  // baseline を旧内容の hash に書き換え（local == baseline かつ != upstream）
+  const state = readInstallState(target);
+  state.managedFiles[".github/workflows/ai-check.yml"] = {
+    hash: `sha256:${createHash("sha256").update(oldContent).digest("hex")}`,
+  };
+  writeInstallState(target, state);
+
+  const result = runCli(["update", "--target", target, "--ci", "direct", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  // POST-01: local == baseline は upstream へ自動更新される
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "update" && operation.path === ".github/workflows/ai-check.yml",
+  ), true);
+  // auto-follow 後は SARIF コメント雛形を含む新 upstream になっている
+  const after = fs.readFileSync(workflowPath, "utf8");
+  assert.equal(after, upstream);
+  assert.match(after, /semgrep scan --sarif/);
+});
+
+// AC-06 / FR-07 / POST-02: 改変済み（local != baseline かつ local != 新 upstream）は
+// skip-modified で保護され、--force-managed 指定時のみ .bak-<version> 書き込み後に上書き
+test("改変済みの CI テンプレは update で skip-modified となり既存改変が保護される", (t) => {
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+  const workflowPath = path.join(target, ".github", "workflows", "ai-check.yml");
+  const baselineHash = readInstallState(target).managedFiles[".github/workflows/ai-check.yml"].hash;
+  fs.writeFileSync(workflowPath, "name: my custom ci\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "direct", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  // POST-02: skip-modified で既存改変を保護する
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "skip-modified" && operation.path === ".github/workflows/ai-check.yml",
+  ), true);
+  assert.equal(fs.readFileSync(workflowPath, "utf8"), "name: my custom ci\n");
+  // 改変ファイルの baseline hash は維持され、次回 update でも改変扱いになる（INV-01）
+  assert.equal(
+    readInstallState(target).managedFiles[".github/workflows/ai-check.yml"].hash,
+    baselineHash,
+  );
+});
+
+test("--force-managed は改変済み CI テンプレを .bak-<version> 生成後に上書きする", (t) => {
+  // AC-06 / FR-07 / POST-02: overwrite-forced 分岐。上書き前内容が
+  // ai-check.yml.bak-<packageVersion> として保存され、本体は新 upstream になる
+  const target = createFixture(t);
+  initFixture(target, ["--ci", "direct"]);
+  const workflowPath = path.join(target, ".github", "workflows", "ai-check.yml");
+  fs.writeFileSync(workflowPath, "name: my custom ci\n");
+
+  const result = runCli(["update", "--target", target, "--ci", "direct", "--force-managed", "--yes", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.operations.some(
+    (operation) => operation.action === "overwrite-forced" && operation.path === ".github/workflows/ai-check.yml",
+  ), true);
+  const backupPath = path.join(target, ".github", "workflows", "ai-check.yml.bak-0.4.0");
+  assert.equal(fs.readFileSync(backupPath, "utf8"), "name: my custom ci\n");
+  const after = fs.readFileSync(workflowPath, "utf8");
+  assert.notEqual(after, "name: my custom ci\n");
+  // 上書き後は新 upstream（SARIF コメント雛形入り）になっている
+  assert.match(after, /semgrep scan --sarif/);
+  // 上書き後は doctor が pass する（upstream と一致）
+  assert.equal(doctor(target, ["--ci", "direct"]).status, 0);
+});

@@ -10,6 +10,13 @@ import {
   hashContent,
   managedFileStateKey,
 } from "../../src/cli/managed-files.mjs";
+import {
+  DIRECT_CI_FILES,
+  isManagedCiWorkflowContent,
+  renderedCiWorkflow,
+} from "../../src/cli/ci-workflows.mjs";
+
+const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
 
 // SPEC-0056 unit tests for the single managed-file listing module (INV-03).
 // Expected values are derived from the SPEC (scope bullet: shell scripts,
@@ -134,6 +141,22 @@ test("各 managed ファイルの render は文字列内容を返す", async () 
     const content = await file.render();
     assert.equal(typeof content, "string");
     assert.equal(content.length > 0, true, `empty render: ${file.relativePath}`);
+  }
+});
+
+test("isManagedCiWorkflowContent は更新後 CI テンプレの 4 PM 変種を managed と判定する", async () => {
+  // SPEC-0062 AC-05 / FR-06 / INV-03: SARIF/paths/matrix コメント雛形を追加した
+  // 更新後テンプレでも、4 PM（pnpm/npm/yarn/bun）× 2 direct file の描画結果は
+  // すべて managed と判定される（未改変利用者の auto-follow の前提）
+  for (const fileName of DIRECT_CI_FILES) {
+    for (const packageManager of PACKAGE_MANAGERS) {
+      const content = await renderedCiWorkflow(fileName, packageManager);
+      assert.equal(
+        await isManagedCiWorkflowContent(fileName, content),
+        true,
+        `${fileName} (${packageManager}) が managed と判定されない`,
+      );
+    }
   }
 });
 
