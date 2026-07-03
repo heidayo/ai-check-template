@@ -89,7 +89,9 @@ export async function validateExpectationFile(filePath) {
   };
 }
 
-function parseExpectationContent(content, extension) {
+// FR-02 (SPEC-0059): exported so report can reuse the same parse step and
+// also access the parsed value (validateExpectationFile only returns issues).
+export function parseExpectationContent(content, extension) {
   try {
     if (extension === ".json") {
       return { value: JSON.parse(content), issues: [] };
@@ -104,7 +106,8 @@ function parseExpectationContent(content, extension) {
   return { value: null, issues: [issue("unsupported-extension", "Expected .json, .yaml, or .yml")] };
 }
 
-function validateExpectation(value) {
+// FR-02 (SPEC-0059): exported for reuse by report.
+export function validateExpectation(value) {
   const issues = [];
   const requirement = value?.requirement;
   if (!requirement || typeof requirement !== "object") {
