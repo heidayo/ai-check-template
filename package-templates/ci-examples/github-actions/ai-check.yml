@@ -74,3 +74,50 @@ jobs:
       #   with:
       #     name: ai-check-logs
       #     path: .ai-check/
+
+# --- Semgrep SARIF (opt-in) ---
+# Semgrep の finding を GitHub Code Scanning（Security タブ）に載せる opt-in 雛形。
+# 既定は無効（コメントアウト）。有効化する場合は下記 3 要素をセットでコメント解除する。
+# 詳細な有効化手順は docs/github-actions.md の SARIF opt-in 節を参照。
+#
+# なぜ package script と別経路か:
+#   package script の security:sast は `semgrep scan --config auto`（人が読む標準出力）。
+#   CI SARIF は `--sarif --output` を足した別呼び出しで、security:sast / ai:check:secure は
+#   呼ばない（package script は変えない）。config は同じ `--config auto` を使う。
+#
+# secret 非混入の注意（重要）:
+#   SARIF の finding にはマッチしたコードパスや周辺コードが含まれる。SARIF は
+#   Security タブ経由で閲覧範囲が決まる（public repo では閲覧範囲が広がりうる）。
+#   secret / private value を CI ログや SARIF に載せないのは利用者の責任。
+#   環境変数・secret を Semgrep の出力に流し込まない構成にすること。
+#
+# 有効化手順（3 要素をコメント解除する）:
+#
+# (a) permission — SARIF upload には security-events: write が必須。
+#     付与漏れだと upload ステップが 403 で失敗する。
+#     SARIF を使わない利用者の権限は既定の contents: read のまま広げないこと
+#     （least-privilege）。private repo では actions: read / contents: read も要る。
+#     上部の `permissions:` ブロックを次の形に置き換える:
+#
+#     permissions:
+#       contents: read
+#       security-events: write   # SARIF upload に必須。有効化する場合のみ追加
+#       # actions: read          # private repo で upload-sarif が必要とする
+#
+# (b) scan ステップ — jobs.ai-check.steps 末尾に追加する。
+#     semgrep の install（例: pip install semgrep）は本雛形に含めない。
+#     利用者が有効化時に用意する（scanner の自動 install はしない）:
+#
+#     - name: Run Semgrep (SARIF)
+#       run: semgrep scan --sarif --output=semgrep.sarif --config auto
+#
+# (c) upload ステップ — scan の直後に追加する。
+#     upload-sarif の入力名・バージョンは有効化時に公式ドキュメントで確認すること
+#     （github/codeql-action / Semgrep のフラグは将来変わりうる）。
+#     照合日 2026-07-03: sarif_file 入力・@v4 を確認（v3 も現行サポート）:
+#
+#     - name: Upload SARIF to Code Scanning
+#       if: always()
+#       uses: github/codeql-action/upload-sarif@v4
+#       with:
+#         sarif_file: semgrep.sarif
