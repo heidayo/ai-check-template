@@ -624,10 +624,10 @@ If the previous always-overwrite behavior is required, pin the previous release:
 
 ### Restoring from a `.bak-<version>` backup
 
-`--force-managed` writes the previous content to `<file>.bak-<packageVersion>` (for example `scripts/ai-check.sh.bak-0.4.0`) before overwriting. To restore a backup:
+`--force-managed` writes the previous content to `<file>.bak-<packageVersion>` (for example `scripts/ai-check.sh.bak-0.5.0`) before overwriting. To restore a backup:
 
 ```bash
-mv scripts/ai-check.sh.bak-0.4.0 scripts/ai-check.sh
+mv scripts/ai-check.sh.bak-0.5.0 scripts/ai-check.sh
 ```
 
 After restoring, the next `update` reports the file as `skip-modified` again and keeps it. Backup files can contain project-specific content (including secrets embedded in customized scripts); add `*.bak-*` to `.gitignore` and do not commit them.

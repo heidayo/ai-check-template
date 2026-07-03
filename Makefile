@@ -194,7 +194,7 @@ validate-structure:
 	@grep -q "releases/v0.4.0.md" docs/roadmap.md
 	@grep -q "Released on 2026-05-19" docs/roadmap.md
 	@test -f package.json
-	@grep -q '"version": "0.4.0"' package.json
+	@grep -q '"version": "0.5.0"' package.json
 	@grep -q '"ai-check-template": "bin/ai-check-template.mjs"' package.json
 	@grep -q '"repository"' package.json
 	@grep -q '"bugs"' package.json
@@ -335,6 +335,18 @@ validate-structure:
 	@grep -q "npm publish --dry-run --tag latest" README.md
 	@grep -q "npm publish --dry-run --tag latest" README-en.md
 	@grep -q "npm publish --dry-run --tag latest" docs/roadmap.md
+	@test -f docs/releases/v0.5.0.md
+	@grep -q "^## Highlights" docs/releases/v0.5.0.md
+	@grep -q "^## Install" docs/releases/v0.5.0.md
+	@grep -q "^## Verification" docs/releases/v0.5.0.md
+	@grep -q "^## Publish" docs/releases/v0.5.0.md
+	@grep -q "^## Limitations" docs/releases/v0.5.0.md
+	@grep -q "^## Next" docs/releases/v0.5.0.md
+	@grep -q "ai-check-template@0.5.0" docs/releases/v0.5.0.md
+	@grep -q "releases/v0.5.0.md" docs/roadmap.md
+	@grep -q "v0.5.0" README.md
+	@grep -q "v0.5.0" README-en.md
+	@grep -q "v0.5.0" package-templates/README.md
 	@echo "validate-structure: PASS"
 
 validate-cli:

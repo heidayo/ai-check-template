@@ -9,7 +9,8 @@ Versioned milestones for `ai-check-template`. Each version aims to deliver enoug
 - v0.1.0: manual copy-and-adapt templates.
 - v0.2.0: first stable npm CLI package, `ai-check-template@0.2.0`.
 - v0.3.0: GitHub Actions integration foundation. This is not an npm package release.
-- v0.4.0: current stable npm CLI package, `ai-check-template@0.4.0`, for structured check evidence, structured AC/Test Matrix validation, and expanded security gates.
+- v0.4.0: stable npm CLI package, `ai-check-template@0.4.0`, for structured check evidence, structured AC/Test Matrix validation, and expanded security gates.
+- v0.5.0: current stable npm CLI package, `ai-check-template@0.5.0`, for update customization safety (managed-file hash 3-way, local overlay), external check config, formal-name-match reporting, profile composition rules, monorepo workspaces, CI monorepo/SARIF opt-in, parameterized RLS templates, authz Semgrep examples, and custom profile definitions.
 
 Future npm publishes still require repository validation, including `npm pack` readiness checks and `npm publish --dry-run --tag latest` preflight.
 
@@ -154,6 +155,37 @@ Future npm publishes still require repository validation, including `npm pack` r
 
 - v0.2.0 provides the stable npm CLI scaffolding base.
 - v0.3.0 provides the hosted GitHub Actions foundation that can consume the generated `ai:check` scripts.
+
+## v0.5.0 — Update-safe customization, machine-readable verification, and profile extensibility
+
+**Status**: Prepared from real-project dogfooding feedback. Release notes: [`./releases/v0.5.0.md`](./releases/v0.5.0.md).
+
+**Release type**: npm CLI release. The npm package is `ai-check-template@0.5.0`.
+
+**Theme**: Let adopters customize the template safely and drive verification from machine-readable evidence, without forking the managed files.
+
+**Delivered scope**
+
+- [x] Managed-file hash baselines in install state (schema v2) and 3-way `update` that protects locally modified managed files as `skip-modified` with `--force-managed` / `--keep-local` / `--diff` (SPEC-0056)
+- [x] Installer-owned overlay slots: auto-sourced `scripts/ai-check.local.sh` and untouched `.claude/rules/local/` (SPEC-0057)
+- [x] `.ai-check.yaml` / `.ai-check.json` step configuration for `run` (SPEC-0058)
+- [x] `report` command that reconciles declared AC / Test Matrix against `run --json` evidence, plus a pinned `run-result.schema.json` (SPEC-0059)
+- [x] Specified base+addon profile composition rules with a snapshot regression guard (SPEC-0060)
+- [x] `--workspace <pkg-dir>` monorepo support for `init` / `update` / `doctor` (SPEC-0061)
+- [x] CI templates with paths-filter/matrix examples, opt-in Semgrep SARIF for GitHub Code Scanning, and SHA-pin guidance (SPEC-0062)
+- [x] Schema-independent, parameterized supabase-rls test templates (SPEC-0063)
+- [x] Opt-in authz/RLS Semgrep rule examples in the supabase-rls addon (SPEC-0064)
+- [x] Custom profile external definitions via `--profile-file` without changing the built-in profiles (SPEC-0065)
+
+**Breaking behavior change**
+
+- `update` no longer overwrites managed files that the user has modified; it reports them as `skip-modified` and requires `--force-managed` to overwrite (with a `.bak-<version>` backup). Unmodified files still auto-follow upstream. See [`./releases/v0.5.0.md`](./releases/v0.5.0.md).
+
+**Dependencies on prior versions**
+
+- v0.2.0 CLI scaffolding and install state, v0.4.0 `run` / `expect` structured evidence.
+
+**Post-release observation (OPS-03)**: Observe one release cycle of dogfooding to confirm the 3-way `skip-modified` default produces zero false positives before considering any further default changes.
 
 ## Beyond v0.4.0
 
