@@ -260,6 +260,8 @@ T1 → T2 は直列（テンプレ確定 → テスト固定）。T3 は T1 完�
 
 ## 関連ID
 
-- PLAN-ID: （計画フェーズで記入）
-- TASK-ID: （分割フェーズで記入）
+- PLAN-ID: PLAN-0062
+- TASK-ID: TASK-0222（SARIF opt-in 雛形 = T1a）, TASK-0223（monorepo paths/matrix 雛形 = T1b）, TASK-0224（テスト = T2）, TASK-0225（`docs/github-actions.md` = T3）, TASK-0226（`ci-examples/README.md` = T4）
+- Done Definition: `tasks/done-def-SPEC-0062-round-1.md`
+- T1 分割判断: SPEC T1 を T1a（SARIF, TASK-0222）/ T1b（paths+matrix, TASK-0223）に分割（根拠: SARIF は Gate 3 security 観点 = 外部 action 照合 / permission least-privilege / secret 非混入を持ち、OPS-01 が SARIF を単独観測するため独立コミット化。paths/matrix は Gate 2 monorepo 観点で分離。両者は `ai-check.yml` の互いに素なコメントブロックで競合しない。詳細は PLAN-0062「T1 分割判断」節）
 - 参考: SPEC-0051（SARIF スコープ外宣言の解禁元 — line 38「GitHub code scanning SARIF upload」）, SPEC-0056（managed file hash 3-way 後方互換の前提）, SPEC-0061（`--workspace` — paths filter / matrix 例の接続先）
