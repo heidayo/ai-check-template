@@ -79,6 +79,13 @@ RLS testing を実装する場合は、まず以下の templates を target proj
 
 `rls-permission.md` で権限マトリクスを作り、OK / NG の各セルを pgTAP または integration test に落とす。`service_role` は RLS を bypass し得るため、RLS correctness の検証では使わない。
 
+### Semgrep ルール例（opt-in）
+
+この addon は authz / RLS / レート制限を無視した典型失敗を静的に拾う Semgrep ルール例 [`../../supabase/semgrep/authz-rules.yml`](../../supabase/semgrep/authz-rules.yml) を同梱する（3 ルール: service_role クライアント誤用 / 所有者フィルタなし RLS クエリ / ガードなし TS route handler）。ルールは**出発点であり網羅ではなく、誤検知しうる**前提で使う。RLS correctness の主担当は上記テンプレ（pgTAP / integration）で、Semgrep は補助。
+
+- 既定の `security:sast`（`semgrep scan --config auto`）は**変えない**。ルールは opt-in で、適用時に `--config` を**追加**する: `semgrep scan --config auto --config ./supabase/semgrep/authz-rules.yml`
+- 誤検知は `// nosemgrep: <rule-id>` で行単位抑制、`paths:` / `pattern-not` でチューニングする。詳細な適用手順・triage 導線は [`../../supabase/README.md`](../../supabase/README.md) の「Semgrep rule examples」節を参照。
+
 ### 権限マトリクス → テスト設定変数の対応づけ
 
 これらのテンプレは**変数集約形**で、スキーマ依存の識別子は各ファイル冒頭の「設定変数ブロック」1 箇所に集約されている（本文に直書きしない）。`rls-permission.md` が生成する権限マトリクス（role / resource / action）を、この設定変数へ次のように落とし込む。

@@ -101,6 +101,38 @@ from your local seed data.
 Do not use `service_role` or another privileged server key for RLS correctness
 tests. It can bypass RLS and make a broken policy look safe.
 
+### Semgrep rule examples (opt-in)
+
+This addon ships example Semgrep rules that flag common ways authorization,
+RLS, or rate limiting get skipped in Supabase + TypeScript/Next.js code:
+[`semgrep/authz-rules.yml`](./semgrep/authz-rules.yml). They are a
+**starting point, not exhaustive**, and **will produce false positives** on
+some codebases. RLS correctness itself is proven by the pgTAP / integration
+templates above; these rules are a supplementary early-warning.
+
+- **The default gate does not change.** `security:sast` stays
+  `semgrep scan --config auto`. These rules are not wired into it.
+- **Apply them by adding a second `--config`:**
+
+  ```bash
+  semgrep scan --config auto --config ./supabase/semgrep/authz-rules.yml
+  ```
+
+  Skipping the extra `--config` keeps the default behavior unchanged.
+- **False positives are expected.** Suppress a reviewed line with
+  `// nosemgrep: <rule-id>` (for example
+  `// nosemgrep: supabase-rls.service-role-client-misuse`). Narrow a rule with
+  its `paths:` / `pattern-not` blocks — copy the file into your project and
+  edit it to fit your codebase.
+- **Triage the output** with
+  [`../prompts/security-scan.md`](../prompts/security-scan.md), the same
+  prompt used for `security:sast` findings.
+
+Consistent with the note above, these rules only **detect** the service_role
+misuse anti-pattern; they never recommend a service_role path. Their pattern
+references env var names such as `SUPABASE_SERVICE_ROLE_KEY` by name only, with
+no values.
+
 > Manual-copy note: these templates are copied by hand, not managed by the CLI.
 > Changing a template here does **not** flow to copies you already made — the
 > new form only applies to the next fresh copy. Re-copy a file if you want the
