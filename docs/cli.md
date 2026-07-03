@@ -38,6 +38,7 @@ node ../ai-check-template/bin/ai-check-template.mjs doctor --target . --strict -
 node ../ai-check-template/bin/ai-check-template.mjs update --target . --yes
 node ../ai-check-template/bin/ai-check-template.mjs run --target . --script ai:check --output .ai-check/ai-check-result.json --json
 node ../ai-check-template/bin/ai-check-template.mjs expect --file docs/ai-check-template/docs/ac-test-matrix.example.yaml --json
+node ../ai-check-template/bin/ai-check-template.mjs report --expect docs/ac-test-matrix.json --run .ai-check/ai-check-result.json --strict
 ```
 
 ## Init options
@@ -224,6 +225,63 @@ The validator checks that requirement metadata exists, AC IDs are unique, every
 AC has a command, every test row references a known AC, and every AC is covered
 by at least one test row. YAML support is intentionally limited to the packaged
 template shape; use JSON for richer metadata.
+
+Each acceptance criterion may declare an optional `step` field (non-empty
+string) naming the `run` result step that verifies it. `step` is the
+recommended, explicit way to bind a criterion to a measured step for the
+`report` command below. An empty `step` is reported as an `invalid-step` issue.
+
+## Report options
+
+`report` matches declared acceptance criteria (`--expect`, same file format and
+validation as `expect`) against a run result JSON written by
+`run --output` / `run --json` (`--run`). It is read-only: it never executes
+commands or writes files, and its output never includes step stdout/stderr.
+
+| Option | Default | Description |
+|---|---|---|
+| `--expect <file>` | required | JSON or template-subset YAML AC/Test Matrix file. |
+| `--run <file>` | required | Run result JSON produced by `run --output` / `run --json`. |
+| `--format <name>` | `text` | Output format: `text`, `markdown`, or `json`. |
+| `--json` | off | Alias for `--format json`. |
+| `--strict` | off | Exit code 1 when any AC is FAIL or UNVERIFIED (report is still printed). |
+
+Matching rules are deterministic and use explicit keys only — no fuzzy
+matching:
+
+- If the AC has a `step` field, it matches the run step whose `name` is exactly
+  equal. A `step` value that names no run step (including a typo) yields
+  `no-match` and the AC becomes UNVERIFIED, so `--strict` in CI also catches
+  `step` typos.
+- Without `step`, the AC `command` must equal exactly one step `command` after
+  trimming. Zero matches yield `no-match`; two or more matches yield
+  `ambiguous-command` — the AC stays UNVERIFIED instead of guessing. Add a
+  `step` field to disambiguate.
+
+Verdict per AC: PASS (matched step is PASS), FAIL (matched step is FAIL),
+UNVERIFIED (no match, or matched step is SKIPPED). `--format json` records the
+match reason (`matched-step` / `matched-command` / `no-match` /
+`ambiguous-command`) per criterion for machine consumption.
+
+Invalid inputs fail fast without printing a report: expect validation issues,
+unparsable run JSON, missing/invalid run fields, or duplicate step names all
+exit non-zero. If the run JSON is stale or hand-edited, regenerate it with
+`ai-check-template run --output <file>`.
+
+CI example (two-command pipeline):
+
+```bash
+npx -y ai-check-template run --target . --script ai:check --output .ai-check/run-result.json
+npx -y ai-check-template report --expect docs/ac-test-matrix.json --run .ai-check/run-result.json --strict
+```
+
+`report --format markdown` emits a GFM table (AC / criterion / matched step or
+command / verdict) plus a summary line for pasting into the PR body
+Verification section.
+
+The run result contract consumed by `report` is fixed by
+[`package-templates/docs/run-result.schema.json`](../package-templates/docs/run-result.schema.json)
+(additive-only changes).
 
 ## Install state
 

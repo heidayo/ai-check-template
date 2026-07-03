@@ -134,9 +134,12 @@ pnpm ai:check
 pnpm ai:check:secure
 npx -y ai-check-template run --target . --script ai:check --json
 npx -y ai-check-template expect --file docs/ai-check-template/docs/ac-test-matrix.example.json --json
+npx -y ai-check-template report --expect docs/ac-test-matrix.json --run .ai-check/run-result.json --strict
 ```
 
-`run` and `expect` are repository-current CLI additions. Before the next npm publish, use this repository checkout or an `npm pack` tarball to try them.
+`report` machine-matches declared acceptance criteria (the same AC/Test Matrix file `expect` validates) against the measured JSON from `run --output`, producing PASS / FAIL / UNVERIFIED per AC. Matching uses explicit keys only: the optional AC `step` field must exactly equal a run step `name`; without `step`, the AC `command` must equal exactly one step `command` after trimming (multiple matches yield `ambiguous-command` and UNVERIFIED — add `step` to disambiguate). A `step` typo also becomes UNVERIFIED, so wiring `--strict` (exit 1 when any AC is FAIL / UNVERIFIED) into CI catches typos too. The `--format markdown` table can be pasted directly into the PR body Verification section. See "Report options" in [`docs/cli.md`](./docs/cli.md).
+
+`run`, `expect`, and `report` are repository-current CLI additions. Before the next npm publish, use this repository checkout or an `npm pack` tarball to try them.
 
 The steps `run` executes per gate (fast / full / secure) can be declaratively replaced or disabled by placing `.ai-check.yaml` (or `.ai-check.json`) at the project root — opt-in, user-owned, and never touched by the installer. Without the file, behavior is unchanged; deleting it fully restores the default behavior. Each step in `--json` output records its origin via `name` / `source` (`config` / `default`) plus a root-level `configPath`. Config `command` values run exactly as committed, so never hardcode secrets / tokens / API keys — pass them via environment variables or a secret manager. See the "Step config" section in [`docs/cli.md`](./docs/cli.md) for the schema and a complete example.
 

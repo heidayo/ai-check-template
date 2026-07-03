@@ -31,6 +31,8 @@ Complete this section when AI coding tools contributed implementation, tests, or
 
 ## Verification
 
+<!-- ai-check-template report --format markdown の出力（AC 宣言と run 実測の照合表）をここに貼ると検証状況を機械照合済みの形で示せます -->
+
 1.
 2.
 3.
