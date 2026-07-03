@@ -121,3 +121,74 @@ jobs:
 #       uses: github/codeql-action/upload-sarif@v4
 #       with:
 #         sarif_file: semgrep.sarif
+
+# --- monorepo: paths filter (opt-in) ---
+# 変更パッケージのみで CI を起動する opt-in 雛形。既定は無効（下記はコメント）。
+# monorepo で全パッケージ横断の CI を毎回回したくない場合に有効化する。
+# 詳細は docs/github-actions.md の monorepo 節を参照。
+#
+# 有効化する場合、上部の `on:` ブロックを次の形に置き換える。
+# SPEC-0061 の `--workspace <pkg-dir>` で対象パッケージを絞っているなら、
+# その対象ディレクトリを paths の glob に指定する（例: packages/app）:
+#
+# on:
+#   pull_request:
+#     paths:
+#       - 'packages/app/**'
+#       # 共有設定の変更でも起動したい場合は横断パスも足す:
+#       # - '.github/workflows/**'
+#       # - 'package.json'
+#       # - 'pnpm-lock.yaml'
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'packages/app/**'
+#
+# 注意（required check が pending のままになる問題）:
+#   paths filter で「対象外パスだけを変更した PR」は全 job がスキップされる。
+#   その job を GitHub の required status check にしていると、never-run のまま
+#   pending 扱いになりマージがブロックされる。回避策:
+#     - paths filter に一致しない PR でも「常に成功する fallback job」を用意し、
+#       それを required check に指定する（下記の例）、または
+#     - job 単位の必須化を避け、branch protection の required check を
+#       この workflow に紐付けない運用にする。
+#   fallback job の例（別 job としてこの workflow に足すか、別 workflow に置く）:
+#
+#   guard:
+#     if: always()
+#     runs-on: ubuntu-latest
+#     steps:
+#       - run: echo "paths filter skip guard (always green)"
+
+# --- monorepo: matrix (opt-in) ---
+# 複数 Node バージョン、または複数 workspace ディレクトリを 1 job で回す opt-in 雛形。
+# 既定は無効（下記はコメント）。既定の単一 job 構成は変えない。
+# 詳細は docs/github-actions.md の monorepo 節を参照。
+#
+# 有効化する場合、jobs.ai-check に `strategy.matrix` を足し、
+# 対応する step の値を matrix 変数に差し替える。
+#
+# (1) 複数 Node バージョンを回す例（matrix.node を node-version に接続）:
+#
+#     strategy:
+#       fail-fast: false   # 1 つ落ちても他バージョンの結果を得たいなら false
+#       matrix:
+#         node: [20, 22]
+#     # steps 内の setup-node を次の形にする:
+#     #   - uses: actions/setup-node@v5
+#     #     with:
+#     #       node-version: ${{ matrix.node }}
+#     #       cache: pnpm
+#
+# (2) 複数 workspace ディレクトリを回す例
+#     （matrix.workspace を working-directory / SPEC-0061 の --workspace 相当に接続）:
+#
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         workspace: [packages/app, packages/api]
+#     # 既存の install step / check step に working-directory を足して
+#     # matrix.workspace のディレクトリで実行させる:
+#     #       working-directory: ${{ matrix.workspace }}
+#     # ※ run の中身（install / ai:check）は既存 step のものを流用する。
+#     #   利用プロジェクトの PM に合わせたコマンドが既に active 側に入っている。
