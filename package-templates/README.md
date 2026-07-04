@@ -63,7 +63,7 @@ package-templates/
 - v0.1.0 — Released（2026-05-14）。手動コピーで使う template set として配布。
 - v0.2.0 — Released（2026-05-16）。`npx ai-check-template init` でこの template set を導入できる stable CLI release。
 - v0.4.0 — Released（2026-05-19）。`run` / `expect`、structured AC/Test Matrix、拡張 security gate を含む npm CLI release。
-- v0.5.0 — Prepared（pending publish）。update カスタマイズ安全化（3-way / overlay）・外部チェック設定・`report`・profile 合成 / monorepo / custom profile・CI monorepo / SARIF・RLS parameterize・authz Semgrep を含む npm CLI release。npm publish は maintainer が実施予定。
+- v0.5.0 — Released（2026-07-04）。update カスタマイズ安全化（3-way / overlay）・外部チェック設定・`report`・profile 合成 / monorepo / custom profile・CI monorepo / SARIF・RLS parameterize・authz Semgrep を含む npm CLI release。`ai-check-template@0.5.0`（dist-tag `latest`）として npm publish 済み。
 
 ## テスト設計と修復
 

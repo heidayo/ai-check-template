@@ -189,7 +189,7 @@ Review gate は CLI の `--review-templates` で導入するか、[reviewability
 
 ## Roadmap
 
-Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は初回 npm stable CLI package、v0.3.0 は GitHub Actions integration foundation、v0.4.0 は現在 npm に published な stable CLI package `ai-check-template@0.4.0` です。v0.5.0 は準備済みの次期 npm CLI release ですが、npm publish は保留中で、npm 上の current published は依然 v0.4.0 です（v0.5.0 は Prepared / pending publish）。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
+Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は初回 npm stable CLI package、v0.3.0 は GitHub Actions integration foundation、v0.4.0 は structured CLI evidence + security gate expansion release です。v0.5.0 は現在 npm に published な current stable CLI package `ai-check-template@0.5.0`（dist-tag `latest`）です。今後の publish 前も repository validation で `npm pack` readiness check と `npm publish --dry-run --tag latest` preflight を実行します。
 
 | バージョン | テーマ | 状態 |
 |---|---|---|
@@ -197,7 +197,7 @@ Release 表記の意味: v0.1.0 は manual template release、v0.2.0 は初回 n
 | **v0.2.0** | CLI scaffolding（`npx ai-check-template init`） | Released（[notes](./docs/releases/v0.2.0.md)、[alpha notes](./docs/releases/v0.2.0-alpha.0.md)、[CLI docs](./docs/cli.md)） |
 | **v0.3.0** | Hosted reusable workflow + Composite Action（[GitHub Actions guide](./docs/github-actions.md)）、GitHub Marketplace は後続 | Released（[notes](./docs/releases/v0.3.0.md)） |
 | **v0.4.0** | Structured CLI evidence（`run` / `expect`）+ security gate expansion | Released（[notes](./docs/releases/v0.4.0.md)） |
-| **v0.5.0** | update カスタマイズ安全化（3-way / overlay）・外部チェック設定・形名参同レポート・profile 合成 / monorepo / custom profile・CI monorepo / SARIF・RLS parameterize・authz Semgrep | Prepared（[notes](./docs/releases/v0.5.0.md)） |
+| **v0.5.0** | update カスタマイズ安全化（3-way / overlay）・外部チェック設定・形名参同レポート・profile 合成 / monorepo / custom profile・CI monorepo / SARIF・RLS parameterize・authz Semgrep | Released（[notes](./docs/releases/v0.5.0.md)） |
 
 詳細: [`docs/roadmap.md`](./docs/roadmap.md)。
 
